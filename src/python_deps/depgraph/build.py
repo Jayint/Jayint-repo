@@ -1096,12 +1096,11 @@ def build_dep_graph(
     ``llm_dist_guesser`` (default ``None``) is the injected install-lane dist
     guesser the Phase-A repair fixpoint calls on a pipreqs map MISS, fed each
     unresolved Import's used-symbols. ``None`` keeps repair purely deterministic
-    (byte-identical to the pre-guesser behavior). NOTE: threading it down to
-    :func:`_python_package_obligations` runs through the ``ecosystems`` provider
-    seam (``EcosystemProvider.package_obligations``), whose signature does not yet
-    carry this parameter, so it is NOT forwarded from here today; a caller wanting
-    a live guesser injects it at :func:`_python_package_obligations` /
-    ``PythonProvider.package_obligations`` directly. Wiring the seam is a follow-up.
+    (byte-identical to the pre-guesser behavior). It is threaded end-to-end through
+    the ``ecosystems`` provider seam (``EcosystemProvider.package_obligations`` ->
+    ``PythonProvider.package_obligations`` -> :func:`_python_package_obligations` ->
+    :func:`_phase_a_fixpoint`), so a live guesser passed here actually reaches the
+    fixpoint; non-Python providers accept-and-ignore it.
     """
     # Function-local import breaks the build<->provider cycle: by the time this
     # runs, build.py is fully loaded, so ecosystems.python.provider (which imports
@@ -1123,6 +1122,7 @@ def build_dep_graph(
         needed_extras=needed_extras,
         record_provider=record_provider,
         uv_sources_enabled=uv_sources_enabled,
+        llm_dist_guesser=llm_dist_guesser,
     )
     # NOTE: only `graph` flows onward; roots/target_env/exclude_newer are
     # provider-composition / test-visibility surface (spec extraction boundary).

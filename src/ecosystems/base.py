@@ -10,6 +10,7 @@ project_install, bulk_certify, verify commands) in later slices.
 from __future__ import annotations
 
 import enum
+from collections.abc import Callable
 from typing import Protocol
 
 from python_deps.depgraph.schema import DepGraph
@@ -60,6 +61,7 @@ class EcosystemProvider(Protocol):
         needed_extras: frozenset[str] = frozenset(),
         record_provider: object | None = None,
         uv_sources_enabled: bool = False,
+        llm_dist_guesser: Callable[[str, tuple[str, ...]], list[str]] | None = None,
     ) -> tuple[DepGraph, list, object, str | None]:
         """PHASE 1 body. Returns ``(graph, roots, target_env, exclude_newer)``;
         only ``graph`` flows onward (the rest are provider-composition / test-
@@ -69,7 +71,12 @@ class EcosystemProvider(Protocol):
         (``research_zero_impact.md`` §3). ``uv_sources_enabled`` (V3_UV_SOURCES,
         default OFF) is a Python/uv-specific false-green gate — see
         ``python_deps.depgraph.build._python_package_obligations``'s docstring;
-        other ecosystems accept-and-ignore it exactly like ``record_provider``."""
+        other ecosystems accept-and-ignore it exactly like ``record_provider``.
+        ``llm_dist_guesser`` is the opaque install-lane dist guesser
+        ``(import_name, symbols) -> [dist, ...]`` the Python fixpoint calls on a
+        pipreqs map MISS; annotated structurally (this module stays
+        ecosystem-agnostic and never imports ``python_deps``). Non-Python
+        providers accept-and-ignore ``None`` exactly like ``record_provider``."""
         ...
 
     def native_obligations(self, graph: DepGraph, container_executor: object) -> DepGraph:

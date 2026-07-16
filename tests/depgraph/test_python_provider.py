@@ -65,6 +65,58 @@ def test_package_obligations_delegates_and_threads_record_provider(monkeypatch):
     assert seen["kw"]["record_provider"] == "RP"          # threaded (INV signature-stability)
 
 
+def test_package_obligations_threads_llm_dist_guesser(monkeypatch):
+    """The seam forwards an injected ``llm_dist_guesser`` down to the fixpoint
+    helper. Without this hop, ``build_dep_graph(llm_dist_guesser=g)`` is a silent
+    no-op (the guesser is dropped at the provider boundary) — a false-green the
+    project cannot ship. Task 5/6 install-lane guesser thread-through."""
+    seen = {}
+    sentinel = object()
+
+    def fake_helper(repo, ce, **kw):
+        seen["kw"] = kw
+        return ("G", [], object(), None)
+
+    monkeypatch.setattr(provmod, "_python_package_obligations", fake_helper)
+    PythonProvider().package_obligations(
+        "/r", "CE", host_executor="HE", llm_dist_guesser=sentinel,
+    )
+    assert seen["kw"]["llm_dist_guesser"] is sentinel
+
+
+def test_build_dep_graph_reaches_fixpoint_llm_end_to_end(tmp_path):
+    """HOP A + full chain: ``build_dep_graph(llm_dist_guesser=g)`` must reach
+    ``_phase_a_fixpoint``'s ``llm`` and call it on a pipreqs MISS. Uses the
+    lightweight fake-executor harness (no container/network). ``zzznope`` is a
+    guaranteed pipreqs miss, so the fixpoint's map-miss branch invokes the guesser
+    with ``(import_name, symbols)`` — proving the guesser is not dropped at the
+    ``build_dep_graph -> provider seam -> _python_package_obligations`` boundary."""
+    from conftest import SequencedFakeExecutor  # type: ignore
+
+    from python_deps.depgraph.build import build_dep_graph
+    from python_deps.depgraph.executor import CommandResult
+
+    def _r(rc=0, stdout="", stderr=""):
+        return CommandResult(command="", returncode=rc, stdout=stdout, stderr=stderr)
+
+    (tmp_path / "app.py").write_text("import zzznope\n")
+    ex = SequencedFakeExecutor(
+        responses={"uv lock": [_r(1, stderr="x")], "uv pip compile": [_r(0, stdout="")]},
+        default=_r(0),
+    )
+    calls = []
+
+    def guesser(import_name, symbols):
+        calls.append((import_name, symbols))
+        return []  # propose nothing -> deterministic residue, but proves reachability
+
+    build_dep_graph(
+        str(tmp_path), ex, host_executor=ex,
+        record_provider=lambda _dist: None, llm_dist_guesser=guesser,
+    )
+    assert ("zzznope", ()) in calls  # the guesser was reached and fed the import
+
+
 def test_native_obligations_delegates(monkeypatch):
     seen = {}
     sentinel = object()
