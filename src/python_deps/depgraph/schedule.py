@@ -64,7 +64,6 @@ class ObligationPacket:
     """The agent's problem statement for one obligation — assembled from the graph."""
     node_id: str
     node_type: str
-    tier: int
     layer: str
     goal: str
     evidence: str
@@ -87,13 +86,12 @@ def frame_obligation(graph: DepGraph, node: Node) -> ObligationPacket:
     )
     certified_context = tuple(n.id for n in graph.nodes if n.state is State.SATISFIED)
     goal = (
-        f"Satisfy obligation '{node.name}' ({node.type.value}, tier {node.tier}): "
+        f"Satisfy obligation '{node.name}' ({node.type.value}): "
         f"make the host check `{node.check_command}` succeed."
     )
     return ObligationPacket(
         node_id=node.id,
         node_type=node.type.value,
-        tier=node.tier,
         layer=node.layer.value,
         goal=goal,
         evidence=node.evidence or "",

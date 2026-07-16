@@ -436,34 +436,6 @@ def test_config_id_format():
     assert ids.config_id("DJANGO_SETTINGS_MODULE") == "config:DJANGO_SETTINGS_MODULE"
 
 
-# --- Task 2: Node.tier auto-derived from type ---
-
-def test_tier_auto_derived_from_type():
-    pkg = make_node("pkg:x", NodeType.PACKAGE, "x", Layer.PIP)
-    cfg = make_node("config:X", NodeType.CONFIG, "X", Layer.CONFIG)
-    syslib = make_node("syslib:libGL.so.1", NodeType.SYSTEM_LIB, "libGL.so.1", Layer.SYSTEM)
-    assert pkg.tier == 4
-    assert cfg.tier == 6
-    assert syslib.tier == 2
-
-
-def test_goal_nodes_have_tier_zero():
-    test_node = make_node("test:repo_tests_pass", NodeType.TEST, "repo_tests_pass", Layer.TESTS)
-    assert test_node.tier == 0
-
-
-def test_explicit_tier_is_respected():
-    from python_deps.depgraph.schema import Node
-    n = Node(id="config:X", type=NodeType.CONFIG, name="X", layer=Layer.CONFIG,
-             discovered_by=DiscoveredBy.STATIC_SCAN, tier=3)
-    assert n.tier == 3
-
-
-def test_to_dict_includes_tier():
-    cfg = make_node("config:X", NodeType.CONFIG, "X", Layer.CONFIG)
-    assert cfg.to_dict()["tier"] == 6
-
-
 # --- Task 3: requires edges into new env-tier node types ---
 
 def test_requires_edge_into_config_is_allowed():

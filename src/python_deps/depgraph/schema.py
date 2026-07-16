@@ -29,24 +29,6 @@ class NodeType(enum.Enum):
     CONFIG = "Config"          # tier 6
 
 
-# Provider-stack tier per node type; goal types (Test/Project/Import) map to 0
-# (they are the demand side, not a tier). See design §3.1/§3.2.
-TYPE_TO_TIER: dict["NodeType", int] = {
-    NodeType.PLATFORM: 1,
-    NodeType.SYSTEM_LIB: 2,
-    NodeType.TOOL: 2,
-    NodeType.RUNTIME: 3,
-    NodeType.PACKAGE: 4,
-    NodeType.SERVICE: 5,
-    NodeType.CONFIG: 6,
-}
-
-
-def tier_for_type(node_type: "NodeType") -> int:
-    """Provider tier for ``node_type``; 0 for goal nodes (Test/Project/Import)."""
-    return TYPE_TO_TIER.get(node_type, 0)
-
-
 class EdgeType(enum.Enum):
     REQUIRES = "requires"
     ALTERNATIVE_TO = "alternative_to"  # reserved; not emitted in this plan
@@ -152,7 +134,6 @@ class Node:
     name: str
     layer: Layer
     discovered_by: DiscoveredBy
-    tier: int = 0  # 0 = derive from type in __post_init__ (goal nodes stay 0)
     state: State = State.UNKNOWN
     version: str | None = None
     check_command: str | None = None
@@ -184,11 +165,6 @@ class Node:
     phase: Phase = Phase.SETUP
 
     def __post_init__(self) -> None:
-        # Derive tier from type when left at the 0 sentinel. Idempotent for goal
-        # nodes (tier_for_type returns 0 for them). frozen=True blocks rebinding,
-        # so set through object.__setattr__.
-        if self.tier == 0:
-            object.__setattr__(self, "tier", tier_for_type(self.type))
         if not isinstance(self.data, types.MappingProxyType):
             object.__setattr__(self, "data", types.MappingProxyType(dict(self.data)))
 
@@ -221,7 +197,6 @@ class Node:
             "type": self.type.value,
             "name": self.name,
             "layer": self.layer.value,
-            "tier": self.tier,
             "discovered_by": self.discovered_by.value,
             "state": self.state.value,
             "version": self.version,
@@ -269,7 +244,6 @@ class Node:
             name=d["name"],
             layer=Layer(d["layer"]),
             discovered_by=DiscoveredBy(d["discovered_by"]),
-            tier=d.get("tier", 0),
             state=State(d["state"]),
             version=d.get("version"),
             check_command=d.get("check_command"),

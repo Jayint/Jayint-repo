@@ -27,7 +27,7 @@ def test_to_dict_emits_ecosystem_for_non_python_nodes():
 
 def test_to_dict_key_set_is_byte_identical_for_python_nodes():
     expected = {
-        "id", "type", "name", "layer", "tier", "discovered_by", "state",
+        "id", "type", "name", "layer", "discovered_by", "state",
         "version", "check_command", "evidence", "fix_candidates", "chosen_fix",
         "attempts", "provenance", "discovered_cycle", "certified_cycle",
         "build_from_source", "artifact", "hash", "resolved_python",

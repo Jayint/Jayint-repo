@@ -25,7 +25,7 @@ if str(_SRC) not in sys.path:
 
 from python_deps.depgraph.schema import (
     Attempt, DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, Phase, State,
-    Strength, tier_for_type,
+    Strength,
 )
 
 
@@ -57,19 +57,12 @@ def _rich_graph() -> DepGraph:
 _MAX_NODE = "pkg:serde==1.0.219"
 _OTHER_NODE = "pkg:serde==0.9.0"
 
-# tier is DERIVED in __post_init__ when left at the 0 sentinel (a Package derives 4). So a
-# `from_dict` that forgot to read `tier` would land on 0, re-derive 4, and round-trip clean --
-# invisible. Pinning a tier that differs from the derived one is what makes the drop detectable.
-_UNDERIVABLE_TIER = 9
-assert _UNDERIVABLE_TIER != tier_for_type(NodeType.PACKAGE)
-
 
 def _maximal_graph() -> DepGraph:
     """Every field non-default, so that DROPPING any single read changes the serialized dict."""
     maximal = Node(
         id=_MAX_NODE, type=NodeType.PACKAGE, name="serde",
         layer=Layer.PIP, discovered_by=DiscoveredBy.AUDIT,
-        tier=_UNDERIVABLE_TIER,
         state=State.SATISFIED,
         version="1.0.219",
         check_command="python -c 'import serde'",
@@ -208,5 +201,12 @@ def test_roundtrip_rebuilds_TUPLES_and_MAPPINGS_not_the_lists_JSON_gives_back():
     assert n.strength is Strength.HARD and n.phase is Phase.GATE
     assert n.ecosystem == "rust"                  # the omit-if-default key survives
     assert back.get(_OTHER_NODE).ecosystem == "python"   # ...and its absence still defaults
-    assert n.tier == _UNDERIVABLE_TIER            # not silently re-derived from the type
     assert n == _maximal_graph().get(_MAX_NODE)   # equal to a freshly BUILT node, field for field
+
+
+def test_node_has_no_tier_field():
+    from python_deps.depgraph.schema import Node, NodeType, Layer, DiscoveredBy
+    n = Node(id="x", type=NodeType.PACKAGE, name="x", layer=Layer.PIP,
+             discovered_by=DiscoveredBy.RESOLVER)
+    assert not hasattr(n, "tier")
+    assert "tier" not in n.to_dict()

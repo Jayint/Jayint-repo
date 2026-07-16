@@ -26,7 +26,7 @@ from src.envstate.constants import VERIFY_TEST_CMD  # noqa: E402
 
 def _packet_with_setup(setup):
     return ObligationPacket(
-        node_id="service:redis", node_type="Service", tier=5, layer="services",
+        node_id="service:redis", node_type="Service", layer="services",
         goal="bring up redis", evidence="", check_command="redis-cli ping",
         setup=setup,
     )

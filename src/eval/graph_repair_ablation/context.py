@@ -28,12 +28,12 @@ def flat_list_context(graph: DepGraph) -> str:
 
 def graph_context(graph: DepGraph, symptom_ids: tuple[str, ...] = ()) -> str:
     lines = ["Dependency graph (typed, tiered):"]
-    for n in sorted(graph.nodes, key=lambda x: (x.tier, x.type.value, x.name)):
+    for n in sorted(graph.nodes, key=lambda x: (x.layer.value, x.type.value, x.name)):
         if n.type in (NodeType.PROJECT, NodeType.TEST, NodeType.IMPORT):
             continue
         fix = f"  fix={n.chosen_fix}" if n.chosen_fix else ""
         prov = n.discovered_by.value
-        lines.append(f"- [{n.type.value} tier={n.tier}] {n.name} "
+        lines.append(f"- [{n.type.value}] {n.name} "
                      f"state={n.state.value} via={prov}{fix}")
     # requires-neighborhood so the agent can walk symptom -> cause
     lines.append("\nrequires edges (src requires dst):")
