@@ -120,7 +120,7 @@ Expected: PASS. (A `Project` node that now flips `MISSING` is the intended new s
 
 ```bash
 git add src/python_deps/depgraph/build.py tests/depgraph/test_build.py
-git commit -- src/python_deps/depgraph/build.py tests/depgraph/test_build.py -m "feat(depgraph): certify the Project node by import when dist name maps to a local module"
+git commit -m "feat(depgraph): certify the Project node by import when dist name maps to a local module" -- src/python_deps/depgraph/build.py tests/depgraph/test_build.py
 ```
 
 ---
@@ -195,7 +195,7 @@ Expected: no matches (every remaining `.tier` in the repo is `pkg_layer`'s unrel
 
 ```bash
 git add src/python_deps/depgraph/schema.py src/python_deps/depgraph/schedule.py src/eval/graph_repair_ablation/context.py tests/depgraph/test_schema_roundtrip.py
-git commit -- src/python_deps/depgraph/schema.py src/python_deps/depgraph/schedule.py src/eval/graph_repair_ablation/context.py tests/depgraph/test_schema_roundtrip.py -m "refactor(depgraph): drop the redundant tier axis (layer carries ordering)"
+git commit -m "refactor(depgraph): drop the redundant tier axis (layer carries ordering)" -- src/python_deps/depgraph/schema.py src/python_deps/depgraph/schedule.py src/eval/graph_repair_ablation/context.py tests/depgraph/test_schema_roundtrip.py
 ```
 
 ---
@@ -276,7 +276,7 @@ Expected: PASS.
 
 ```bash
 git add src/python_deps/depgraph/schema.py tests/depgraph/test_schema_roundtrip.py
-git commit -- src/python_deps/depgraph/schema.py tests/depgraph/test_schema_roundtrip.py -m "feat(depgraph): add FILE node type + requires edge rules for the config lane"
+git commit -m "feat(depgraph): add FILE node type + requires edge rules for the config lane" -- src/python_deps/depgraph/schema.py tests/depgraph/test_schema_roundtrip.py
 ```
 
 ---
