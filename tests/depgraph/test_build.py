@@ -1298,3 +1298,57 @@ def test_build_dep_graph_byte_identical_without_direct_references_regardless_of_
 
     assert _signature(graph_off) == _signature(graph_on)
 
+
+def _seed_graph_with_test_goal():
+    """A DepGraph carrying only the Test goal node.
+
+    ``_add_project_node`` always adds a ``Test --requires--> Project`` edge, and
+    ``DepGraph.with_edge`` validates both endpoints exist, so the goal node must
+    be present first (build_dep_graph seeds it via ``scan`` before calling
+    ``_add_project_node``; the sibling ``test_project_node_*`` tests do the same).
+    """
+    from python_deps.depgraph.ids import TEST_NODE_ID
+    from python_deps.depgraph.schema import (
+        DepGraph,
+        DiscoveredBy,
+        Layer,
+        Node,
+        NodeType,
+    )
+
+    return DepGraph().with_node(
+        Node(
+            id=TEST_NODE_ID, type=NodeType.TEST, name="repo_tests_pass",
+            layer=Layer.TESTS, discovered_by=DiscoveredBy.GOAL,
+        )
+    )
+
+
+def test_project_node_certifies_by_import_when_name_matches_local_module(tmp_path):
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "frappe"\nversion = "0.0.0"\n'
+    )
+    pkg = tmp_path / "frappe"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text("")
+    from python_deps.depgraph.build import _add_project_node
+    from python_deps.depgraph.schema import NodeType
+    graph = _add_project_node(_seed_graph_with_test_goal(), str(tmp_path))
+    proj = next(n for n in graph.nodes if n.type is NodeType.PROJECT)
+    assert proj.check_command == 'python -c "import frappe"'
+
+
+def test_project_node_no_import_check_when_dist_name_differs_from_import(tmp_path):
+    # scikit-learn -> sklearn: no tripwire-safe static match -> stay UNKNOWN
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "scikit-learn"\nversion = "0.0.0"\n'
+    )
+    pkg = tmp_path / "sklearn"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text("")
+    from python_deps.depgraph.build import _add_project_node
+    from python_deps.depgraph.schema import NodeType
+    graph = _add_project_node(_seed_graph_with_test_goal(), str(tmp_path))
+    proj = next(n for n in graph.nodes if n.type is NodeType.PROJECT)
+    assert proj.check_command is None
+

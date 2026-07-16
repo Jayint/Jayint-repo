@@ -174,6 +174,23 @@ def _project_build_manifest(repo_path: str) -> str | None:
     return None
 
 
+def _project_import_target(project_name: str, evidence) -> str | None:
+    """The project's own top-level import module to certify-by-import, or None.
+
+    Maps the distribution name to an import name (dash->underscore, lowercased)
+    and returns it ONLY when that exact name is one of the repo's own top-level
+    modules (``evidence.project_local_modules``). When the import name differs
+    from the dist name (``scikit-learn`` -> ``sklearn``) there is no
+    tripwire-safe static match, so we return None and leave the Project UNKNOWN
+    rather than certify against a guess -- the relink-based mapping (config lane,
+    a later task) covers that case with a certified source. ``build.py`` must not
+    import ``repo_modules`` (construction-boundary tripwire), so the source here
+    is the already-collected ``project_local_modules``.
+    """
+    canon = project_name.lower().replace("-", "_")
+    return canon if canon in set(evidence.project_local_modules) else None
+
+
 def _add_project_node(graph: DepGraph, repo_path: str) -> DepGraph:
     """Add a Project hub node and connect declared direct deps to it.
 
@@ -196,6 +213,8 @@ def _add_project_node(graph: DepGraph, repo_path: str) -> DepGraph:
     # Collected BEFORE node construction (not after, as before) so
     # soft_requirements_files is available for the node's data at creation time.
     evidence = collect_python_dependency_evidence(repo_path)
+    import_target = _project_import_target(name, evidence)
+    project_check = f'python -c "import {import_target}"' if import_target else None
     graph = graph.with_node(
         Node(
             id=proj_id,
@@ -204,6 +223,7 @@ def _add_project_node(graph: DepGraph, repo_path: str) -> DepGraph:
             layer=Layer.PIP,
             discovered_by=DiscoveredBy.STATIC_SCAN,
             state=State.UNKNOWN,
+            check_command=project_check,
             provenance=manifest or repo_path,
             data={
                 # installable => the renderer emits `pip install -e .` as the final,
