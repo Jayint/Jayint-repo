@@ -1,3 +1,5 @@
+import pytest
+
 from ecosystems.base import CertifyMode, ClosureMode
 from ecosystems.python import provider as provmod
 from ecosystems.python.provider import PythonProvider
@@ -115,6 +117,43 @@ def test_build_dep_graph_reaches_fixpoint_llm_end_to_end(tmp_path):
         record_provider=lambda _dist: None, llm_dist_guesser=guesser,
     )
     assert ("zzznope", ()) in calls  # the guesser was reached and fed the import
+
+
+def test_build_dep_graph_threads_shadow_config_lane_through_seam(monkeypatch, tmp_path):
+    """HOP A: ``build_dep_graph(shadow_config_lane=True)`` must reach
+    ``_python_package_obligations`` THROUGH the ecosystem seam
+    (``build_dep_graph -> EcosystemProvider.package_obligations ->
+    PythonProvider.package_obligations -> _python_package_obligations``).
+    Stage-B Task 8 added the flag to BOTH ends but the seam did not forward it,
+    so the flag was inert from ``build_dep_graph`` — a silent no-op. This mirrors
+    ``test_package_obligations_threads_llm_dist_guesser``'s capture technique but
+    drives it end-to-end from ``build_dep_graph``; a sentinel exception
+    short-circuits the downstream (native/certify) so this stays a pure wiring
+    proof — no container/network."""
+    from python_deps.depgraph import build as buildmod
+
+    seen = {}
+
+    class _Stop(Exception):
+        pass
+
+    def fake_helper(repo, ce, **kw):
+        seen["kw"] = kw
+        raise _Stop  # capture-and-stop before any downstream stage runs
+
+    monkeypatch.setattr(provmod, "_python_package_obligations", fake_helper)
+    (tmp_path / "app.py").write_text("import os\n")  # real repo -> Python provider
+
+    with pytest.raises(_Stop):
+        buildmod.build_dep_graph(
+            str(tmp_path), "CE", host_executor="HE", shadow_config_lane=True,
+        )
+    assert seen["kw"]["shadow_config_lane"] is True  # threaded through the seam
+
+    seen.clear()
+    with pytest.raises(_Stop):
+        buildmod.build_dep_graph(str(tmp_path), "CE", host_executor="HE")
+    assert seen["kw"]["shadow_config_lane"] is False  # default OFF => byte-identical
 
 
 def test_native_obligations_delegates(monkeypatch):

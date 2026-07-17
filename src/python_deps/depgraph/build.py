@@ -1169,6 +1169,7 @@ def build_dep_graph(
         record_provider=record_provider,
         uv_sources_enabled=uv_sources_enabled,
         llm_dist_guesser=llm_dist_guesser,
+        shadow_config_lane=shadow_config_lane,
     )
     # NOTE: only `graph` flows onward; roots/target_env/exclude_newer are
     # provider-composition / test-visibility surface (spec extraction boundary).

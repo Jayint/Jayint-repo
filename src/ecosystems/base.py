@@ -62,6 +62,7 @@ class EcosystemProvider(Protocol):
         record_provider: object | None = None,
         uv_sources_enabled: bool = False,
         llm_dist_guesser: Callable[[str, tuple[str, ...]], list[str]] | None = None,
+        shadow_config_lane: bool = False,
     ) -> tuple[DepGraph, list, object, str | None]:
         """PHASE 1 body. Returns ``(graph, roots, target_env, exclude_newer)``;
         only ``graph`` flows onward (the rest are provider-composition / test-
@@ -76,7 +77,10 @@ class EcosystemProvider(Protocol):
         ``(import_name, symbols) -> [dist, ...]`` the Python fixpoint calls on a
         pipreqs map MISS; annotated structurally (this module stays
         ecosystem-agnostic and never imports ``python_deps``). Non-Python
-        providers accept-and-ignore ``None`` exactly like ``record_provider``."""
+        providers accept-and-ignore ``None`` exactly like ``record_provider``.
+        ``shadow_config_lane`` (default OFF) is a plain ecosystem-agnostic bool
+        gating a Python-specific shadow config-lane pass; non-Python providers
+        accept-and-ignore it exactly like ``uv_sources_enabled``."""
         ...
 
     def native_obligations(self, graph: DepGraph, container_executor: object) -> DepGraph:

@@ -59,6 +59,7 @@ class PythonProvider:
         record_provider: RecordProvider | None = None,
         uv_sources_enabled: bool = False,
         llm_dist_guesser: DistGuesser | None = None,
+        shadow_config_lane: bool = False,
     ) -> tuple[DepGraph, list, object, str | None]:
         return _python_package_obligations(
             repo,
@@ -71,6 +72,7 @@ class PythonProvider:
             record_provider=record_provider,
             uv_sources_enabled=uv_sources_enabled,
             llm_dist_guesser=llm_dist_guesser,
+            shadow_config_lane=shadow_config_lane,
         )
 
     def native_obligations(self, graph: DepGraph, container_executor: Executor) -> DepGraph:
