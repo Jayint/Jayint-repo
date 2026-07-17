@@ -9,7 +9,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from graph.diagnose import Mode, RepoContext, diagnose
-from graph.schema import NodeType
+from graph.model import NodeType
 
 
 def test_external_import_routes_environment_with_discovery():
@@ -83,7 +83,7 @@ def test_none_named_discovery_does_not_route_invalid_attempt(monkeypatch):
     # must route exactly as any other present-but-not-invalid name does.
     import graph.diagnose as diagnose_module
     from graph.runtime_classify import Discovery
-    from graph.schema import Layer
+    from graph.model import Layer
 
     unresolved = Discovery(
         node_type=NodeType.PACKAGE,

@@ -13,7 +13,7 @@ from graph.exec_trace import ObservationOverlay, Observation, ParsedFailure
 from graph.ids import (
     TEST_NODE_ID, capability_id, config_id, import_id, package_id, service_id, syslib_id,
 )
-from graph.schema import (
+from graph.model import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State, Strength,
 )
 from graph.python.util.import_mapping import (

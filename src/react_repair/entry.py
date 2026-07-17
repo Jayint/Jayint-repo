@@ -14,7 +14,7 @@ from graph.discovery_expand import expand_discovery
 from graph.contracts.executor import CommandResult
 from graph.graph_context import render_graph_context
 from graph.graph_enrich import certify_only, enrich
-from graph.schema import Layer
+from graph.model import Layer
 from src.envstate.constants import VERIFY_TEST_CMD           # shared canonical "python -m pytest -q"
 from src.react_repair.gate import test_verdict
 from src.react_repair.history import History

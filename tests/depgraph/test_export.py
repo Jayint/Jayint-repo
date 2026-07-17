@@ -13,7 +13,7 @@ from xml.dom import minidom
 
 from graph.emit.export import to_graphml
 from graph.ids import TEST_NODE_ID, import_id, package_id, syslib_id
-from graph.schema import (
+from graph.model import (
     DepGraph,
     DiscoveredBy,
     Edge,

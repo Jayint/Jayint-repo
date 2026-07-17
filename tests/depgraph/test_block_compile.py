@@ -1,5 +1,5 @@
 from graph.mutate.block import Block, compile_blocks
-from graph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
+from graph.model import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
 
 
 def test_block_fields_default():

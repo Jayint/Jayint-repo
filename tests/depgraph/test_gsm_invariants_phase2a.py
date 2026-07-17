@@ -1,7 +1,7 @@
 """Design §16 invariants assertable in Phase 2a (PatchGate)."""
 from graph.mutate.patch import PatchProposal, NodeSpec, ScriptPatch
 from graph.mutate.patch_gate import apply_proposal, validate_proposal
-from graph.schema import (
+from graph.model import (
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy,
 )
 

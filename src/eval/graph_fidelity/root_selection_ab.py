@@ -222,7 +222,7 @@ def score_repo(repo_dir: str, full_name: str, gold_imports: Mapping[str, str]) -
     ``naming.package_roots`` gap-fill). No container, no network, no build-agent phase."""
     from graph.python.lanes.install.roots import select_roots
     from graph.python.read.scan import scan_to_nodes
-    from graph.schema import NodeType
+    from graph.model import NodeType
 
     graph = scan_to_nodes(repo_dir)
     id_to_name = {n.id: n.name for n in graph.nodes if n.type is NodeType.IMPORT}

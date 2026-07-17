@@ -32,7 +32,7 @@ import sys
 from typing import TYPE_CHECKING
 
 from graph.python.lanes.install.resolve_lock import _marker_applies
-from graph.schema import DepGraph
+from graph.model import DepGraph
 from graph.python.read.evidence import collect_python_dependency_evidence
 from graph.python.util.import_mapping import (
     normalize_package_name,

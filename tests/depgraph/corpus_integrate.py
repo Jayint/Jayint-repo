@@ -7,7 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from graph.exec_trace import ParsedFailure
-from graph.schema import Node, NodeType, Layer, State, Strength, DiscoveredBy
+from graph.model import Node, NodeType, Layer, State, Strength, DiscoveredBy
 from graph.ids import package_id, TEST_NODE_ID
 
 

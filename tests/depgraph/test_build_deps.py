@@ -11,7 +11,7 @@ from graph.ids import (
     apt_build_id, binary_id, header_id, package_id, pkgconfig_id,
 )
 from graph.python.native.os_resolver import ObservedNeed
-from graph.schema import (
+from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
 

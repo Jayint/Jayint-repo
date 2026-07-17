@@ -1,4 +1,4 @@
-from graph.schema import DiscoveredBy, Layer, NodeType, State
+from graph.model import DiscoveredBy, Layer, NodeType, State
 from graph.python.native.syslib import make_syslib_node
 
 

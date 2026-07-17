@@ -8,7 +8,7 @@ distinct from a manifest declaration (RESOLVER) and a static-scan import
 
 from __future__ import annotations
 
-from graph.schema import (
+from graph.model import (
     DiscoveredBy,
     Layer,
     Node,

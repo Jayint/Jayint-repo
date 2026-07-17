@@ -26,7 +26,7 @@ from graph.emit.emit import (
     topo_order,
 )
 from graph.emit.populate import populate_setup_commands
-from graph.schema import DepGraph, Layer, Node, NodeType
+from graph.model import DepGraph, Layer, Node, NodeType
 
 _BANNER = (
     "#!/usr/bin/env bash",

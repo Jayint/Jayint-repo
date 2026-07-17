@@ -1,5 +1,5 @@
 from graph.python.read.scan import scan_to_nodes
-from graph.schema import NodeType
+from graph.model import NodeType
 
 
 def test_import_node_carries_used_symbols(tmp_path):

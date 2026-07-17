@@ -7,7 +7,7 @@ for _p in (_REPO_ROOT, _SRC):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from graph.schema import DepGraph, Node, Edge, NodeType, Layer, DiscoveredBy  # noqa: E402
+from graph.model import DepGraph, Node, Edge, NodeType, Layer, DiscoveredBy  # noqa: E402
 from src.eval.graph_repair_ablation.context import flat_list_context, graph_context  # noqa: E402
 
 def _graph():

@@ -14,7 +14,7 @@ from graph.diagnose import RepoContext, make_diagnostic_classifier
 from graph.python.lanes.install.naming import normalize_package_name
 from graph.req_slice import _provider_from_command
 from graph.runtime_ingest import ingest_runtime_failures
-from graph.schema import DepGraph, NodeType
+from graph.model import DepGraph, NodeType
 
 # `_provider_from_command` deliberately DROPS the version (`req_slice.py:52` does
 # `toks[0].split("==")[0]`), because a provider is identified by name alone. We need it back:

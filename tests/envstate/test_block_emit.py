@@ -6,7 +6,7 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from graph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
+from graph.model import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
 from src.envstate.block_emit import block_emit
 from src.envstate.ledger import ActionLedger
 

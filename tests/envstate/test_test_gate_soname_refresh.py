@@ -10,7 +10,7 @@ for p in (str(_ROOT), str(_SRC)):
         sys.path.insert(0, p)
 
 from graph.ids import syslib_id
-from graph.schema import DepGraph
+from graph.model import DepGraph
 from src.envstate.depgraph_live import test_gate_soname_refresh
 
 TEST_CMD = "python -m pytest -q"

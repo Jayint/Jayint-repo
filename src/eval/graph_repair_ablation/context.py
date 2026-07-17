@@ -14,7 +14,7 @@ for _p in (_REPO_ROOT, _SRC):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from graph.schema import DepGraph, NodeType  # noqa: E402
+from graph.model import DepGraph, NodeType  # noqa: E402
 
 
 def flat_list_context(graph: DepGraph) -> str:

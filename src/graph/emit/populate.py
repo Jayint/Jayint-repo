@@ -44,7 +44,7 @@ from graph.emit.emit import (
     _is_service_reciped,
     _pip_spec,
 )
-from graph.schema import DepGraph, Node, NodeType, State, Strength
+from graph.model import DepGraph, Node, NodeType, State, Strength
 
 # The repo under test, installed editable as the capstone AFTER its dependencies.
 # --no-deps: the pinned closure emitted above already provides every dependency,

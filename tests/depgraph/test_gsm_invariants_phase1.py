@@ -1,7 +1,7 @@
 """Design §16 invariants assertable in Phase 1."""
 from graph.mutate.block import compile_blocks
 from graph.emit.script import render_setup_sh, parse_setup_sh
-from graph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
+from graph.model import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
 from src.envstate.script_runner import run_blocks
 
 

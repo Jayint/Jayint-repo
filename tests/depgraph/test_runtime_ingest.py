@@ -14,7 +14,7 @@ from graph.ids import (
 )
 from graph.runtime_classify import Discovery
 from graph.runtime_ingest import ingest_runtime_failures
-from graph.schema import (
+from graph.model import (
     DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State,
 )
 

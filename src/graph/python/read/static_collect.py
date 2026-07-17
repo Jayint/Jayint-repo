@@ -62,7 +62,7 @@ def collect_static_evidence(repo_path: str, graph=None) -> tuple[DeterministicHi
         seen_vars.add(var)
         _add(str(src), "env_var", name=var, snippet="settings/framework config field")
     if graph is not None:
-        from graph.schema import NodeType
+        from graph.model import NodeType
         for node in sorted((n_ for n_ in graph.nodes if n_.type is NodeType.PACKAGE),
                            key=lambda x: x.name):
             _add("manifest", "package", name=node.name,

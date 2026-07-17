@@ -2,7 +2,7 @@ from conftest import FakeExecutor
 from graph.core.build import build_dep_graph
 from graph.contracts.executor import CommandResult
 from graph.ids import runtime_id
-from graph.schema import NodeType, Layer
+from graph.model import NodeType, Layer
 
 
 def test_runtime_id_is_stable():

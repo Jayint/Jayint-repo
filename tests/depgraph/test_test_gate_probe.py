@@ -10,7 +10,7 @@ from __future__ import annotations
 from graph.emit.emit import _is_reciped
 from graph.ids import TEST_NODE_ID, syslib_id
 from graph.python.native.probe import test_gate_probe
-from graph.schema import (
+from graph.model import (
     DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State,
 )
 

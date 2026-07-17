@@ -40,7 +40,7 @@ from graph.python.native.os_resolver import (
     resolve,
 )
 from graph.python.lanes.install.relink import flag_runtime_import_failure
-from graph.schema import (
+from graph.model import (
     Attempt,
     DepGraph,
     DiscoveredBy,

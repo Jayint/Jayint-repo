@@ -20,7 +20,7 @@ from graph.python.native.ldd_probe import (
     parse_ext_so_map,
     parse_ldd_not_found,
 )
-from graph.schema import (
+from graph.model import (
     DepGraph,
     DiscoveredBy,
     Edge,

@@ -19,7 +19,7 @@ import shlex
 from dataclasses import replace
 
 from graph.contracts.executor import Executor
-from graph.schema import DepGraph, Node
+from graph.model import DepGraph, Node
 
 
 def apt_name_installable(stdout: str) -> bool:

@@ -49,7 +49,7 @@ from src.envstate.trace_verify import verify_canonical_trace
 from src.envstate.world_model import initial_map, merge_map
 from src.sandbox import InstallResult
 from graph.mutate.patch import PatchProposal, ProviderSpec
-from graph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
+from graph.model import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
 
 _BAD_NAME = "libplacebodev"
 _GOOD_NAME = "libplacebo-dev"

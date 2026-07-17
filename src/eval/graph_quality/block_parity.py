@@ -74,7 +74,7 @@ from graph.graph_context import (  # noqa: E402
     ACTIONABLE, BLOCKED, SATISFIED_OK, UNCERTIFIED, WAITING, in_conflict, verdict,
 )
 from graph.ids import binary_id, package_id  # noqa: E402
-from graph.schema import (  # noqa: E402
+from graph.model import (  # noqa: E402
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )
 

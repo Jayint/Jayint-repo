@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from graph.schema import DepGraph
+from graph.model import DepGraph
 from graph.schedule import (
     ObligationPacket, frame_obligation, scheduler_frontier,
 )
@@ -82,7 +82,7 @@ def unsatisfied_provisionable_services(
     ``next_decision`` (below) and ``orchestrator.run_v3``'s fast-termination so
     the two apply the identical guard.
     """
-    from graph.schema import NodeType, State
+    from graph.model import NodeType, State
     if not allow_services or graph is None:
         return ()
     return tuple(

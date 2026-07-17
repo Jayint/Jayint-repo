@@ -111,7 +111,7 @@ def score_repo(repo_dir: str, full_name: str, gold_imports: Mapping[str, str]) -
     """
     from graph.python.lanes.install.roots import select_roots as current_select_roots
     from graph.python.read.scan import scan_to_nodes
-    from graph.schema import NodeType
+    from graph.model import NodeType
     from python_deps.pkg_layer.construct import build_package_layer
     from python_deps.pkg_layer.contract import read_contract
     from python_deps.pkg_layer.contract import select_roots as new_select_roots

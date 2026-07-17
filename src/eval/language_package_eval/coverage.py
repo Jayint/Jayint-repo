@@ -54,7 +54,7 @@ from graph.emit.emit import _apt_name  # noqa: E402
 from graph.contracts.executor import (  # noqa: E402
     CommandResult, DockerExecutor, Executor, LocalSubprocessExecutor,
 )
-from graph.schema import DepGraph, NodeType  # noqa: E402
+from graph.model import DepGraph, NodeType  # noqa: E402
 from src.envstate.runtime_base import (  # noqa: E402
     DEFAULT_MINOR, SUPPORTED_MINORS, resolve_runtime_base,
 )

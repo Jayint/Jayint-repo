@@ -44,7 +44,7 @@ from src.envstate.run_trace import RunTracer
 from src.envstate.trace_verify import verify_local_import_guard
 from src.envstate.world_model import initial_map, merge_map
 from src.sandbox import InstallResult
-from graph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
+from graph.model import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
 
 
 class _FakeClient:

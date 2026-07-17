@@ -15,7 +15,7 @@ if str(_SRC) not in sys.path:
 
 def test_inferred_service_never_actionable():
     """A SERVICE without a setup recipe is never scheduled (advisory-only)."""
-    from graph.schema import (
+    from graph.model import (
         DepGraph, Node, NodeType, Layer, DiscoveredBy, State,
     )
     from graph.schedule import scheduler_frontier

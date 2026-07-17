@@ -15,7 +15,7 @@ from graph.core.certify import EXECUTION_LAYER_ORDER
 from graph.mutate.patch import (
     PatchProposal, NodeSpec, ProviderSpec, EdgeSpec, ScriptPatch,
 )
-from graph.schema import (
+from graph.model import (
     DepGraph, Node, Edge, NodeType, Layer, EdgeType, State, DiscoveredBy, EDGE_RULES,
     KNOWN_SERVICE_KINDS,
 )

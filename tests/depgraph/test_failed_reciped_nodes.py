@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from graph.schema import (  # noqa: E402
+from graph.model import (  # noqa: E402
     DepGraph, Node, Edge, NodeType, Layer, State, EdgeType, DiscoveredBy,
 )
 from graph.emit.emit import failed_reciped_nodes  # noqa: E402

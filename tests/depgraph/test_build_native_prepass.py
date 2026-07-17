@@ -23,7 +23,7 @@ from graph.python.native import wheel_preflight
 from graph.core.build import _python_package_obligations
 from graph.contracts.executor import CommandResult
 from graph.ids import syslib_id
-from graph.schema import DiscoveredBy, NodeType, State
+from graph.model import DiscoveredBy, NodeType, State
 
 
 def _r(returncode: int = 0, stdout: str = "", stderr: str = "") -> CommandResult:

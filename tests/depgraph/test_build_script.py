@@ -1,6 +1,6 @@
 import re
 
-from graph.schema import (
+from graph.model import (
     DepGraph, Node, Edge, NodeType, Layer, State, DiscoveredBy, EdgeType,
 )
 from graph.emit.build_script import render_build_script, _LAYER_ORDER

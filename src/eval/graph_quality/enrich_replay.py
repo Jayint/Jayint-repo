@@ -45,7 +45,7 @@ from graph.contracts.executor import CommandResult  # noqa: E402
 from graph.graph_enrich import enrich  # noqa: E402
 from graph.ids import TEST_NODE_ID, package_id  # noqa: E402
 from graph.python.util.import_mapping import normalize_package_name  # noqa: E402
-from graph.schema import (  # noqa: E402
+from graph.model import (  # noqa: E402
     DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State,
 )
 

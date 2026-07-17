@@ -26,7 +26,7 @@ for _p in (_REPO_ROOT, _SRC):
 
 from graph.emit.build_script import render_build_script  # noqa: E402
 from graph.emit.emit import _is_installable_project, _is_reciped  # noqa: E402
-from graph.schema import DepGraph, State  # noqa: E402
+from graph.model import DepGraph, State  # noqa: E402
 
 # One #@node annotation line per reciped node (build_script._annotation); the
 # node id is the first whitespace-delimited token after the marker.

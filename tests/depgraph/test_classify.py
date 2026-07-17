@@ -1,6 +1,6 @@
 from graph.python.route.classify import classify
 from graph.python.read.repo_modules import stem_collisions
-from graph.schema import NodeType
+from graph.model import NodeType
 
 
 def test_ladder_partitions_internal_external_collision(tmp_path):

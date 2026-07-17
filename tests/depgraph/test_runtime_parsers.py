@@ -131,7 +131,7 @@ def test_tool_error_recognises_the_real_config_probe_binaries():
 # ── classify_observation dispatch ────────────────────────────────────────────
 
 from graph.runtime_classify import classify_observation, Discovery
-from graph.schema import NodeType, Layer
+from graph.model import NodeType, Layer
 
 
 def test_dispatch_module_not_found_returns_package_discovery():

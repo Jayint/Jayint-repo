@@ -12,7 +12,7 @@ import subprocess
 from graph.ids import binary_id, import_id, package_id, pkgconfig_id, syslib_id
 from graph.python.native.os_resolver import ObservedNeed, check_command_for
 from graph.python.native.probe import import_probe, install_closure, reconcile_predicted
-from graph.schema import (
+from graph.model import (
     DepGraph,
     DiscoveredBy,
     Edge,

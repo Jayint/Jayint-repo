@@ -27,7 +27,7 @@ def test_command_is_stdlib_only():
 
 
 from graph.ids import import_id, package_id
-from graph.schema import (
+from graph.model import (
     DepGraph,
     DiscoveredBy,
     Edge,

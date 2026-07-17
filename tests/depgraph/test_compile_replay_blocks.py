@@ -5,7 +5,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from graph.mutate.block import compile_blocks, compile_replay_blocks
-from graph.schema import (
+from graph.model import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )
 

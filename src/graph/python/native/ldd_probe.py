@@ -29,7 +29,7 @@ from graph.contracts.executor import Executor
 from graph.ids import syslib_id
 from graph.python.native.os_resolver import ObservedNeed, resolve
 from graph.python.native.probe import reconcile_predicted
-from graph.schema import (
+from graph.model import (
     Attempt,
     DepGraph,
     DiscoveredBy,

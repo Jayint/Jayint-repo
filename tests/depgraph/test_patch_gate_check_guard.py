@@ -7,7 +7,7 @@ if str(_SRC) not in sys.path:
 
 from graph.mutate.patch import NodeSpec, PatchProposal, ScriptPatch
 from graph.mutate.patch_gate import validate_proposal
-from graph.schema import DepGraph
+from graph.model import DepGraph
 
 
 def test_proposal_with_trivial_check_is_rejected():

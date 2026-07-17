@@ -203,7 +203,7 @@ class TestDeclaredByTierShape:
 
     def test_tier_keys_match_schema_nodetype_names(self):
         sys.path.insert(0, str(_REPO_ROOT / "src"))
-        from graph.schema import NodeType
+        from graph.model import NodeType
 
         result = parse_oracle(_FIXTURES / "empty_repo")
         for key in result.declared_by_tier:

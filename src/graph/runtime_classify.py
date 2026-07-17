@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from graph.schema import Layer, NodeType
+from graph.model import Layer, NodeType
 from graph.python.util.failure_classifier import classify_dependency_failure
 from graph.python.util.import_mapping import is_unresolved, map_import_to_package
 

@@ -43,7 +43,7 @@ for _p in (_REPO_ROOT, _SRC):
         sys.path.insert(0, str(_p))
 
 from graph.emit.build_script import render_build_script  # noqa: E402
-from graph.schema import NodeType  # noqa: E402
+from graph.model import NodeType  # noqa: E402
 from src.envstate.repair_scope import RepairScope  # noqa: E402
 from src.envstate.repair_scope import render_repair_scope as _render_repair_scope  # noqa: E402
 from src.envstate.v3_build_agent import V3BuildAgent  # noqa: E402

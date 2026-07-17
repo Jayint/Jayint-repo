@@ -23,7 +23,7 @@ from typing import Protocol, runtime_checkable
 
 from graph.contracts.executor import Executor
 from graph.python.lanes.install.resolve import resolve_closure
-from graph.schema import NodeType
+from graph.model import NodeType
 from graph.python.read.target_env import TargetEnv
 from python_deps.pkg_layer.planes import ClosurePkg, Tier, _canon
 

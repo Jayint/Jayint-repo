@@ -13,7 +13,7 @@ import configparser
 import os
 import re
 
-from graph.schema import DiscoveredBy, Layer, Node, NodeType, State
+from graph.model import DiscoveredBy, Layer, Node, NodeType, State
 
 try:  # tomllib is stdlib on 3.11+; fall back to the tomli backport on 3.10.
     import tomllib

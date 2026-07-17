@@ -5,7 +5,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 import graph.advise as advise
-from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+from graph.model import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
 
 
 def test_classify_hook_invoked_and_graph_returned(monkeypatch):

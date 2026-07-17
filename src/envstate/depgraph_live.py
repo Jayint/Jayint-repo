@@ -13,11 +13,11 @@ from typing import TYPE_CHECKING, Callable
 from graph.core.certify import certify_all
 from graph.emit.emit import EMIT_ATTEMPT_TAG, build_recipe, partition, topo_order
 from graph.contracts.executor import CommandResult
-from graph.schema import Attempt
+from graph.model import Attempt
 from src.envstate.world_model import RecipePatch, RecipeStep
 
 if TYPE_CHECKING:
-    from graph.schema import DepGraph
+    from graph.model import DepGraph
 
 
 class _ReadonlyExecAdapter:

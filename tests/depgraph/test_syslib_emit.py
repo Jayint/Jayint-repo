@@ -23,7 +23,7 @@ from graph.emit.build_script import render_build_script
 from graph.emit.emit import next_deterministic_wave
 from graph.contracts.executor import CommandResult
 from graph.ids import package_id, tool_id
-from graph.schema import (
+from graph.model import (
     DepGraph,
     DiscoveredBy,
     Edge,

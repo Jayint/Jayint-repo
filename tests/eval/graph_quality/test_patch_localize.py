@@ -29,7 +29,7 @@ for _p in (_REPO_ROOT, _SRC):
 
 from graph.graph_context import render_graph_context
 from graph.ids import TEST_NODE_ID, binary_id, package_id, syslib_id, tool_id
-from graph.schema import (
+from graph.model import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )
 from src.eval.graph_quality.patch_localize import (

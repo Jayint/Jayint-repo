@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from graph.schema import (
+from graph.model import (
     DepGraph,
     EdgeType,
     Layer,

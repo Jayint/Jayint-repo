@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from xml.sax.saxutils import escape, quoteattr
 
-from graph.schema import DepGraph, Edge, Node, NodeType
+from graph.model import DepGraph, Edge, Node, NodeType
 
 # (key-id, attr.name) — d0..d7 ids/order mirror docs/sample-dependency-graph.graphml;
 # d8 is the backward-compatible native-risk addition.

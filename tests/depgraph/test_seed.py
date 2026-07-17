@@ -13,7 +13,7 @@ come from ``PACKAGE_TO_SYSTEM_DEPS``, now deleted — see the design doc's
 from __future__ import annotations
 
 from graph.ids import package_id, tool_id
-from graph.schema import (
+from graph.model import (
     DepGraph,
     DiscoveredBy,
     EdgeType,

@@ -65,7 +65,7 @@ from src.envstate.world_model import (
 )
 from src.sandbox import InstallResult
 from graph.ids import TEST_NODE_ID
-from graph.schema import (
+from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
 

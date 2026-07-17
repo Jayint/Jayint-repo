@@ -1,4 +1,4 @@
-from graph.schema import (
+from graph.model import (
     DepGraph, Node, Edge, NodeType, Layer, State, DiscoveredBy, EdgeType,
 )
 from graph.schedule import _dependencies_satisfied

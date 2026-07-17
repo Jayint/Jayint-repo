@@ -40,7 +40,7 @@ from src.envstate.world_model import (
     merge_map,
 )
 from src.sandbox import InstallResult
-from graph.schema import (
+from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
 

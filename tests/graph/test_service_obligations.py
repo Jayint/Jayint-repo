@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from graph.python.provider import PythonProvider
 from graph.contracts.registry import PROVIDERS
-from graph.schema import DepGraph
+from graph.model import DepGraph
 
 
 def test_none_classifier_is_passthrough():

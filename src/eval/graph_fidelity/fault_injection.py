@@ -104,7 +104,7 @@ def inject_and_score(repo_dir: str, full_name: str, deleted_dep: str, import_nam
     import graph.python.lanes.install.roots as roots_mod
     import graph.python.read.evidence as evidence_mod
     from graph.python.read.scan import scan_to_nodes
-    from graph.schema import NodeType
+    from graph.model import NodeType
 
     target = _canon(deleted_dep)
     real_collect = evidence_mod.collect_python_dependency_evidence

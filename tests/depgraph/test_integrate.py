@@ -5,7 +5,7 @@ from corpus_integrate import CASES
 from graph.exec_trace import ObservationOverlay
 from graph.integrate import integrate
 from graph.diagnose import RepoContext
-from graph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy, EdgeType
+from graph.model import DepGraph, Node, NodeType, Layer, State, DiscoveredBy, EdgeType
 from graph.ids import TEST_NODE_ID
 
 _TEST_NODE = Node(id=TEST_NODE_ID, type=NodeType.TEST, name="repo tests",

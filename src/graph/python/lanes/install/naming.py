@@ -18,7 +18,7 @@ distribution name.
 
 from __future__ import annotations
 
-from graph.schema import DepGraph, NodeType
+from graph.model import DepGraph, NodeType
 from graph.python.util.import_mapping import (
     is_unresolved,
     map_import_to_package,

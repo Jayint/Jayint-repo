@@ -17,7 +17,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from graph.runtime_classify import Discovery
-from graph.schema import Layer, NodeType
+from graph.model import Layer, NodeType
 from src.envstate.jsonutil import extract_json_object
 
 # kind -> (node type, install layer). Layer is derived from kind, not trusted

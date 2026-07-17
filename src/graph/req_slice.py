@@ -130,7 +130,7 @@ def build_requirement_slice(graph, node) -> RequirementSlice:
     from graph.advise import (
         _chain_to_goal, _conflict_note, _best_evidence_line, _platform_note,
     )
-    from graph.schema import NodeType, State
+    from graph.model import NodeType, State
 
     deps = tuple(DepView(id=d.id, state=d.state.value) for d in graph.requires_of(node.id))
     unblocks = tuple(n.id for n in graph.required_by(node.id))

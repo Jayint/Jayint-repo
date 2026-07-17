@@ -83,7 +83,7 @@ from graph.python.lanes.install.resolve import (
 )
 from graph.python.lanes.install.roots import select_roots
 from graph.python.read.scan import scan_to_nodes
-from graph.schema import (
+from graph.model import (
     DepGraph,
     DiscoveredBy,
     Edge,

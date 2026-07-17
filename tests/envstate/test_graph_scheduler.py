@@ -16,7 +16,7 @@ if str(_SRC) not in sys.path:
 
 
 def test_done_unchanged_for_non_service_graph():
-    from graph.schema import DepGraph
+    from graph.model import DepGraph
     from src.envstate.graph_scheduler import next_decision
     decision, _ = next_decision(DepGraph(), run_tests=lambda: True, allow_services=True)
     assert decision.action == "done"
@@ -24,7 +24,7 @@ def test_done_unchanged_for_non_service_graph():
 
 def test_packet_to_task_no_service_facts_for_non_service():
     """packet_to_task adds no 'start the service' fact for a non-service obligation."""
-    from graph.schema import (
+    from graph.model import (
         DepGraph, Node, NodeType, Layer, DiscoveredBy, State,
     )
     from graph.schedule import frame_obligation
@@ -41,7 +41,7 @@ def test_packet_to_task_no_service_facts_for_non_service():
 
 def test_packet_to_task_no_binding_facts_without_setup():
     """A non-service obligation (no setup recipe) renders no binding/repoint facts."""
-    from graph.schema import (
+    from graph.model import (
         DepGraph, Node, NodeType, Layer, DiscoveredBy, State,
     )
     from graph.schedule import frame_obligation

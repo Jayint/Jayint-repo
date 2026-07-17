@@ -13,7 +13,7 @@ import logging
 import re
 from pathlib import Path
 
-from graph.schema import (
+from graph.model import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Node, NodeType, State,
 )
 

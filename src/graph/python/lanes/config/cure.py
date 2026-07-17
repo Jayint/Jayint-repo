@@ -10,7 +10,7 @@ from dataclasses import dataclass, replace
 
 from graph.python.invocation_resolver import TestEnvPlan
 from graph.python.native.probe import INSTALL_TIMEOUT
-from graph.schema import DepGraph, NodeType, State
+from graph.model import DepGraph, NodeType, State
 
 
 @dataclass(frozen=True)

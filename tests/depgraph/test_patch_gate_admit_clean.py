@@ -8,7 +8,7 @@ check_command (a broken shell + a node that can never demote). As of Inc 5B the 
 is the SOLE Service shape (the legacy confidence/binding shape was deleted)."""
 from graph.mutate.patch import PatchProposal, NodeSpec
 from graph.mutate.patch_gate import admit_proposal, _requirement_errors
-from graph.schema import DepGraph, State
+from graph.model import DepGraph, State
 from graph.service_recipes import render_probe_poll
 
 _EV = frozenset({"e0"})

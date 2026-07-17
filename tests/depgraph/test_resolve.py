@@ -35,7 +35,7 @@ from graph.python.lanes.install.resolve import (
     parse_uv_lock,
     resolve_closure,
 )
-from graph.schema import (
+from graph.model import (
     DiscoveredBy,
     EdgeType,
     Layer,
@@ -1981,7 +1981,7 @@ def test_resolve_closure_budget_exhausted_node_is_never_emittable_or_certifiable
     keep it out of ``emit.next_deterministic_wave()`` and out of reach of
     ``certify()``'s "any rc-0 check flips MISSING -> SATISFIED" rule)."""
     from graph.emit import emit
-    from graph.schema import DepGraph
+    from graph.model import DepGraph
     from graph.python.lanes.install.resolve import _budget_exhausted_node
 
     node = _budget_exhausted_node(
@@ -2305,7 +2305,7 @@ def test_link_imports_to_packages_reconciles_manifest_sourced_packages():
     """Regression: manifest-declared deps (root import_id=None) must still link
     their scanned Import node to the resolved Package (the orphaned-import bug)."""
     from graph.python.lanes.install.resolve import link_imports_to_packages
-    from graph.schema import (
+    from graph.model import (
         DepGraph,
         DiscoveredBy,
         EdgeType,
@@ -2351,7 +2351,7 @@ def test_link_imports_skips_unresolved_mapping(monkeypatch):
     ``re.sub`` on its argument)."""
     import graph.python.lanes.install.resolve_link as resolve_link
     from graph.python.lanes.install.resolve import link_imports_to_packages
-    from graph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType
+    from graph.model import DepGraph, DiscoveredBy, Layer, Node, NodeType
     from graph.python.util.import_mapping import unresolved_result
 
     monkeypatch.setattr(
@@ -2376,7 +2376,7 @@ def test_link_imports_reconciles_unresolved_by_own_name(monkeypatch):
     fabrication. (Regression guard for the identity-fallback deletion.)"""
     import graph.python.lanes.install.resolve_link as resolve_link
     from graph.python.lanes.install.resolve import link_imports_to_packages
-    from graph.schema import (
+    from graph.model import (
         DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType,
     )
     from graph.python.util.import_mapping import unresolved_result
@@ -2415,7 +2415,7 @@ def test_unresolved_placeholder_has_no_confident_fix():
     # resolve) must NOT prescribe ``pip:<name>`` -- that name is exactly what
     # failed to resolve, so the fix would fail (or install a squatter).
     from graph.python.lanes.install.resolve import _missing_package_node
-    from graph.schema import State
+    from graph.model import State
 
     n = _missing_package_node("dateutil", None, "WARNING: Package(s) not found: dateutil\n")
     assert n.state is State.MISSING

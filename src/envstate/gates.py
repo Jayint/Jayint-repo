@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from graph.emit.emit import partition
-from graph.schema import DepGraph
+from graph.model import DepGraph
 from src.envstate.constants import VERIFY_TEST_CMD
 
 if TYPE_CHECKING:

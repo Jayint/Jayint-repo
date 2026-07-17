@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from graph.ids import TEST_NODE_ID, import_id
 from graph.python.lanes.install.naming import package_roots
-from graph.schema import (
+from graph.model import (
     DepGraph,
     DiscoveredBy,
     Layer,

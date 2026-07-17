@@ -20,10 +20,10 @@ from __future__ import annotations
 from dataclasses import replace
 
 from graph.contracts.executor import Executor
-from graph.schema import DepGraph, Layer, NodeType, State
+from graph.model import DepGraph, Layer, NodeType, State
 # Layer-order constants now live in schema.py (the model waist); re-exported here
 # so existing `from ...certify import EXECUTION_LAYER_ORDER` consumers keep working.
-from graph.schema import (  # noqa: F401
+from graph.model import (  # noqa: F401
     EXECUTION_LAYER_ORDER,
     _LAYER_ORDER,
     _SERVICE_LAYER_ORDER,

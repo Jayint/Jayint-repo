@@ -22,7 +22,7 @@ from graph.graph_context import (
 # this module's own regex is built to mirror. Import it under a name that does not match.
 from graph.graph_context import tests_hidden as _tests_hidden
 from graph.ids import package_id
-from graph.schema import (
+from graph.model import (
     Attempt, DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )
 

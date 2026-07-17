@@ -6,7 +6,7 @@ from pathlib import Path
 
 from graph.ids import TEST_NODE_ID, import_id
 from graph.python.read.scan import scan_to_nodes
-from graph.schema import (
+from graph.model import (
     DiscoveredBy,
     EdgeType,
     Layer,

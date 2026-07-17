@@ -23,7 +23,7 @@ from graph.diagnose import (
     Diagnosis, Mode, RepoContext, _norm, diagnose, diagnose_all,
     make_diagnostic_classifier,
 )
-from graph.schema import NodeType
+from graph.model import NodeType
 
 
 # ---------------------------------------------------------------------------

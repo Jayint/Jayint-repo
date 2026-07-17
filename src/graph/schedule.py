@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from graph.schema import DepGraph, Node, NodeType, State, EdgeType
+from graph.model import DepGraph, Node, NodeType, State, EdgeType
 from graph.emit.emit import topo_order
 from graph.req_slice import RequirementSlice, build_requirement_slice
 

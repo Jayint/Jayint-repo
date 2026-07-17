@@ -46,7 +46,7 @@ for _p in (_REPO_ROOT, _SRC):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from graph.schema import DepGraph  # noqa: E402
+from graph.model import DepGraph  # noqa: E402
 from src.eval.language_package_eval.coverage import (  # noqa: E402
     base_image_for_repo, build_graph_construction_only,
 )

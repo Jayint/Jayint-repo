@@ -13,7 +13,7 @@ from graph.ids import (
     project_id,
     syslib_id,
 )
-from graph.schema import (
+from graph.model import (
     DepGraph,
     DiscoveredBy,
     Edge,
@@ -170,7 +170,7 @@ def test_build_advisory_forwards_llm_dist_guesser(monkeypatch) -> None:
     context manager so no Docker is touched."""
     import graph.advise as advise_mod
     from graph.advise import build_advisory_for_repo
-    from graph.schema import DepGraph
+    from graph.model import DepGraph
 
     captured: dict = {}
 
@@ -206,7 +206,7 @@ def test_build_advisory_default_none_forwards_none(monkeypatch) -> None:
     (pre-guesser) install-lane path, byte-identical to before this wiring."""
     import graph.advise as advise_mod
     from graph.advise import build_advisory_for_repo
-    from graph.schema import DepGraph
+    from graph.model import DepGraph
 
     captured: dict = {}
 
@@ -243,7 +243,7 @@ def test_best_evidence_line_helper() -> None:
 # --- Task 11: CONFIG tier in advisory ---
 
 def test_advisory_renders_missing_config_node_with_value_needed():
-    from graph.schema import (
+    from graph.model import (
         DepGraph, Node, NodeType, Layer, DiscoveredBy, State,
     )
     from graph.advise import render_dep_graph_advisory
@@ -259,7 +259,7 @@ def test_advisory_renders_missing_config_node_with_value_needed():
 
 
 def test_advisory_config_with_derived_value_has_no_marker():
-    from graph.schema import (
+    from graph.model import (
         DepGraph, Node, NodeType, Layer, DiscoveredBy, State,
     )
     from graph.advise import render_dep_graph_advisory
@@ -275,14 +275,14 @@ def test_advisory_config_with_derived_value_has_no_marker():
 # --- Task 9: SERVICES tier in advisory ---
 
 def _svc(name, **data):
-    from graph.schema import Node, NodeType, Layer, DiscoveredBy, State
+    from graph.model import Node, NodeType, Layer, DiscoveredBy, State
     return Node(id=f"service:{name}", type=NodeType.SERVICE, name=name, layer=Layer.SERVICES,
                 discovered_by=DiscoveredBy.STATIC_SCAN, state=State.UNKNOWN,
                 fix_candidates=(f"service:{name}:16",), data=dict(data))
 
 
 def test_advisory_renders_services_block():
-    from graph.schema import DepGraph
+    from graph.model import DepGraph
     from graph.advise import render_dep_graph_advisory
     g = (DepGraph()
          .with_node(_svc("postgres", bound_config="DATABASE_URL"))
@@ -296,7 +296,7 @@ def test_advisory_renders_services_block():
 
 
 def test_advisory_no_services_block_when_none():
-    from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+    from graph.model import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
     from graph.advise import render_dep_graph_advisory
     pkg = Node(id="pkg:requests", type=NodeType.PACKAGE, name="requests", layer=Layer.PIP,
                discovered_by=DiscoveredBy.RESOLVER, state=State.SATISFIED)
@@ -307,7 +307,7 @@ def test_advisory_no_services_block_when_none():
 # --- advisory-only (non-setup) service render ---
 
 def test_advisory_advisory_only_service_unchanged():
-    from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+    from graph.model import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
     from graph.advise import render_dep_graph_advisory
     svc = Node(id="service:redis", type=NodeType.SERVICE, name="redis",
                layer=Layer.SERVICES, discovered_by=DiscoveredBy.RESOLVER, state=State.UNKNOWN,
@@ -325,7 +325,7 @@ def test_advisory_setup_service_renders_as_setup_not_mocked():
     MANDATORY provisioned obligation — it must render as [setup] and MUST NOT carry
     the legacy '[inferred] … may be mocked' caveat (cross-consumer consistency with
     the scheduler/certify path which blocks 'done' on it)."""
-    from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+    from graph.model import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
     from graph.advise import render_dep_graph_advisory
     svc = Node(id="service:redis", type=NodeType.SERVICE, name="redis",
                layer=Layer.SERVICES, discovered_by=DiscoveredBy.STATIC_SCAN, state=State.MISSING,

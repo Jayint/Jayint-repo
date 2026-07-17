@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, replace
 
-from graph.schema import (
+from graph.model import (
     DiscoveredBy,
     Edge,
     EdgeType,

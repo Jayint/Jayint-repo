@@ -1,6 +1,6 @@
 # tests/depgraph/test_advise_planner_packet.py
 from graph.advise import render_depgraph_planner
-from graph.schema import (
+from graph.model import (
     DepGraph, Edge, EdgeType, Layer, Node, NodeType, State, DiscoveredBy, Attempt,
 )
 

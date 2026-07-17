@@ -32,7 +32,7 @@ from graph.contracts.executor import DockerExecutor
 from graph.graph_enrich import enrich
 from graph.ids import TEST_NODE_ID, package_id
 from graph.python.native.ldd_probe import ldd_probe
-from graph.schema import (
+from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
 from src.react_repair.loop import RunResult

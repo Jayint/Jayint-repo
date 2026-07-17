@@ -17,7 +17,7 @@ except ModuleNotFoundError:  # pragma: no cover - exercised on Python < 3.11
     import tomli as tomllib
 
 from graph.ids import package_id
-from graph.schema import (
+from graph.model import (
     DiscoveredBy,
     Edge,
     EdgeType,

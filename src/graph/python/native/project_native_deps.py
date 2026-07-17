@@ -62,7 +62,7 @@ from graph.python.native.project_native_scan import (
     has_native_build_signal,
     scan_native_build_surface,
 )
-from graph.schema import DepGraph, Edge, EdgeType, NodeType
+from graph.model import DepGraph, Edge, EdgeType, NodeType
 from graph.python.native.seed import _BUILD_ESSENTIAL_ID, _build_essential_node
 from graph.python.util.import_mapping import normalize_package_name
 

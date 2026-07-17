@@ -33,7 +33,7 @@ from graph.contracts.executor import Executor
 from graph.ids import apt_build_id
 from graph.python.native.os_resolver import ObservedNeed, capability_id, resolve
 from graph.python.native.pep725 import pep725_external
-from graph.schema import (
+from graph.model import (
     DepGraph,
     DiscoveredBy,
     Edge,

@@ -1,6 +1,6 @@
 from graph.python.native import wheel_preflight
 from graph.ids import package_id, syslib_id
-from graph.schema import (
+from graph.model import (
     DepGraph,
     DiscoveredBy,
     Layer,

@@ -695,7 +695,7 @@ def test_g3_certifies_nodes_added_by_EXPANSION_not_just_by_enrich():
     premise of the arm is that the agent is never shown a claim we have not verified.
     """
     from graph.ids import package_id
-    from graph.schema import (
+    from graph.model import (
         DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
     )
 

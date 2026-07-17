@@ -16,7 +16,7 @@ from src.eval.language_package_eval.coverage import (  # noqa: E402
     base_image_for_repo,
     build_graph_construction_only,
 )
-from graph.schema import NodeType  # noqa: E402
+from graph.model import NodeType  # noqa: E402
 
 SMOKE = pathlib.Path(os.environ.get("OURS_SMOKE_ROOT", "outputs/graph_fidelity/_smoke"))
 OUT = pathlib.Path(sys.argv[2]) if len(sys.argv) > 2 else pathlib.Path("/tmp/ours")

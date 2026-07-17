@@ -28,7 +28,7 @@ from src.envstate.world_model import initial_map, merge_map
 from src.sandbox import InstallResult
 from graph.emit.build_script import render_build_script
 from graph.mutate.patch import PatchProposal, ScriptPatch
-from graph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
+from graph.model import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
 
 _BLOCK_ID = "system.manual-libfoo"
 _REAL_INSTALL_CMD = "apt-get update && apt-get install -y --no-install-recommends libfoo1-real"

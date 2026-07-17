@@ -26,7 +26,7 @@ import re
 from graph.python.read.import_graph import scan_imports
 
 from graph.ids import TEST_NODE_ID, import_id
-from graph.schema import (
+from graph.model import (
     DepGraph,
     DiscoveredBy,
     Edge,

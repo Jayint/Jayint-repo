@@ -11,7 +11,7 @@ no graph walk, no Docker, no network, no env reads.
 """
 from __future__ import annotations
 
-from graph.schema import Node, NodeType
+from graph.model import Node, NodeType
 
 _APT_PREFIX = "apt:"
 

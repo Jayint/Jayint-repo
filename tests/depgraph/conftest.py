@@ -22,7 +22,7 @@ if str(_SRC) not in sys.path:
 import pytest  # noqa: E402
 
 from graph.contracts.executor import CommandResult  # noqa: E402
-from graph.schema import (  # noqa: E402
+from graph.model import (  # noqa: E402
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy,
 )
 

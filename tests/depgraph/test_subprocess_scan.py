@@ -9,7 +9,7 @@ from graph.ids import TEST_NODE_ID, capability_id, project_id
 
 def tool_id(name):        # the scanned-executable id, spelled the canonical way
     return capability_id("binary", name)
-from graph.schema import (
+from graph.model import (
     DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State,
 )
 from graph.python.read.subprocess_scan import (

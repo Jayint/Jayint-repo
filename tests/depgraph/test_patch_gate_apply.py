@@ -5,7 +5,7 @@ from graph.mutate.patch import (
     PatchProposal, NodeSpec, ProviderSpec, EdgeSpec, ScriptPatch,
 )
 from graph.mutate.patch_gate import apply_proposal, ApplyResult
-from graph.schema import (
+from graph.model import (
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy, EdgeType,
 )
 

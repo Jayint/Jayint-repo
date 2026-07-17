@@ -28,7 +28,7 @@ from graph.python.config_scan import _const_str, _is_excluded
 # mint. Minting `tool:adb` here while ingest minted `binary:adb` put the same executable in the
 # graph twice, under two ids, with nothing to reconcile them.
 from graph.ids import TEST_NODE_ID, capability_id
-from graph.schema import (
+from graph.model import (
     DepGraph,
     DiscoveredBy,
     Edge,

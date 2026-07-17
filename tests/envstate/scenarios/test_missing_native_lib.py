@@ -32,7 +32,7 @@ from src.envstate.world_model import initial_map, merge_map
 from src.sandbox import InstallResult
 from graph.diagnose import Mode, RepoContext, diagnose
 from graph.mutate.patch import PatchProposal, ProviderSpec
-from graph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
+from graph.model import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
 
 
 class _FakeClient:

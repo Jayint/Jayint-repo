@@ -14,7 +14,7 @@ for _p in (str(_ROOT), str(_ROOT / "src")):
 from graph.diagnose import RepoContext
 from graph.graph_enrich import certify_only, enrich, owner_node_for_command
 from graph.ids import TEST_NODE_ID, package_id
-from graph.schema import (
+from graph.model import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )
 from src.react_repair.pytest_summary import Cause

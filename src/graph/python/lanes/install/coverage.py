@@ -32,7 +32,7 @@ import zipfile
 from graph.contracts.executor import Executor
 from graph.python.lanes.install.relink import PACKAGES_DIST_CMD, parse_packages_distributions
 from graph.python.lanes.install.repair import RecordProvider
-from graph.schema import Node, NodeType, State
+from graph.model import Node, NodeType, State
 from graph.python.util.import_mapping import normalize_package_name
 
 

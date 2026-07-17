@@ -17,7 +17,7 @@ from graph.ids import (
 )
 from graph.python.native.os_resolver import ProviderCandidate
 from graph.python.native.project_native_deps import project_native_obligations
-from graph.schema import (
+from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
 from graph.python.native.seed import seed_wheel_oracle_prior

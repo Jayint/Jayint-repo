@@ -476,7 +476,7 @@ def run_v3(
             # (the test gate is a separate call, e.g. _run_tests_verified /
             # _run_discover_gate) — recorded as None/"" here; this record is
             # the INSTALL result only.
-            from graph.schema import State
+            from graph.model import State
             _certified_ids = tuple(sorted(
                 n.id for n in graph.nodes if _is_reciped(n) and n.state is State.SATISFIED
             ))
@@ -661,7 +661,7 @@ def run_v3(
             return
         if exec_readonly is None:                      # R3(c): no certify path -> no emit
             return
-        from graph.schema import NodeType, State
+        from graph.model import NodeType, State
         from src.envstate.world_model import Fact
         from src.envstate.depgraph_live import certify_refresh
         from graph.emit.emit import partition

@@ -1,4 +1,4 @@
-from graph.schema import (
+from graph.model import (
     DiscoveredBy, Layer, Node, NodeType, Phase, Strength,
 )
 

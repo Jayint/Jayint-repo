@@ -11,7 +11,7 @@ from graph.python.native.apt_verify import (
     t64_variant,
 )
 from graph.ids import syslib_id
-from graph.schema import (
+from graph.model import (
     DepGraph,
     DiscoveredBy,
     Layer,

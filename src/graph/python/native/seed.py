@@ -24,7 +24,7 @@ Pure: every "mutation" returns a NEW ``DepGraph`` (repo immutability rule).
 from __future__ import annotations
 
 from graph.ids import tool_id
-from graph.schema import (
+from graph.model import (
     DepGraph,
     DiscoveredBy,
     Edge,

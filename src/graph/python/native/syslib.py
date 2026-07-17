@@ -11,7 +11,7 @@ apt->fix mapping).
 from __future__ import annotations
 
 from graph.ids import syslib_id
-from graph.schema import DiscoveredBy, Layer, Node, NodeType, State
+from graph.model import DiscoveredBy, Layer, Node, NodeType, State
 
 
 def make_syslib_node(

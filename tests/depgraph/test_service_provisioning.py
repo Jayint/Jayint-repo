@@ -16,7 +16,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from graph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
+from graph.model import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
 from graph.emit.build_script import render_build_script, render_service_start_script
 from graph.service_recipes import render_probe_poll
 

@@ -24,7 +24,7 @@ from graph.contracts.executor import CommandResult
 from graph.ids import import_id, package_id
 from graph.python.lanes.install.resolve_errors import _offending_root_names
 from graph.python.lanes.install.resolve_lock import _package_node
-from graph.schema import (
+from graph.model import (
     DepGraph,
     DiscoveredBy,
     Edge,
@@ -711,7 +711,7 @@ def test_build_threads_repaired_into_resolve_audit_root_names(tmp_path):
 # --------------------------------------------------------------------------- #
 def test_missing_excludes_module_routed_and_deferred():
     from graph.core.build import _missing_import_nodes  # extracted pure helper
-    from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy
+    from graph.model import DepGraph, Node, NodeType, Layer, DiscoveredBy
 
     def imp(name, **data):
         return Node(id=f"import:{name}", type=NodeType.IMPORT, name=name,
@@ -729,7 +729,7 @@ def test_missing_filter_is_byte_identical_without_lanes():
     # With no module-routed nodes and empty deferred, the new helper equals the
     # old comprehension exactly (behavior-preserving gate for Stage C).
     from graph.core.build import _missing_import_nodes
-    from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy
+    from graph.model import DepGraph, Node, NodeType, Layer, DiscoveredBy
     imp = lambda n, **d: Node(id=f"import:{n}", type=NodeType.IMPORT, name=n,
                               layer=Layer.NAMING, discovered_by=DiscoveredBy.STATIC_SCAN, data=d)
     graph = DepGraph().with_node(imp("requests")).with_node(imp("flask", optional=True))

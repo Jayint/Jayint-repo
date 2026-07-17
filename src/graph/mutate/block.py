@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from graph.emit.emit import partition, topo_order
 from graph.emit.node_recipes import _apt_name, _pip_spec, _is_reciped
-from graph.schema import DepGraph, Node, NodeType
+from graph.model import DepGraph, Node, NodeType
 
 
 @dataclass(frozen=True)

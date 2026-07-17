@@ -330,7 +330,7 @@ def test_uv_sourced_dependency_scope_governed_entirely_by_true_kind_via_select_r
     # deciding membership; there is no separate uv-sources carve-out either
     # way.
     from graph.python.lanes.install.roots import select_roots
-    from graph.schema import DepGraph
+    from graph.model import DepGraph
 
     _write(
         tmp_path,

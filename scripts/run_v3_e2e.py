@@ -77,7 +77,7 @@ from graph.emit.build_script import (
     render_build_script,
     render_service_start_script,
 )
-from graph.schema import State
+from graph.model import State
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
@@ -279,7 +279,7 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     # ── 2. BELIEF: build the dep-graph (skipped in --seed-script repair-only mode) ──────
     arch = _target_arch(choice.platform_override)
     if args.seed_script:
-        from graph.schema import DepGraph
+        from graph.model import DepGraph
         graph = DepGraph()          # empty — repair-only ablation doesn't use graph state
         print(f"[v3] seed-script mode: repair-only on {args.seed_script} "
               f"(construction skipped, empty graph)")

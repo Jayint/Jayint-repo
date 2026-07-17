@@ -13,7 +13,7 @@ import enum
 from collections.abc import Callable
 from typing import Protocol
 
-from graph.schema import DepGraph
+from graph.model import DepGraph
 
 
 class ClosureMode(enum.Enum):

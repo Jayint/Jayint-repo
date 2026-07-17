@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from graph.emit.emit import _is_reciped
-from graph.schema import State
+from graph.model import State
 from src.envstate.depgraph_live import certify_refresh
 
 _EVIDENCE_CAP = 500

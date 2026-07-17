@@ -17,7 +17,7 @@ from graph.contracts.executor import (
     LocalSubprocessExecutor,
 )
 from graph.emit.export import to_graphml
-from graph.schema import (
+from graph.model import (
     Attempt,
     DepGraph,
     DiscoveredBy,

@@ -19,7 +19,7 @@ from dataclasses import replace
 
 from graph.ids import import_id, package_id, syslib_id
 from graph.python.native.probe import import_probe
-from graph.schema import (
+from graph.model import (
     DepGraph,
     DiscoveredBy,
     Edge,

@@ -117,7 +117,7 @@ from graph.python.lanes.install.resolve_link import (
     link_imports_to_packages,
     _merge,
 )
-from graph.schema import (
+from graph.model import (
     DiscoveredBy,
     Edge,
     EdgeType,

@@ -21,7 +21,7 @@ for _p in (str(_ROOT), str(_SRC)):
 
 from graph.emit.build_script import render_build_script
 from graph.emit.emit import _is_service_reciped
-from graph.schema import DepGraph, NodeType, State
+from graph.model import DepGraph, NodeType, State
 from graph.service_recipes import render_probe_poll
 
 import src.envstate.classify_services_clean as csc

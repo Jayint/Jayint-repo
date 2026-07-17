@@ -31,7 +31,7 @@ from graph.python.read.repo_modules import (
 from graph.python.read.scan import (
     _is_excluded_path, scan_imports,
 )
-from graph.schema import (
+from graph.model import (
     DiscoveredBy, Layer, Node, NodeType,
 )
 

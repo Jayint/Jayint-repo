@@ -2,7 +2,7 @@ from graph.mutate.patch import (
     PatchProposal, NodeSpec, ProviderSpec, EdgeSpec, ScriptPatch,
 )
 from graph.mutate.patch_gate import validate_proposal
-from graph.schema import (
+from graph.model import (
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy,
 )
 
