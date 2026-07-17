@@ -7,7 +7,7 @@ from __future__ import annotations
 import os
 from typing import Any, Callable
 
-from src.envstate.llm_response import complete_with_tools
+from src.llm import complete_with_tools
 from src.react_repair.actions import (
     TOOLS_SCHEMA, action_from_tool_call, extract_reasoning, extract_thought, parse_action)
 from src.react_repair.history_view import render_history

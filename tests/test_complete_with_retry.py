@@ -47,7 +47,7 @@ class TestCompleteWithRetryEmptyThenValid(unittest.TestCase):
     """Empty content on attempt 1 -> valid on attempt 2 -> returns valid, 2 calls."""
 
     def test_returns_valid_text_on_second_attempt(self):
-        from src.envstate.llm_response import complete_with_retry
+        from src.llm import complete_with_retry
 
         valid_text = "Hello, world!"
         client, call_log = _make_sequential_client(["", valid_text])
@@ -58,7 +58,7 @@ class TestCompleteWithRetryEmptyThenValid(unittest.TestCase):
         self.assertEqual(len(call_log), 2)
 
     def test_accumulated_usage_across_attempts(self):
-        from src.envstate.llm_response import complete_with_retry
+        from src.llm import complete_with_retry
 
         client, _ = _make_sequential_client([
             ("", 10, 5, 15),
@@ -76,7 +76,7 @@ class TestCompleteWithRetryAcceptPredicate(unittest.TestCase):
     """Text is non-empty but accept() returns False on attempt 1, True on attempt 2."""
 
     def test_retries_when_accept_returns_false(self):
-        from src.envstate.llm_response import complete_with_retry
+        from src.llm import complete_with_retry
 
         client, call_log = _make_sequential_client(["bad text", "good text"])
 
@@ -93,7 +93,7 @@ class TestCompleteWithRetryUsageAccumulation(unittest.TestCase):
     """Usage is accumulated across all attempts regardless of accept outcome."""
 
     def test_three_attempts_usage_summed(self):
-        from src.envstate.llm_response import complete_with_retry
+        from src.llm import complete_with_retry
 
         client, call_log = _make_sequential_client([
             ("", 5, 2, 7),
@@ -116,7 +116,7 @@ class TestCompleteWithRetryMaxAttemptsCap(unittest.TestCase):
     """Returns last response after max_attempts even when never good; exactly max_attempts calls."""
 
     def test_returns_last_text_when_never_good(self):
-        from src.envstate.llm_response import complete_with_retry
+        from src.llm import complete_with_retry
 
         # Always empty — should give up after max_attempts=3
         client, call_log = _make_sequential_client(["", "", "still empty"])
@@ -129,7 +129,7 @@ class TestCompleteWithRetryMaxAttemptsCap(unittest.TestCase):
         self.assertEqual(len(call_log), 3)
 
     def test_default_max_attempts_is_three(self):
-        from src.envstate.llm_response import complete_with_retry
+        from src.llm import complete_with_retry
 
         client, call_log = _make_sequential_client(["", "", "last"])
 
@@ -142,7 +142,7 @@ class TestCompleteWithRetryFirstResponseGood(unittest.TestCase):
     """If the first response is already good, exactly ONE create call is made (parity)."""
 
     def test_single_call_when_first_response_valid(self):
-        from src.envstate.llm_response import complete_with_retry
+        from src.llm import complete_with_retry
 
         client, call_log = _make_sequential_client([("good text", 10, 5, 15)])
 
@@ -156,7 +156,7 @@ class TestCompleteWithRetryFirstResponseGood(unittest.TestCase):
         self.assertIsNotNone(response)
 
     def test_single_call_when_accept_passes_first(self):
-        from src.envstate.llm_response import complete_with_retry
+        from src.llm import complete_with_retry
 
         client, call_log = _make_sequential_client(["accepted"])
 
@@ -173,7 +173,7 @@ class TestCompleteWithRetryMessagesNotMutated(unittest.TestCase):
     """The caller's messages list must not be mutated across retries."""
 
     def test_caller_list_unchanged_after_retry(self):
-        from src.envstate.llm_response import complete_with_retry
+        from src.llm import complete_with_retry
 
         original_messages = [{"role": "user", "content": "go"}]
         original_len = len(original_messages)
@@ -187,7 +187,7 @@ class TestCompleteWithRetryMessagesNotMutated(unittest.TestCase):
         self.assertEqual(original_messages, original_copy)
 
     def test_caller_list_unchanged_with_max_attempts_exhausted(self):
-        from src.envstate.llm_response import complete_with_retry
+        from src.llm import complete_with_retry
 
         original_messages = [{"role": "system", "content": "sys"}, {"role": "user", "content": "go"}]
         original_len = len(original_messages)
@@ -203,7 +203,7 @@ class TestCompleteWithRetryCustomNudge(unittest.TestCase):
     """The retry_nudge content appears in the messages sent on subsequent attempts."""
 
     def test_custom_nudge_appended_in_retry_messages(self):
-        from src.envstate.llm_response import complete_with_retry
+        from src.llm import complete_with_retry
 
         client, call_log = _make_sequential_client(["", "ok"])
 
@@ -226,7 +226,7 @@ class TestCompleteWithRetryDefaultNudge(unittest.TestCase):
     """When retry_nudge is None, a default nudge message is still appended."""
 
     def test_default_nudge_appended_on_retry(self):
-        from src.envstate.llm_response import complete_with_retry
+        from src.llm import complete_with_retry
 
         client, call_log = _make_sequential_client(["", "ok"])
 
@@ -246,7 +246,7 @@ class TestCompleteWithRetryKwargsForwarded(unittest.TestCase):
     """Extra kwargs (e.g. temperature) are forwarded to every create() call."""
 
     def test_kwargs_forwarded_to_create(self):
-        from src.envstate.llm_response import complete_with_retry
+        from src.llm import complete_with_retry
 
         received_kwargs = []
 
@@ -274,7 +274,7 @@ class TestCompleteWithRetryResponseReturned(unittest.TestCase):
 
     def test_response_object_returned_on_first_good(self):
         """When the first response is good, the returned response is that object."""
-        from src.envstate.llm_response import complete_with_retry
+        from src.llm import complete_with_retry
 
         sentinel = _make_response("ok", 1, 1, 2)
         responses_iter = iter([sentinel])
@@ -289,7 +289,7 @@ class TestCompleteWithRetryResponseReturned(unittest.TestCase):
 
     def test_response_object_returned_on_exhaustion(self):
         """When all attempts fail, the last response object is still returned."""
-        from src.envstate.llm_response import complete_with_retry
+        from src.llm import complete_with_retry
 
         resp1 = _make_response("", 1, 1, 2)
         resp2 = _make_response("", 1, 1, 2)
@@ -311,7 +311,7 @@ class TestCompleteWithRetryAcceptRaises(unittest.TestCase):
     """If accept() raises, that attempt is treated as not-good (no exception propagates)."""
 
     def test_accept_raising_treated_as_not_good_then_retried(self):
-        from src.envstate.llm_response import complete_with_retry
+        from src.llm import complete_with_retry
 
         call_count = {"n": 0}
 
@@ -336,7 +336,7 @@ class TestCompleteWithRetryAcceptRaises(unittest.TestCase):
         self.assertEqual(call_count["n"], 2)
 
     def test_accept_always_raises_returns_last_text_without_propagating(self):
-        from src.envstate.llm_response import complete_with_retry
+        from src.llm import complete_with_retry
 
         client, call_log = _make_sequential_client(["attempt1", "attempt2", "attempt3"])
 

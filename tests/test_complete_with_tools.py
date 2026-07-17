@@ -30,7 +30,7 @@ def _client(responses):
 
 
 def test_returns_tool_call_on_first_attempt():
-    from src.envstate.llm_response import complete_with_tools
+    from src.llm import complete_with_tools
     client, log = _client([_tool_response("edit", '{"verb":"insert","start":8,"content":"x"}')])
     calls, content, usage, resp = complete_with_tools(client, "m", [{"role": "user", "content": "go"}], tools=[{"t": 1}])
     assert calls == [("edit", '{"verb":"insert","start":8,"content":"x"}')]
@@ -38,7 +38,7 @@ def test_returns_tool_call_on_first_attempt():
 
 
 def test_forwards_tools_and_forces_tool_choice_required():
-    from src.envstate.llm_response import complete_with_tools
+    from src.llm import complete_with_tools
     client, log = _client([_tool_response("explore", '{"command":"ls"}')])
     TOOLS = [{"type": "function", "function": {"name": "explore"}}]
     complete_with_tools(client, "m", [{"role": "user", "content": "go"}], tools=TOOLS)
@@ -47,7 +47,7 @@ def test_forwards_tools_and_forces_tool_choice_required():
 
 
 def test_retries_with_nudge_when_no_tool_call():
-    from src.envstate.llm_response import complete_with_tools
+    from src.llm import complete_with_tools
     client, log = _client([_notool_response("I'll investigate…"),
                            _tool_response("explore", '{"command":"ls"}')])
     calls, content, usage, resp = complete_with_tools(client, "m", [{"role": "user", "content": "go"}], tools=[{"t": 1}])
@@ -57,7 +57,7 @@ def test_retries_with_nudge_when_no_tool_call():
 
 
 def test_accumulates_usage_across_attempts():
-    from src.envstate.llm_response import complete_with_tools
+    from src.llm import complete_with_tools
     client, _ = _client([_notool_response("prose", 10, 5, 15),
                          _tool_response("explore", '{"command":"ls"}', pt=20, ct=8, tt=28)])
     _, _, usage, _ = complete_with_tools(client, "m", [{"role": "user", "content": "go"}], tools=[{"t": 1}])
@@ -65,7 +65,7 @@ def test_accumulates_usage_across_attempts():
 
 
 def test_captures_content_alongside_tool_call():
-    from src.envstate.llm_response import complete_with_tools
+    from src.llm import complete_with_tools
     client, _ = _client([_tool_response("explore", '{"command":"ls"}', content="<think>look</think>")])
     _, content, _, _ = complete_with_tools(client, "m", [{"role": "user", "content": "go"}], tools=[{"t": 1}])
     assert content == "<think>look</think>"

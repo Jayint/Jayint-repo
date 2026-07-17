@@ -9,7 +9,7 @@ from openai import OpenAI
 import json
 
 from src.constants import DEFAULT_LLM_MODEL
-from src.envstate.llm_response import apply_minimax_thinking
+from src.llm import apply_minimax_thinking
 from src.language_handlers import (
     LanguageHandler, 
     get_language_handler, 

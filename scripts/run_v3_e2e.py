@@ -68,8 +68,8 @@ from src.envstate.manifest import parse_manifests
 from src.envstate.classify_services_clean import make_construction_classifier
 from src.envstate.base_image_selection import choose_base_image
 from src.envstate.llm_dist_guess import make_dist_guesser
-from src.envstate.llm_response import complete_with_retry
-from src.envstate.jsonutil import extract_json_object
+from src.llm import complete_with_retry
+from graph.util import extract_json_object
 from src.envstate.run_trace import RunTracer
 from src.envstate.proof import finalize_trace
 from graph.advise import build_advisory_for_repo

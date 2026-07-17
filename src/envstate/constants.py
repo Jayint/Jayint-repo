@@ -1,20 +1,14 @@
-"""Shared envstate constants.
+"""Loop-scope envstate constants (ride to ``orchestrate/loop/`` in Phase 2 T5).
 
-Kept in a dependency-free leaf module so that both ``orchestrator`` and
-``graph_scheduler`` can import the canonical commands without forming an
-import cycle (``graph_scheduler`` previously lazy-imported this from
-``orchestrator`` at call time purely to dodge the cycle).
+Kept as a dependency-free leaf so ``orchestrator`` and ``graph_scheduler`` share
+the same objects without an import cycle. ``VERIFY_TEST_CMD`` now lives in the
+neutral ``src.constants`` leaf (both the repair arm and the loop need it — src/
+stage-refactor §4A decision #1); it is re-exported here so the loop's existing
+importers and ``test_constants_single_source`` keep resolving one object.
 """
 from __future__ import annotations
 
-# Canonical execution-verify command used by the Phase-1 execution gate.
-# The gate requires a bare interpreter (no venv wrapper) and >=1 passed test.
-# `--continue-on-collection-errors` matches the ratbench OFFICIAL scorer: one un-importable module
-# must not abort the whole session (strict `pytest -q` zeroed repos that had real passing tests,
-# hiding progress from the agent and optimizing a different target than the benchmark scores).
-# The react arm's per-cause error breakdown (pytest_summary) reads the FAILURES/ERRORS traceback
-# sections, which pytest emits by default — no extra reporting flag is needed here.
-VERIFY_TEST_CMD: str = "python -m pytest -q --continue-on-collection-errors"
+from src.constants import VERIFY_TEST_CMD  # noqa: F401  (canonical home: src/constants.py; re-exported for the loop)
 
 # run_v3 no-progress bound: give up honestly once the VERIFY_TEST_CMD outcome
 # signature is an identical FAILURE for this many consecutive cycles despite

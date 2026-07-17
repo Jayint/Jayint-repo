@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from src.envstate.jsonutil import extract_json_object
+from graph.util import extract_json_object
 
 _SYSTEM_PROMPT = (
     "You map a Python import to the PyPI distribution(s) that provide it. You are "

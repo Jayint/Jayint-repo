@@ -750,8 +750,8 @@ def run_v3(
             classifiers = (make_diagnostic_classifier(_repo_ctx()),)
             if getattr(build_agent, "client", None) is not None:
                 from src.envstate.llm_classifier import make_llm_classifier
-                from src.envstate.llm_response import complete_with_retry
-                from src.envstate.jsonutil import extract_json_object
+                from src.llm import complete_with_retry
+                from graph.util import extract_json_object
 
                 def _complete(messages):
                     text, _usage, _resp = complete_with_retry(

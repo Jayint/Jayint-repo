@@ -30,7 +30,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from src.envstate.llm_response import complete_with_retry
+from src.llm import complete_with_retry
 from src.eval.service_sufficiency.brief import render_brief
 from src.eval.service_sufficiency.graders import grade
 

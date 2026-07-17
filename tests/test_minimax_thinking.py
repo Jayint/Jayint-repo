@@ -1,6 +1,6 @@
 """MiniMax M3 thinking-off injection + native tool-call normalization.
 
-Covers the central mechanism added to ``src/envstate/llm_response.py``:
+Covers the central mechanism added to ``src/llm.py`` (was ``envstate/llm_response.py``):
 
 * ``apply_minimax_thinking`` merges ``extra_body={"thinking": {"type": ...}}``
   ONLY for a MiniMax-base-url client, gated on ``MINIMAX_THINKING`` (default
@@ -11,10 +11,17 @@ Covers the central mechanism added to ``src/envstate/llm_response.py``:
 
 All fakes are local (no network). Env is isolated per-test via monkeypatch.
 """
+import pathlib
+import sys
+
+_SRC = pathlib.Path(__file__).resolve().parents[1] / "src"
+if str(_SRC) not in sys.path:  # graph.util lives under graph/, whose package import needs src/ on path
+    sys.path.insert(0, str(_SRC))
+
 from types import SimpleNamespace
 
-from src.envstate.jsonutil import extract_json_object
-from src.envstate.llm_response import (
+from graph.util import extract_json_object
+from src.llm import (
     apply_minimax_thinking,
     complete_with_retry,
     response_text,

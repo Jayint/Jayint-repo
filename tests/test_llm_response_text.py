@@ -1,7 +1,7 @@
 import unittest
 from types import SimpleNamespace
 
-from src.envstate.llm_response import response_text, strip_reasoning_markup
+from src.llm import response_text, strip_reasoning_markup
 
 
 def _resp(message):

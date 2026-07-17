@@ -1,6 +1,13 @@
+import pathlib
+import sys
+
+_SRC = pathlib.Path(__file__).resolve().parents[1] / "src"
+if str(_SRC) not in sys.path:  # jsonutil now lives under graph/, whose package import needs src/ on path
+    sys.path.insert(0, str(_SRC))
+
 import unittest
 
-from src.envstate.jsonutil import extract_json_object
+from graph.util import extract_json_object
 
 
 class JsonUtilTests(unittest.TestCase):

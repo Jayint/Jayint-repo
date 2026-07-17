@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from graph.emit.build_script import render_build_script
 from graph.mutate.patch_gate import is_read_only
-from src.envstate.constants import VERIFY_TEST_CMD          # the canonical `python -m pytest -q`
+from src.constants import VERIFY_TEST_CMD          # the canonical `python -m pytest -q` (neutral leaf)
 from src.react_repair.actions import apply_edit
 from src.react_repair.anti_cheat import added_self_install_reason, narrowing_reason
 from src.react_repair.observation import safety_compress_observation, strip_pip_progress

@@ -23,8 +23,8 @@ import statistics
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from src.envstate.jsonutil import extract_json_object
-from src.envstate.llm_response import complete_with_retry
+from graph.util import extract_json_object
+from src.llm import complete_with_retry
 
 # Cheapest current Claude model — see docs/superpowers (claude-api skill, cached 2026-06-24).
 # Callers may pass a different `model=` (e.g. Sonnet) for harder repos; this is only the
