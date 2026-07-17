@@ -145,7 +145,7 @@ All 830 sites must be rewritten. Handle by category — the last four are the si
 
 ## Sequencing summary
 
-0. **Ideally first (separate pass):** the verified dead-code audit (see the Follow-up section below) — every dead symbol removed first is code the move never has to relocate + rewrite. Not gated on anything; not part of a move commit.
+0. **Ideally first (separate passes):** the verified dead-code audit AND the test-decoupling half (see the two Follow-up sections below) — dead symbols removed first are never relocated, and tests decoupled from module internals shrink the 667-site test rewrite. Neither is gated on anything; neither belongs in a move commit.
 1. **Now (Phase 0):** the six decoupling tasks — Stage-C-independent, each behavior-preserving, each shrinks the move. Land them incrementally; re-run the sweep at the end.
 2. **After Stage C + in-flight work lands:** freeze the tree, then Phase 1 as one atomic sweep-gated commit.
 3. Keep `pkg_layer/` and the `eval/` harnesses on the import-rewrite checklist — they're downstream consumers, rewritten in the same commit, not folded in.
@@ -171,6 +171,23 @@ Explicitly queued. This refactor deliberately does not delete beyond the four wh
 - The overlapping-linker cluster to review for further dead paths — `resolve` / `resolve_lock` / `relink` / `naming` (`resolve_link` already covered by Task 0.6); this is handoff §9's "retired code never gets deleted" theme.
 
 **Sequencing:** a SEPARATE pass, ideally run BEFORE Phase 0 (it shrinks the move surface). NEVER fold a deletion into a move/relocation commit — it makes both un-reviewable and the sweep cannot attribute a regression.
+
+## Follow-up (separate pass, NOT part of this refactor): test decoupling + bloat reduction
+
+Explicitly queued. The test suite is not grossly oversized (graph-concern tests = **136 files / 28,023 lines**, a healthy **1.4× test-to-source ratio**), but it is **structurally coupled to implementation** — which is precisely why the reorg is a 667-site *test* rewrite (80% of the blast radius). Decoupling the tests reduces bloat AND shrinks the move; the two are one problem.
+
+**Measured coupling baseline (2026-07-17):**
+- **76** private-symbol imports in `tests/depgraph/` (tests importing `_ingest_need`/`_canon`/`_make_syslib_node`… — test *how*, not *what*; they vanish/move in consolidation).
+- **33** module-object alias imports + **262** mock/monkeypatch sites — the `import mod; monkeypatch.setattr(mod, "_private", …)` pattern; the shim-unsafe, refactor-fragile class.
+- **45** `caplog` usages (8 assert on logger-name strings that break silently on a rename).
+- Redundancy hotspots: `test_resolve.py` **2,788 lines vs 1,057 source (2.6×)**, `test_probe.py` 1,270 vs 587 (2.2×); **136 test files for ~82 source files** — per-file mirroring that won't collapse with the 82→~45 source consolidation unless the tests are deliberately merged.
+
+**Method:**
+1. **Decouple** (the reorg de-risker): replace private-helper tests with public-seam tests (`build_dep_graph`/`classify`/`install_closure`/`resolve_closure`); replace `monkeypatch.setattr(module, …)` with injection through the existing `Executor`/`RecordProvider`/`DistGuesser` seams; replace logger-name `caplog` asserts with state/graph-shape asserts.
+2. **De-bloat:** consolidate test files alongside the source consolidation (16 native → ~7 test files, dropping merged private-helper duplicates); parametrize the 2.6× giants.
+3. Each change is behavior-equivalent coverage, run under the same suite; a coverage delta (not just pass/fail) is the guard against silently dropping a real case.
+
+**Sequencing:** the **decouple** half is ideally BEFORE Phase 0 — it directly shrinks the 667-site test rewrite (rewrite public-API imports, not 76 private paths + 33 module-object patches). The **de-bloat** half naturally rides alongside Phase 1's file moves (test files follow source files). A separate pass either way — never mixed into a move commit.
 
 ## Self-Review
 
