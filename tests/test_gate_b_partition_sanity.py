@@ -162,3 +162,61 @@ def test_aggregate_run_combines_records_and_errored(tmp_path):
     assert agg["total"] == 2
     assert agg["n_errored"] == 1
     assert agg["errored"] == [{"repo": "org/broke", "error": "RuntimeError: nope"}]
+
+
+# ---------------------------------------------------------------------------
+# _make_scratch_executor — the cure container MUST bind-mount the repo (P1)
+# ---------------------------------------------------------------------------
+def test_make_scratch_executor_mounts_repo_with_install_kwargs(monkeypatch):
+    """The scratch container the shadow pass cures inside MUST mount the provisioned
+    repo (the cure ``cd``s into ``repo_mount_dir`` and runs ``pip install -e .``),
+    with network + cache so a real editable install genuinely resolves deps.
+
+    Regression guard: if a refactor drops ``mount_repo`` the cure would run against
+    an empty ``/workspace/repo`` and silently record ``cure_ok=False`` — this test
+    fails (KeyError/assert) the moment any of these kwargs go missing."""
+    captured: dict = {}
+
+    class _FakeExecutor:  # constructing it starts NO container — pure capture
+        def __init__(self, image, **kwargs):
+            captured["image"] = image
+            captured.update(kwargs)
+
+    monkeypatch.setattr(gate, "DockerExecutor", _FakeExecutor)
+
+    repo_dir = "/work/org__repo"
+    ex = gate._make_scratch_executor(repo_dir, "python:3.11-arm64")
+
+    assert isinstance(ex, _FakeExecutor)
+    assert captured["image"] == "python:3.11-arm64"
+    assert captured["mount_repo"] == repo_dir     # THE must-fix: repo is mounted
+    assert captured["network"] is True            # pip install -e . needs PyPI
+    assert captured["cache_volumes"] is True       # reuse pip/uv cache volumes
+    assert captured["bootstrap_uv"] is True        # uv for the closure/cure install
+
+
+# ---------------------------------------------------------------------------
+# _truncate_record_file — each run aggregates only ITS OWN records (P2)
+# ---------------------------------------------------------------------------
+def test_truncate_record_file_clears_stale_records(tmp_path):
+    """A prior run's records must not survive into a re-run's aggregate. The shadow
+    pass appends and the driver aggregates the whole file, so the driver truncates
+    the file at start. Regression guard: if that truncation is dropped, the stale
+    line below would still be read back and pollute the fresh aggregate."""
+    p = tmp_path / "shadow.jsonl"
+    p.write_text(json.dumps(_R_CLEAN) + "\n")          # a stale prior-run record
+    assert gate._read_shadow_jsonl(str(p))             # sanity: stale line present
+
+    gate._truncate_record_file(str(p))
+
+    assert p.read_text() == ""                         # stale record gone
+    assert gate._read_shadow_jsonl(str(p)) == []       # nothing left to aggregate
+
+
+def test_truncate_record_file_creates_missing_parent(tmp_path):
+    """Truncation is also the file's first touch on a fresh run, so it must create a
+    missing parent dir rather than crash."""
+    p = tmp_path / "nested" / "dir" / "shadow.jsonl"
+    gate._truncate_record_file(str(p))
+    assert p.exists()
+    assert p.read_text() == ""

@@ -201,6 +201,42 @@ def _read_shadow_jsonl(path: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 # Construction (side-effecting boundary — Docker)
 # ---------------------------------------------------------------------------
+def _make_scratch_executor(repo_dir: str, image: str) -> DockerExecutor:
+    """Build the scratch container the shadow pass cures INSIDE.
+
+    This is factored out of ``_construct_shadow`` so the executor kwargs are
+    unit-inspectable without Docker (constructing a ``DockerExecutor`` starts no
+    container — only ``__enter__`` does).
+
+    The cure (``cure.run_cure``) and arbitration (``arbitrate.probe_name``) ``cd``
+    into ``getattr(executor, "repo_mount_dir", "/workspace/repo")`` and there run
+    ``pip install -e .`` + ``python3 -c 'import <name>'`` probes. So that directory
+    MUST be the provisioned repo — otherwise it is empty, every cure fails silently
+    (recorded ``cure_ok=False``, not raised), arbitration marks all deferred names
+    unresolved, and the Gate B rates are corrupted. The kwargs make a real run
+    genuinely install:
+
+      * ``mount_repo=repo_dir`` — bind-mounts the provisioned repo at the default
+        ``repo_mount_dir`` (``/workspace/repo``) the cure/arbitration ``cd`` into.
+        THE must-fix: without it the cure runs against an empty dir.
+      * ``network=True`` — ``pip install -e .`` resolves the editable package's
+        dependencies from PyPI; a no-network container cannot install them.
+      * ``cache_volumes=True`` — reuse the shared pip/uv cache volumes so the
+        editable install is fast. (advise.py keeps construction's cache OFF to
+        "observe every gap cold"; that does not apply here — the shadow graph is
+        discarded, this is a measurement-only cure, so caching only speeds it up.)
+      * ``bootstrap_uv=True`` — install ``uv`` into the probe (kept from the
+        original; the closure/cure install path uses ``uv pip``).
+    """
+    return DockerExecutor(
+        image,
+        bootstrap_uv=True,
+        mount_repo=repo_dir,
+        network=True,
+        cache_volumes=True,
+    )
+
+
 def _construct_shadow(repo_dir: str, image: str) -> None:
     """Run construction with the shadow config-lane pass ON, mirroring
     ``advise.build_advisory_for_repo``'s executor setup (a fresh scratch
@@ -212,9 +248,13 @@ def _construct_shadow(repo_dir: str, image: str) -> None:
     through the ecosystem seam to ``_python_package_obligations``. The shadow pass
     appends a ``ShadowRecord`` to ``V3_SHADOW_RECORD_PATH`` (read from the env by
     ``shadow._write_shadow_record``); the returned graph is intentionally discarded
-    (measured, not wired — real construction stays byte-identical)."""
+    (measured, not wired — real construction stays byte-identical).
+
+    The scratch container is built by ``_make_scratch_executor`` so it mounts the
+    provisioned repo (with network + cache) — see that helper for why the mount is
+    load-bearing for the in-container cure."""
     host = LocalSubprocessExecutor()
-    with DockerExecutor(image, bootstrap_uv=True) as scratch:
+    with _make_scratch_executor(repo_dir, image) as scratch:
         build_dep_graph(repo_dir, scratch, host_executor=host, shadow_config_lane=True)
 
 
@@ -234,6 +274,21 @@ def run_shadow_construction(corpus: str, image: str, *, work_root: Path = _WORK_
     for name, err in sorted(errored.items()):
         print(f"[gate-b] CONSTRUCT ERROR {name}: {err}", file=sys.stderr)
     return errored
+
+
+def _truncate_record_file(path: str) -> None:
+    """Clear the shadow record file at the START of a measurement run so this
+    invocation aggregates ONLY the records IT produces.
+
+    The shadow pass APPENDS (``shadow._write_shadow_record`` opens in ``"a"``),
+    while this driver aggregates the ENTIRE file — so without this, re-running the
+    documented ``V3_SHADOW_RECORD_PATH=/tmp/shadow.jsonl`` command would mix a prior
+    corpus's records into the result. Opened once in ``"w"`` to truncate (parent dir
+    created if absent). Called only for a real measurement run — NEVER in
+    ``--provision-only`` mode, and NEVER from the pure ``aggregate_shadow_records``."""
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text("", encoding="utf-8")
 
 
 def aggregate_run(record_path: str, errored: dict) -> dict:
@@ -358,6 +413,9 @@ def main(argv=None) -> int:
               "the pass appends to AND that this driver aggregates.", file=sys.stderr)
         return 2
 
+    # Rotate the record file BEFORE construction: the shadow pass appends and this
+    # driver aggregates the whole file, so a stale file would pollute a re-run.
+    _truncate_record_file(record_path)
     errored = run_shadow_construction(args.corpus, args.base_image)
     agg = aggregate_run(record_path, errored)
     _print_summary(agg)
