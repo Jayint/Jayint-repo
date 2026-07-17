@@ -1,4 +1,11 @@
-from src.envstate.llm_dist_guess import make_dist_guesser
+import pathlib
+import sys
+
+_SRC = pathlib.Path(__file__).resolve().parents[2] / "src"
+if str(_SRC) not in sys.path:  # llm_dist_guess now lives under graph/, whose package import needs src/ on path
+    sys.path.insert(0, str(_SRC))
+
+from graph.llm_dist_guess import make_dist_guesser
 
 
 def test_parses_distributions_from_json():

@@ -24,8 +24,8 @@ from graph.emit.emit import _is_service_reciped
 from graph.model import DepGraph, NodeType, State
 from graph.service_recipes import render_probe_poll
 
-import src.envstate.classify_services_clean as csc
-from src.envstate.classify_services_clean import (
+import graph.python.classify_services_clean as csc
+from graph.python.classify_services_clean import (
     classify_services_clean, make_construction_classifier)
 
 

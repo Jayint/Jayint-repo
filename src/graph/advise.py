@@ -336,7 +336,7 @@ def build_advisory_for_repo(
 
     ``llm_dist_guesser`` (default ``None``) is likewise passed straight through
     to :func:`build_dep_graph` — the injected install-lane dist-guesser
-    (``src.envstate.llm_dist_guess.make_dist_guesser``). ``None`` keeps the
+    (``graph.llm_dist_guess.make_dist_guesser``). ``None`` keeps the
     deterministic pipreqs-only path; ``python_deps`` stays LLM-free, so the
     guesser is constructed at the ``scripts/run_v3_e2e.py`` orchestration
     boundary and passed in here.
