@@ -31,6 +31,7 @@ class MeasureRow:
     build_log_tail: str = ""
     collect_rc: int | None = None
     collect_clean: bool = False
+    provisional_flags: tuple = ()   # collision names installed as PyPI namesakes over a local module
     collect_errors: tuple = ()
     collect_error_count: int = 0        # # of "ERROR collecting <module>" in the collect output
     collected_node_ids: tuple = ()      # tests collected (len = number of tests collected)

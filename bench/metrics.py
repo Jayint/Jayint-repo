@@ -23,6 +23,8 @@ def compute_metrics(rows: list[MeasureRow], gold: dict | None = None) -> dict:
     ex = [r for r in rows if r.executed]
     n_exec = len(ex)
     n_collect_clean = sum(1 for r in rows if r.collect_clean)   # collect-only exit code == 0
+    n_provisional = sum(1 for r in rows if r.provisional_flags)
+    n_collect_clean_strict = sum(1 for r in rows if r.collect_clean and not r.provisional_flags)
     n_real = sum(1 for r in rows if r.ebsr and r.pass_rate >= 0.8)
     micro_passed = sum(r.passed for r in ex)
     micro_total = sum(max(r.total - r.skipped, 0) for r in ex)
@@ -32,6 +34,10 @@ def compute_metrics(rows: list[MeasureRow], gold: dict | None = None) -> dict:
         "n_real_success": n_real,
         # EBSR (Repo2Run-style): fraction of repos where `pytest --collect-only` exits 0.
         "EBSR": _div(n_collect_clean, n),
+        # A collision fallthrough (PyPI namesake installed over a local module) is a PROVISIONAL
+        # certification, never a clean pass: it counts here but is excluded from EBSR_clean.
+        "certified_with_provisional": n_provisional,
+        "EBSR_clean": _div(n_collect_clean_strict, n),
         # EBSR collection diagnostics: tests collected + collection errors (over all repos).
         "total_collected": sum(len(r.collected_node_ids) for r in rows),
         "mean_collected": _div(sum(len(r.collected_node_ids) for r in rows), n),
