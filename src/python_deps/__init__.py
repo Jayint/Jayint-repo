@@ -1,14 +1,12 @@
-"""Python dependency utilities — v3-only branch.
+"""Python package-closure layer (``pkg_layer/``) — eval-only; graph never imports it.
 
-The z3-era modules (models bulk classes, graph, z3_adapter, resolver,
-constraints, report, pypi_metadata, external_graph) are excluded from the
-v3-only branch.  Only the depgraph sub-package (uv.lock-based closure) and
-the shared scan utilities (import_mapping, import_graph, import_graph.models
-stub) are kept.
-
-evidence.py and failure_classifier.py are also present but their eager
-re-exports have been removed from this __init__ so that importing any
-graph.* submodule does not trigger z3-era class imports.
+Sealed by Phase 1 of the src/ stage-refactor: the shared read/util/model helpers
+that graph construction depends on moved OUT of here into the construction island —
+``import_mapping``/``failure_classifier`` -> ``graph/python/util``,
+``evidence``/``import_graph`` -> ``graph/python/read``, ``models`` ->
+``graph/python/models.py``. What remains is the four-plane ``pkg_layer/`` package
+closure (Contract/Closure/Usage/Environment) consumed by ``eval`` and its tests;
+it depends on ``graph`` and is out of graph's scope, so it stays here.
 """
 from __future__ import annotations
 
