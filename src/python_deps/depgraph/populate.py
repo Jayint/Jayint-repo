@@ -221,7 +221,7 @@ def populate_setup_commands(graph: DepGraph, *, include_services: bool = False) 
         if not cmds:
             continue
         updated = replace(node, setup_commands=cmds, strength=Strength.HARD)
-        if node.type is NodeType.PROJECT:
+        if node.type is NodeType.PROJECT and not node.data.get("scratch_certified"):
             updated = _poison_project_certificate(updated)
         new = new.with_node(updated)
     return new

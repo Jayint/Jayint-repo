@@ -212,3 +212,27 @@ def test_non_installable_project_certificate_is_not_poisoned():
     ).get("project:myproj")
     assert n.state is State.UNKNOWN
     assert n.data.get("uninstallable") is not True
+
+
+def test_scratch_certified_project_is_not_poisoned():
+    from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+    from python_deps.depgraph.populate import populate_setup_commands
+    # `installable=True` so this node DOES reach the capstone/poison call site
+    # (a project with no build system is skipped by `_should_populate` and would
+    # never be poisoned regardless, making the gate untested). `scratch_certified`
+    # is the config lane's flag that the poison gate must honour: this node still
+    # gets its editable capstone rendered, but its certificate is left intact.
+    proj = Node(id="project:x", type=NodeType.PROJECT, name="x", layer=Layer.PIP,
+                discovered_by=DiscoveredBy.GOAL,
+                data={"installable": True, "scratch_certified": True})
+    out = populate_setup_commands(DepGraph().with_node(proj))
+    got = next(n for n in out.nodes if n.type is NodeType.PROJECT)
+    # The capstone WAS populated (proving we reached the poison site)...
+    assert got.setup_commands  # a project command was rendered
+    # ...yet the certificate is NOT in the concrete poisoned state. The real
+    # `_poison_project_certificate` sets state=MISSING, check_command=None AND
+    # data['uninstallable']=True; the last is the unambiguous poison marker
+    # (a non-poisoned node keeps state=UNKNOWN and never invents that flag).
+    assert got.state is not State.MISSING or got.check_command is not None  # not poisoned
+    assert got.data.get("uninstallable") is not True                        # poison marker absent
+    assert got.state is State.UNKNOWN                                       # certificate intact
