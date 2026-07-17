@@ -15,8 +15,12 @@ Per corpus repo it:
                 pass (Task 8) classifies -> cures -> arbitrates, appends one
                 ``ShadowRecord`` per repo to ``V3_SHADOW_RECORD_PATH``, and
                 DISCARDS its graph effect (real construction is byte-identical).
-  3. AGGREGATE read the emitted shadow JSONL and reduce it to the partition-sanity
-                report (``aggregate_shadow_records`` — a PURE function, no I/O).
+  3. AGGREGATE read ONLY the records THIS run appended — the driver captures the
+                record file's byte size before construction and reads from that
+                offset to EOF (``_read_records_since``), so prior-run records are
+                excluded and the file is NEVER truncated or erased — then reduce to
+                the partition-sanity report (``aggregate_shadow_records`` — a PURE
+                function, no I/O).
 
 Why ``build_dep_graph`` directly and not ``build_advisory_for_repo``: the advisory
 wrapper does NOT thread ``shadow_config_lane`` (verified — its signature has no such
@@ -178,16 +182,37 @@ def aggregate_shadow_records(records: list[dict]) -> dict:
 # ---------------------------------------------------------------------------
 # Shadow JSONL reading (I/O boundary — kept OUT of the pure aggregator)
 # ---------------------------------------------------------------------------
-def _read_shadow_jsonl(path: str) -> list[dict]:
-    """Read the shadow JSONL (one ``ShadowRecord.__dict__`` per line). Blank lines
-    are skipped; a malformed line is surfaced on stderr (no silent caps) and skipped.
-    Returns ``[]`` if the file does not exist (an empty run — reported as such)."""
+def _read_records_since(path: str, start_offset: int) -> list[dict]:
+    """Read the shadow records this run appended AT OR AFTER byte ``start_offset``.
+
+    NON-DESTRUCTIVE by construction — this ONLY reads: it seeks to ``start_offset``
+    and reads to EOF, and it NEVER truncates, overwrites, or otherwise erases the
+    file. ``start_offset`` is the file's byte size captured BEFORE this run's
+    construction (``os.path.getsize`` — or ``0`` if the file did not pre-exist), so:
+
+      * every record a PRIOR run left in the file lives below the offset and is
+        excluded — a re-run of the documented ``V3_SHADOW_RECORD_PATH=...`` command
+        aggregates only ITS OWN appended records (solves the original P2), and
+      * because the driver reads instead of clearing, a mis-set ``V3_SHADOW_RECORD_PATH``
+        pointing at an unrelated file can no longer erase it (solves the destructive
+        risk). If the file did not pre-exist, ``start_offset`` is ``0`` and every
+        record (all of them this run's) is read.
+
+    Reading is done in BINARY and decoded, so ``start_offset`` is an exact byte
+    boundary (multibyte-safe) that lines up with ``os.path.getsize``. One
+    ``ShadowRecord.__dict__`` per line; blank lines are skipped and a malformed line
+    is surfaced on stderr (no silent caps) then skipped. Returns ``[]`` if the file
+    does not exist (an empty run — reported as such)."""
     records: list[dict] = []
     p = Path(path)
     if not p.exists():
         print(f"[gate-b] WARNING: shadow record file not found: {path}", file=sys.stderr)
         return records
-    for i, line in enumerate(p.read_text(encoding="utf-8").splitlines(), start=1):
+    with p.open("rb") as fh:
+        fh.seek(start_offset)
+        chunk = fh.read()
+    text = chunk.decode("utf-8", errors="replace")
+    for i, line in enumerate(text.splitlines(), start=1):
         line = line.strip()
         if not line:
             continue
@@ -276,27 +301,18 @@ def run_shadow_construction(corpus: str, image: str, *, work_root: Path = _WORK_
     return errored
 
 
-def _truncate_record_file(path: str) -> None:
-    """Clear the shadow record file at the START of a measurement run so this
-    invocation aggregates ONLY the records IT produces.
+def aggregate_run(record_path: str, errored: dict, *, start_offset: int = 0) -> dict:
+    """Combine the shadow JSONL records THIS run appended (the bytes at or after
+    ``start_offset``) with one synthetic error dict per errored repo, then reduce via
+    the pure ``aggregate_shadow_records``. The errored repos are represented as
+    ``{"repo": name, "error": msg}`` dicts so the aggregate lists them without them
+    polluting the numeric buckets.
 
-    The shadow pass APPENDS (``shadow._write_shadow_record`` opens in ``"a"``),
-    while this driver aggregates the ENTIRE file — so without this, re-running the
-    documented ``V3_SHADOW_RECORD_PATH=/tmp/shadow.jsonl`` command would mix a prior
-    corpus's records into the result. Opened once in ``"w"`` to truncate (parent dir
-    created if absent). Called only for a real measurement run — NEVER in
-    ``--provision-only`` mode, and NEVER from the pure ``aggregate_shadow_records``."""
-    p = Path(path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text("", encoding="utf-8")
-
-
-def aggregate_run(record_path: str, errored: dict) -> dict:
-    """Combine the emitted shadow JSONL records with one synthetic error dict per
-    errored repo, then reduce via the pure ``aggregate_shadow_records``. The errored
-    repos are represented as ``{"repo": name, "error": msg}`` dicts so the aggregate
-    lists them without them polluting the numeric buckets."""
-    records = _read_shadow_jsonl(record_path)
+    ``start_offset`` is the record file's byte size captured BEFORE construction, so
+    prior-run records (below the offset) are excluded WITHOUT touching the file — no
+    truncation, no erase. It defaults to ``0`` (read the whole file) for callers that
+    start from an empty/fresh record path."""
+    records = _read_records_since(record_path, start_offset)
     combined = records + [{"repo": n, "error": e} for n, e in sorted(errored.items())]
     return aggregate_shadow_records(combined)
 
@@ -413,11 +429,13 @@ def main(argv=None) -> int:
               "the pass appends to AND that this driver aggregates.", file=sys.stderr)
         return 2
 
-    # Rotate the record file BEFORE construction: the shadow pass appends and this
-    # driver aggregates the whole file, so a stale file would pollute a re-run.
-    _truncate_record_file(record_path)
+    # Capture the record file's byte size BEFORE construction. The shadow pass
+    # APPENDS, so aggregating only the bytes AT OR AFTER this offset excludes any
+    # prior-run records WITHOUT clearing the file — a re-run is not polluted, and a
+    # mis-set V3_SHADOW_RECORD_PATH is never erased (we only ever READ from it).
+    start_offset = os.path.getsize(record_path) if os.path.exists(record_path) else 0
     errored = run_shadow_construction(args.corpus, args.base_image)
-    agg = aggregate_run(record_path, errored)
+    agg = aggregate_run(record_path, errored, start_offset=start_offset)
     _print_summary(agg)
     _write_result_doc(args.corpus, args.base_image, agg)
     print(f"[gate-b] wrote verdict -> {_RESULT_DOC}")

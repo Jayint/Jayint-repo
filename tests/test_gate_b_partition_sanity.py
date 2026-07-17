@@ -1,13 +1,14 @@
 """Unit tests for the Gate B partition-sanity harness — PURE LOGIC ONLY.
 
 No Docker, no git, no network, no LLM: only ``aggregate_shadow_records`` (the pure
-reduction of parsed shadow records) and the ``_read_shadow_jsonl`` file boundary are
-exercised, on hand-built dicts / a tmp file. The construction path (``build_dep_graph``
-+ ``DockerExecutor``) is never touched here.
+reduction of parsed shadow records) and the ``_read_records_since`` offset-read file
+boundary are exercised, on hand-built dicts / a tmp file. The construction path
+(``build_dep_graph`` + ``DockerExecutor``) is never touched here.
 """
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -132,9 +133,10 @@ def test_aggregate_tolerates_missing_keys():
 
 
 # ---------------------------------------------------------------------------
-# _read_shadow_jsonl — the I/O boundary (tmp file only, no infra)
+# _read_records_since — the offset-read I/O boundary (tmp file only, no infra)
 # ---------------------------------------------------------------------------
-def test_read_shadow_jsonl_parses_skips_blank_and_malformed(tmp_path, capsys):
+def test_read_records_since_offset_zero_parses_skips_blank_and_malformed(tmp_path, capsys):
+    # offset 0 reads the whole file: blank + malformed lines skipped, rest parsed
     p = tmp_path / "shadow.jsonl"
     p.write_text(
         json.dumps(_R_CLEAN) + "\n"
@@ -142,13 +144,13 @@ def test_read_shadow_jsonl_parses_skips_blank_and_malformed(tmp_path, capsys):
         "{ not json }\n"           # malformed line skipped (surfaced on stderr)
         + json.dumps(_R_PROVISIONAL) + "\n"
     )
-    records = gate._read_shadow_jsonl(str(p))
+    records = gate._read_records_since(str(p), 0)
     assert [r["repo"] for r in records] == ["work/org__a", "work/org__b"]
     assert "SKIP malformed JSONL line 3" in capsys.readouterr().err
 
 
-def test_read_shadow_jsonl_missing_file_returns_empty(tmp_path):
-    records = gate._read_shadow_jsonl(str(tmp_path / "nope.jsonl"))
+def test_read_records_since_missing_file_returns_empty(tmp_path):
+    records = gate._read_records_since(str(tmp_path / "nope.jsonl"), 0)
     assert records == []
 
 
@@ -196,27 +198,53 @@ def test_make_scratch_executor_mounts_repo_with_install_kwargs(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# _truncate_record_file — each run aggregates only ITS OWN records (P2)
+# _read_records_since — each run aggregates only ITS OWN records, and NOTHING is
+# ever truncated/erased (P2 fixed by offset; destructive-file-risk fixed by read-only)
 # ---------------------------------------------------------------------------
-def test_truncate_record_file_clears_stale_records(tmp_path):
-    """A prior run's records must not survive into a re-run's aggregate. The shadow
-    pass appends and the driver aggregates the whole file, so the driver truncates
-    the file at start. Regression guard: if that truncation is dropped, the stale
-    line below would still be read back and pollute the fresh aggregate."""
+def test_read_records_since_excludes_stale_and_leaves_file_intact(tmp_path):
+    """A prior run's records must not survive into a re-run's aggregate — AND the
+    harness must never erase the record file. The driver captures the file's byte
+    size BEFORE construction; the shadow pass then APPENDS this run's records; the
+    driver reads only from that offset to EOF.
+
+    Regression guard for BOTH failure modes: the stale prior-run line below is
+    excluded from what is read (offset skips it), while the file on disk still
+    CONTAINS that stale line (read-only — nothing is truncated or overwritten)."""
     p = tmp_path / "shadow.jsonl"
-    p.write_text(json.dumps(_R_CLEAN) + "\n")          # a stale prior-run record
-    assert gate._read_shadow_jsonl(str(p))             # sanity: stale line present
+    stale_line = json.dumps(_R_CLEAN) + "\n"
+    p.write_text(stale_line)                           # a stale prior-run record
 
-    gate._truncate_record_file(str(p))
+    # snapshot taken BEFORE this run appends (mirrors main()'s pre-construction capture)
+    start_offset = os.path.getsize(str(p))
 
-    assert p.read_text() == ""                         # stale record gone
-    assert gate._read_shadow_jsonl(str(p)) == []       # nothing left to aggregate
+    # ...this run APPENDS two fresh records (mirrors the shadow pass opening in "a")
+    with p.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(_R_PROVISIONAL) + "\n")
+        fh.write(json.dumps(_R_CURE_FAILED) + "\n")
+
+    fresh = gate._read_records_since(str(p), start_offset)
+
+    # ONLY the two fresh records are returned — the stale prior-run line is excluded
+    assert [r["repo"] for r in fresh] == ["work/org__b", "work/org__c"]
+    # NON-DESTRUCTIVE: the file on disk is untouched — the stale line still survives
+    assert p.read_text().startswith(stale_line)
+    assert json.dumps(_R_CLEAN) in p.read_text()
 
 
-def test_truncate_record_file_creates_missing_parent(tmp_path):
-    """Truncation is also the file's first touch on a fresh run, so it must create a
-    missing parent dir rather than crash."""
-    p = tmp_path / "nested" / "dir" / "shadow.jsonl"
-    gate._truncate_record_file(str(p))
-    assert p.exists()
-    assert p.read_text() == ""
+def test_read_records_since_offset_zero_reads_this_run_records_for_new_file(tmp_path):
+    """When the record path does NOT pre-exist, main() computes ``start_offset`` as
+    ``os.path.getsize(path) if os.path.exists(path) else 0`` -> 0. The file is then
+    created during the run (the shadow pass appends), and reading from offset 0 must
+    return exactly this run's records — no truncation was ever needed."""
+    p = tmp_path / "fresh.jsonl"
+    assert not p.exists()                              # path does not pre-exist
+
+    # main()'s offset capture on a non-existent path -> 0
+    start_offset = os.path.getsize(str(p)) if os.path.exists(str(p)) else 0
+    assert start_offset == 0
+
+    # the run creates the file and appends its records
+    p.write_text(json.dumps(_R_CLEAN) + "\n" + json.dumps(_R_PROVISIONAL) + "\n")
+
+    records = gate._read_records_since(str(p), start_offset)
+    assert [r["repo"] for r in records] == ["work/org__a", "work/org__b"]
