@@ -78,6 +78,34 @@ def _module_node(top: str, dotted_paths: tuple[tuple[str, str], ...]) -> Node:
     )
 
 
+def _namespace_suspect_tops(repo_path: str) -> frozenset[str]:
+    """Top-level names whose sys.path root is a declared package root that has NO
+    ``__init__.py`` at the intermediate level — i.e. minted by the climb stopping
+    one dir too low under a PEP 420 namespace (review §6). Constrained to declared
+    package roots so an ordinary flat top-level is never falsely suspected."""
+    from pathlib import Path
+    from python_deps.depgraph.invocation_resolver import _find_project_dirs
+    repo = Path(repo_path)
+    roots = {repo / d for d, _ in [(r, None) for r in ("src",)] if (repo / d).is_dir()}
+    project_dirs, _mono = _find_project_dirs(repo)
+    for rel in project_dirs:
+        p = repo if rel == "." else repo / rel
+        if (p / "src").is_dir():
+            roots.add(p / "src")
+    suspect: set[str] = set()
+    for root in roots:
+        for child in root.iterdir() if root.is_dir() else ():
+            # a dir with no __init__.py whose SUBDIRS contain packages == a PEP 420
+            # namespace: its children are the real subpackages, not top-levels.
+            if child.is_dir() and not (child / "__init__.py").is_file():
+                if any((g / "__init__.py").is_file() for g in child.iterdir() if g.is_dir()):
+                    suspect.update(
+                        g.name for g in child.iterdir()
+                        if g.is_dir() and (g / "__init__.py").is_file()
+                    )
+    return frozenset(suspect)
+
+
 def classify(repo_path: str, *, target_stdlib: frozenset[str], declared: frozenset[str]) -> LaneRouting:
     findings, _local, _errors = scan_imports(repo_path)
     tops = top_level_names(repo_path)
@@ -121,6 +149,10 @@ def classify(repo_path: str, *, target_stdlib: frozenset[str], declared: frozens
             deferred.add(top)
             continue
         external.add(name)                             # rung 4: external
+
+    suspect = _namespace_suspect_tops(repo_path)
+    deferred.update(internal_tops & suspect)
+    internal_tops -= suspect
 
     for top in sorted(internal_tops):
         dotteds = dotted_by_top.get(top, [])

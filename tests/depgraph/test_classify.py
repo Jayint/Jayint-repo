@@ -47,3 +47,26 @@ def test_declared_name_never_internal(tmp_path):
     routing = classify(str(tmp_path), target_stdlib=frozenset(), declared=frozenset({"requests"}))
     assert "requests" in routing.external       # declared wins rung 1 → external, never internal
     assert "requests" not in {n for n, _ in routing.internal}
+
+
+def test_pep420_namespace_root_routes_to_collision(tmp_path):
+    # src/mycompany/pkga/__init__.py with NO mycompany/__init__.py: a PEP 420
+    # namespace. The real import is mycompany.pkga; the naive climb mints `pkga`.
+    pkga = tmp_path / "src" / "mycompany" / "pkga"
+    pkga.mkdir(parents=True)
+    (pkga / "__init__.py").write_text("")
+    (pkga / "mod.py").write_text("import pkga.mod\n")
+    (tmp_path / "pyproject.toml").write_text(
+        "[tool.setuptools.packages.find]\nwhere=['src']\n"  # namespace-declaring
+    )
+
+    # Premise guard: without the fix the naive climb really mints `pkga` as a
+    # false sys.path-accurate top-level (it stops one dir too low under the PEP
+    # 420 namespace `mycompany`), so the collision-zone assertion is not vacuous.
+    from python_deps.depgraph.repo_modules import top_level_names
+    assert "pkga" in top_level_names(str(tmp_path))
+
+    from python_deps.depgraph.classify import classify
+    routing = classify(str(tmp_path), target_stdlib=frozenset(), declared=frozenset())
+    assert "pkga" in routing.deferred                      # namespace-suspect → collision zone
+    assert "pkga" not in {n for n, _ in routing.internal}  # NOT a trusted top-level
