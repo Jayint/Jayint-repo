@@ -10,7 +10,7 @@ import re
 import shlex
 from dataclasses import dataclass
 
-from python_deps.depgraph.cure import CureResult, _env_prefix
+from python_deps.depgraph.cure import CureResult, _env_prefix, _run_dir
 from python_deps.depgraph.invocation_resolver import TestEnvPlan
 
 _NAME_ERR = re.compile(r"ModuleNotFoundError: No module named '([^']+)'")
@@ -25,7 +25,7 @@ class Arbitration:
 
 def probe_name(executor, plan: TestEnvPlan, name: str) -> str:
     mount = getattr(executor, "repo_mount_dir", "/workspace/repo")
-    cmd = f"cd {shlex.quote(mount)} && {_env_prefix(plan)}python3 -c 'import {name}'"
+    cmd = f"cd {shlex.quote(_run_dir(mount, plan))} && {_env_prefix(plan)}python3 -c 'import {name}'"
     result = executor.run(cmd, timeout=120)
     if result.ok:
         return "local"                                  # imports cleanly under the plan → local

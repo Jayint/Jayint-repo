@@ -1,7 +1,8 @@
 # tests/depgraph/test_arbitrate.py
 from dataclasses import dataclass
-from python_deps.depgraph.arbitrate import arbitrate
+from python_deps.depgraph.arbitrate import arbitrate, probe_name
 from python_deps.depgraph.cure import CureResult
+from python_deps.depgraph.invocation_resolver import TestEnvPlan
 
 
 @dataclass
@@ -45,6 +46,43 @@ def test_exception_aware_verdict(tmp_path):
     assert "items" in arb.resolves_local
     assert "azure" in arb.fallthrough
     assert "broke" in arb.resolves_local          # present-but-broken is LOCAL, never fallthrough
+
+
+class _CapturingExec:
+    """Records the probe command and always reports a clean import (local)."""
+    def __init__(self, mount="/workspace/repo"):
+        self.repo_mount_dir = mount
+        self.commands = []
+    def run(self, cmd, *, timeout=300):
+        self.commands.append(cmd)
+        return _FakeResult(0)
+
+
+def _nested_plan():
+    # feast-style: config rootdir is a subdir, so cure/probe run under it, not the mount root.
+    return TestEnvPlan(
+        interpreter="3.11",
+        interpreter_confidence="declared",
+        project_dirs=("sdk/python",),
+        install_plan=("editable:sdk/python",),
+        rootdir="sdk/python",
+        pythonpath=("src",),
+        import_mode="prepend",
+        layout="src",
+        cwd="sdk/python",
+        env=(("PYTHONPATH", "src"), ("DJANGO_SETTINGS_MODULE", "app.settings")),
+    )
+
+
+def test_probe_runs_under_config_rootdir_for_nested_config():
+    ex = _CapturingExec()
+    verdict = probe_name(ex, _nested_plan(), "feast")
+    assert verdict == "local"
+    assert ex.commands, "probe_name must issue a command"
+    cmd = ex.commands[0]
+    assert cmd.startswith("cd /workspace/repo/sdk/python"), cmd   # cd into the config rootdir under the mount
+    assert not cmd.startswith("cd /workspace/repo &&"), cmd       # NOT the bare mount root
+    assert cmd.count("PYTHONPATH=") == 1, cmd                     # one canonical merged PYTHONPATH
 
 
 def test_name_mismatch_module_not_found_is_not_a_fallthrough(tmp_path):
