@@ -1,0 +1,20 @@
+Cite evidence by id (available: ).
+
+Respond with EXACTLY ONE fenced JSON object and nothing after it:
+```json
+{
+  "rationale": {"why": "<one sentence>"},
+  "patch": {
+    "add_requirements": [{"id": "syslib:<name>", "type": "SystemLib", "name": "<name>",
+       "layer": "system", "check_command": "<read-only check>", "evidence_ref": "<ev.id>"}],
+    "add_providers": [{"id": "apt:<pkg>", "kind": "apt",
+       "command": "apt-get install -y <pkg>", "provides": ["syslib:<name>"], "override": false}],
+    "add_edges": [{"source": "<id>", "target": "<id>", "relation": "requires", "hard": true}],
+    "script_patches": [{"block_id": "<layer>.<short>", "wave": "system",
+       "commands": ["<install>"], "target_node_ids": ["<node id>"],
+       "checks": ["<read-only check>"], "provides": ["<id>"], "evidence_ref": "<ev.id>"}]
+  }
+}
+```
+Rules: canonical ids (syslib:/pkg:/tool:/service:/config:). check_command MUST be read-only.
+Cite an evidence_ref present in the evidence below. Set "override": true to replace a known-bad provider.
