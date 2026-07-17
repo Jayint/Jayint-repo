@@ -13,8 +13,6 @@ PROBES_TEST = REPO_ROOT / "tests" / "test_envstate_probes.py"
 SKIP_PATHS = {
     "tests/test_deletions_probes_gone.py",  # this file itself
     # Files that contain the string as assertion literals, not as live imports:
-    "tests/test_deletions_cleanroom_no_probes.py",
-    "tests/test_deletions_agent_cleanroom_api.py",
     "tests/test_deletions_preflight.py",
     "tests/test_deletions_final_verification.py",  # lists deleted modules as strings, not live imports
 }

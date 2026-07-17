@@ -18,15 +18,11 @@ ALLOWED_REFS = {
     "tests/test_deletions_preflight.py", # this file — defines the symbol strings
     "tests/test_envstate_acl.py",        # will be deleted with acl.py
     "tests/test_envstate_probes.py",     # will be deleted with probes.py
-    "tests/test_envstate_cleanroom.py",  # cleanroom imports ProbeSpec; cleanroom.py must be updated
     "tests/test_worldmodel_namekey.py",  # will be updated
     "tests/test_token_bucket_split.py",  # uses advance_revision for arm-B stub
     "tests/test_envstate_orchestrator.py",  # uses advance_revision for arm-B stub
-    "src/envstate/cleanroom.py",         # must be updated in this task
     "src/envstate/probes.py",            # the file being deleted
     "src/envstate/acl.py",               # the file being deleted
-    "tests/test_deletions_cleanroom_no_probes.py",  # asserts cleanroom.py no longer imports probes
-    "tests/test_deletions_agent_cleanroom_api.py",  # asserts agent.py no longer imports ProbeSpec
     "tests/test_deletions_probes_gone.py",           # verifies probes.py deletion (string in SKIP_PATHS)
     "tests/test_deletions_acl_gone.py",              # verifies acl.py deletion (string in SKIP_PATHS)
     "tests/test_deletions_final_verification.py",    # lists deleted modules as strings, not live imports
