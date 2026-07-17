@@ -1,8 +1,8 @@
 """Fix A wiring: an `installable=False` risk entry must turn a resolved Package
 node into an UNRESOLVED node (no pip fix) that the renderer never emits."""
-from python_deps.depgraph.emit import _is_reciped
-from python_deps.depgraph.resolve_lock import _package_node
-from python_deps.depgraph.resolve_link import _stamp
+from graph.emit import _is_reciped
+from graph.resolve_lock import _package_node
+from graph.resolve_link import _stamp
 
 LINUX_X86 = "x86_64-manylinux_2_28"
 

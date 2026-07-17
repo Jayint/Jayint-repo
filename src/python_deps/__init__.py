@@ -8,7 +8,7 @@ stub) are kept.
 
 evidence.py and failure_classifier.py are also present but their eager
 re-exports have been removed from this __init__ so that importing any
-python_deps.depgraph.* submodule does not trigger z3-era class imports.
+graph.* submodule does not trigger z3-era class imports.
 """
 from __future__ import annotations
 

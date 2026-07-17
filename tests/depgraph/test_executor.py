@@ -6,8 +6,8 @@ import sys
 
 from conftest import FakeExecutor, make_result
 
-import python_deps.depgraph.executor as executor_mod
-from python_deps.depgraph.executor import (
+import graph.executor as executor_mod
+from graph.executor import (
     CommandResult,
     DockerExecutor,
     Executor,

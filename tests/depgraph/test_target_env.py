@@ -11,8 +11,8 @@ fill in.
 
 from __future__ import annotations
 
-from python_deps.depgraph.executor import CommandResult
-from python_deps.depgraph.target_env import TargetEnv, detect_target_env
+from graph.executor import CommandResult
+from graph.target_env import TargetEnv, detect_target_env
 
 
 def _target(**overrides) -> TargetEnv:

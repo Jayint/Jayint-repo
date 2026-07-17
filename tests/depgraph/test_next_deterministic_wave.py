@@ -2,10 +2,10 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from python_deps.depgraph.schema import (  # noqa: E402
+from graph.schema import (  # noqa: E402
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy,
 )
-from python_deps.depgraph.emit import next_deterministic_wave  # noqa: E402
+from graph.emit import next_deterministic_wave  # noqa: E402
 
 
 def _pkg(nid, name, version, state=State.MISSING):

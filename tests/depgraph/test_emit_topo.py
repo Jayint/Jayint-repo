@@ -1,5 +1,5 @@
-from python_deps.depgraph.emit import topo_order
-from python_deps.depgraph.schema import (
+from graph.emit import topo_order
+from graph.schema import (
     DepGraph, Edge, EdgeType, Layer, Node, NodeType, State, DiscoveredBy,
 )
 

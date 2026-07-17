@@ -9,8 +9,8 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.depgraph.emit import _conflicted_ids, _is_emittable
-from python_deps.depgraph.graph_context import (
+from graph.emit import _conflicted_ids, _is_emittable
+from graph.graph_context import (
     ACTIONABLE, BLOCKED, SATISFIED_OK, UNCERTIFIED, WAITING, blocks, in_conflict,
     render_graph_context, verdict,
 )
@@ -20,9 +20,9 @@ from python_deps.depgraph.graph_context import (
 # `from ... import tests_hidden` would land a 2-argument callable directly in this module's
 # namespace and pytest would try to collect IT as a test item too -- the exact false-positive
 # this module's own regex is built to mirror. Import it under a name that does not match.
-from python_deps.depgraph.graph_context import tests_hidden as _tests_hidden
-from python_deps.depgraph.ids import package_id
-from python_deps.depgraph.schema import (
+from graph.graph_context import tests_hidden as _tests_hidden
+from graph.ids import package_id
+from graph.schema import (
     Attempt, DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )
 

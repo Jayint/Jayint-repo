@@ -4,11 +4,11 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.depgraph.schema import (  # noqa: E402
+from graph.schema import (  # noqa: E402
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy,
 )
-from python_deps.depgraph.runtime_classify import Discovery  # noqa: E402
-from python_deps.depgraph.runtime_ingest import diverged_node_ids  # noqa: E402
+from graph.runtime_classify import Discovery  # noqa: E402
+from graph.runtime_ingest import diverged_node_ids  # noqa: E402
 
 
 def _pkg(state):

@@ -1,7 +1,7 @@
-from python_deps.depgraph.certify import certify_all
-from python_deps.depgraph.executor import CommandResult
-from python_deps.depgraph.ids import runtime_id
-from python_deps.depgraph.schema import (
+from graph.certify import certify_all
+from graph.executor import CommandResult
+from graph.ids import runtime_id
+from graph.schema import (
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy,
 )
 

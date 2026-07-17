@@ -12,8 +12,8 @@ Pure unit tests — no Docker/network. All use the conftest ``FakeExecutor``.
 
 from __future__ import annotations
 
-from python_deps.depgraph.certify import certify
-from python_deps.depgraph.schema import (
+from graph.certify import certify
+from graph.schema import (
     DepGraph,
     DiscoveredBy,
     Layer,

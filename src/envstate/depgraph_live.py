@@ -3,21 +3,21 @@ container. Re-certify each node via host checks (CERTIFY) and run the emit drain
 loop (EMIT). Mutations go through build_agent.run_recipe; certification through a
 read-only executor — keeping the host-owns-truth invariant (certify.py).
 
-This is the ONLY module allowed to bridge python_deps.depgraph (pure) and
+This is the ONLY module allowed to bridge graph (pure) and
 src.envstate (the agent loop).
 """
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable
 
-from python_deps.depgraph.certify import certify_all
-from python_deps.depgraph.emit import EMIT_ATTEMPT_TAG, build_recipe, partition, topo_order
-from python_deps.depgraph.executor import CommandResult
-from python_deps.depgraph.schema import Attempt
+from graph.certify import certify_all
+from graph.emit import EMIT_ATTEMPT_TAG, build_recipe, partition, topo_order
+from graph.executor import CommandResult
+from graph.schema import Attempt
 from src.envstate.world_model import RecipePatch, RecipeStep
 
 if TYPE_CHECKING:
-    from python_deps.depgraph.schema import DepGraph
+    from graph.schema import DepGraph
 
 
 class _ReadonlyExecAdapter:
@@ -56,7 +56,7 @@ def certify_refresh(
     if graph is None or not graph.nodes or exec_readonly is None:
         return graph
     import os
-    from python_deps.depgraph.certify import _SERVICE_LAYER_ORDER, _LAYER_ORDER
+    from graph.certify import _SERVICE_LAYER_ORDER, _LAYER_ORDER
     if allow_service_certify is None:
         allow_service_certify = os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION") == "1"
     order = _SERVICE_LAYER_ORDER if allow_service_certify else _LAYER_ORDER
@@ -76,7 +76,7 @@ def test_gate_soname_refresh(graph, exec_readonly, events, test_cmd):
     """
     if graph is None or exec_readonly is None:
         return graph
-    from python_deps.depgraph.probe import test_gate_probe
+    from graph.probe import test_gate_probe
     executor = _ReadonlyExecAdapter(exec_readonly)
     new = graph
     for cmd, out in events:
@@ -214,7 +214,7 @@ def repair_failed_nodes(
 
     Returns ``(new_graph, steps_consumed, repaired_count)``.
     """
-    from python_deps.depgraph.emit import failed_reciped_nodes
+    from graph.emit import failed_reciped_nodes
     from src.envstate.world_model import Task
 
     steps = 0

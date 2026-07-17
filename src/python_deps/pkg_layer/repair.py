@@ -19,7 +19,7 @@ immediately and the ladder stops; a rung with zero verified providers falls
 through to the next rung.
 
 Pure logic: all effects (PyPI probe, LLM, install-verify) are injected
-Protocols, faked in tests. Built SEPARATE from ``python_deps.depgraph`` and
+Protocols, faked in tests. Built SEPARATE from ``graph`` and
 the rest of ``python_deps.pkg_layer`` (no changes to existing modules).
 """
 from __future__ import annotations

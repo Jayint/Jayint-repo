@@ -20,8 +20,8 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.depgraph.repo_modules import stem_collisions, top_level_names
-from python_deps.depgraph.scan import local_module_names
+from graph.repo_modules import stem_collisions, top_level_names
+from graph.scan import local_module_names
 
 _SERVICES = Path("outputs/graph_fidelity/_smoke_services")
 _LIBS = Path("outputs/build_script_eval/_smoke")

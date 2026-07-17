@@ -149,7 +149,7 @@ class V3BuildAgent:
         """v3 typed-patch path (inv #6): read-only ReAct -> one PatchProposal, or None."""
         from src.envstate.repair_scope import render_repair_scope
         from src.envstate.jsonutil import extract_json_object
-        from python_deps.depgraph.patch import parse_patch_proposal, PatchParseError
+        from graph.patch import parse_patch_proposal, PatchParseError
 
         user = render_repair_scope(scope)
         if rejection_errors:

@@ -1,5 +1,5 @@
-from python_deps.depgraph.scan import scan_to_nodes
-from python_deps.depgraph.schema import NodeType
+from graph.scan import scan_to_nodes
+from graph.schema import NodeType
 
 
 def test_import_node_carries_used_symbols(tmp_path):

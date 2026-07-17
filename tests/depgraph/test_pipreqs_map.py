@@ -1,4 +1,4 @@
-from python_deps.depgraph.pipreqs_map import pipreqs_candidates
+from graph.pipreqs_map import pipreqs_candidates
 
 
 def test_known_mismatch_maps():

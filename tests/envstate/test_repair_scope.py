@@ -7,8 +7,8 @@ for p in (str(_ROOT), str(_SRC)):
         sys.path.insert(0, p)
 
 import src.envstate.repair_scope as rs
-from python_deps.depgraph.block import Block
-from python_deps.depgraph.evidence_log import Evidence, EvidenceBundle
+from graph.block import Block
+from graph.evidence_log import Evidence, EvidenceBundle
 
 def _bundle():
     return EvidenceBundle().with_item(Evidence(

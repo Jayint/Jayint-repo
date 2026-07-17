@@ -1,7 +1,7 @@
-import python_deps.depgraph.build_script as bs
-from python_deps.depgraph.build_script import render_build_script
-from python_deps.depgraph.populate import populate_setup_commands
-from python_deps.depgraph.schema import (
+import graph.build_script as bs
+from graph.build_script import render_build_script
+from graph.populate import populate_setup_commands
+from graph.schema import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
 

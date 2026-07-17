@@ -23,8 +23,8 @@ for _p in (str(_ROOT), str(_ROOT / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from python_deps.depgraph.ids import TEST_NODE_ID, package_id
-from python_deps.depgraph.schema import (
+from graph.ids import TEST_NODE_ID, package_id
+from graph.schema import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )
 from src.react_repair.actions import Action

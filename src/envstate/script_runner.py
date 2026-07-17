@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from typing import Callable
 
-from python_deps.depgraph.block import Block
-from python_deps.depgraph.evidence_log import Evidence, EvidenceBundle
+from graph.block import Block
+from graph.evidence_log import Evidence, EvidenceBundle
 from src.envstate.depgraph_live import certify_refresh, ensure_python_shim
 from src.envstate.text_util import truncate_output
 

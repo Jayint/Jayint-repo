@@ -1,7 +1,7 @@
 import dataclasses
 
-from python_deps.depgraph.emit import MAX_EMIT_ATTEMPTS, partition
-from python_deps.depgraph.schema import (
+from graph.emit import MAX_EMIT_ATTEMPTS, partition
+from graph.schema import (
     Attempt, DepGraph, Edge, EdgeType, Layer, Node, NodeType, State, DiscoveredBy,
 )
 

@@ -130,8 +130,8 @@ def test_tool_error_recognises_the_real_config_probe_binaries():
 
 # ── classify_observation dispatch ────────────────────────────────────────────
 
-from python_deps.depgraph.runtime_classify import classify_observation, Discovery
-from python_deps.depgraph.schema import NodeType, Layer
+from graph.runtime_classify import classify_observation, Discovery
+from graph.schema import NodeType, Layer
 
 
 def test_dispatch_module_not_found_returns_package_discovery():
@@ -236,7 +236,7 @@ def test_dispatch_import_name_error_returns_package():
 
 
 def test_dispatch_unresolved_import_yields_none_package(monkeypatch):
-    import python_deps.depgraph.runtime_classify as rc
+    import graph.runtime_classify as rc
     from python_deps.import_mapping import unresolved_result
 
     monkeypatch.setattr(

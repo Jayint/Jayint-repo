@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Put <repo>/src on the path so python_deps.depgraph.* resolves
+# Put <repo>/src on the path so graph.* resolves
 # (mirrors the pattern in test_depgraph_live_certify.py and tests/depgraph/conftest.py).
 _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
@@ -18,7 +18,7 @@ from src.envstate.world_model import (  # noqa: E402
     TaskReport,
     CommandRecord,
 )
-from python_deps.depgraph.schema import (  # noqa: E402
+from graph.schema import (  # noqa: E402
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy,
 )
 

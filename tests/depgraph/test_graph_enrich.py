@@ -11,10 +11,10 @@ for _p in (str(_ROOT), str(_ROOT / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from python_deps.depgraph.diagnose import RepoContext
-from python_deps.depgraph.graph_enrich import certify_only, enrich, owner_node_for_command
-from python_deps.depgraph.ids import TEST_NODE_ID, package_id
-from python_deps.depgraph.schema import (
+from graph.diagnose import RepoContext
+from graph.graph_enrich import certify_only, enrich, owner_node_for_command
+from graph.ids import TEST_NODE_ID, package_id
+from graph.schema import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )
 from src.react_repair.pytest_summary import Cause
@@ -153,7 +153,7 @@ class _FakeExec:
 
     def run(self, command, **_kw):
         self.seen.append(command)
-        from python_deps.depgraph.executor import CommandResult
+        from graph.executor import CommandResult
         return CommandResult(command, self.returncode, "", "" if self.returncode == 0 else "boom")
 
 

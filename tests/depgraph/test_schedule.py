@@ -15,10 +15,10 @@ if str(_SRC) not in sys.path:
 
 def test_inferred_service_never_actionable():
     """A SERVICE without a setup recipe is never scheduled (advisory-only)."""
-    from python_deps.depgraph.schema import (
+    from graph.schema import (
         DepGraph, Node, NodeType, Layer, DiscoveredBy, State,
     )
-    from python_deps.depgraph.schedule import scheduler_frontier
+    from graph.schedule import scheduler_frontier
     svc = Node(id="service:redis", type=NodeType.SERVICE, name="redis",
                layer=Layer.SERVICES, discovered_by=DiscoveredBy.STATIC_SCAN,
                state=State.MISSING, check_command="redis-cli ping",

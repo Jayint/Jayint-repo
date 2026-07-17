@@ -1,6 +1,6 @@
 """Scenario (Task 8c): a reciped SystemLib node's fresh-replay install fails with a
 native-library traceback (``libGL.so.1: cannot open shared object file``). The
-diagnosis router (``python_deps.depgraph.diagnose``) must classify this ENVIRONMENT/
+diagnosis router (``graph.diagnose``) must classify this ENVIRONMENT/
 SYSTEM_LIB (not REPO_INTERNAL_REF/RESIDUAL/INVALID_ATTEMPT), routing it INTO typed
 repair; a real (unmocked) ``run_structured_repair``/``admit_proposal`` admits a
 provider correction; the SAME cycle's re-replay (inside ``run_structured_repair``'s
@@ -30,9 +30,9 @@ from src.envstate.run_trace import RunTracer
 from src.envstate.trace_verify import verify_canonical_trace
 from src.envstate.world_model import initial_map, merge_map
 from src.sandbox import InstallResult
-from python_deps.depgraph.diagnose import Mode, RepoContext, diagnose
-from python_deps.depgraph.patch import PatchProposal, ProviderSpec
-from python_deps.depgraph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
+from graph.diagnose import Mode, RepoContext, diagnose
+from graph.patch import PatchProposal, ProviderSpec
+from graph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
 
 
 class _FakeClient:

@@ -18,10 +18,10 @@ skip trusting the probe for that field)."""
 
 from __future__ import annotations
 
-import python_deps.depgraph.build as build_module
+import graph.build as build_module
 from conftest import FakeExecutor, make_result
 
-from python_deps.depgraph.build import build_dep_graph
+from graph.build import build_dep_graph
 
 
 def _make_repo(tmp_path):

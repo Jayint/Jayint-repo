@@ -10,7 +10,7 @@ if str(_SRC) not in sys.path:
 
 from conftest import FakeExecutor, make_result  # type: ignore  # noqa: E402
 
-from python_deps.depgraph import debian_builddeps as m  # noqa: E402
+from graph import debian_builddeps as m  # noqa: E402
 
 
 def test_ensure_deb_src_patches_and_updates_when_not_enabled():
@@ -313,7 +313,7 @@ def test_debian_build_deps_logs_source_and_deps(caplog):
             "psycopg2", "debhelper-compat (= 13), dh-python, python3-all-dev, "
             "libpq-dev, postgresql-server-dev-all")),
     })
-    with caplog.at_level(_log.INFO, logger="python_deps.depgraph.debian_builddeps"):
+    with caplog.at_level(_log.INFO, logger="graph.debian_builddeps"):
         m.debian_build_deps("psycopg2", ex)
     line = next(r.getMessage() for r in caplog.records if "debian: psycopg2 ->" in r.getMessage())
     assert "source=psycopg2" in line and "libpq-dev" in line
@@ -322,7 +322,7 @@ def test_debian_build_deps_logs_source_and_deps(caplog):
 def test_debian_build_deps_logs_miss(caplog):
     import logging as _log
     ex = FakeExecutor(responses={"grep -q": make_result(returncode=0)})
-    with caplog.at_level(_log.INFO, logger="python_deps.depgraph.debian_builddeps"):
+    with caplog.at_level(_log.INFO, logger="graph.debian_builddeps"):
         m.debian_build_deps("nonexistentpkg", ex)
     assert any("debian: nonexistentpkg -> MISS" in r.getMessage() for r in caplog.records)
 

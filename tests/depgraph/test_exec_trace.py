@@ -1,4 +1,4 @@
-from python_deps.depgraph.exec_trace import (
+from graph.exec_trace import (
     ParsedFailure, Observation, ObservationOverlay, stable_failure_id,
 )
 

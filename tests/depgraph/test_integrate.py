@@ -2,11 +2,11 @@
 import pytest
 
 from corpus_integrate import CASES
-from python_deps.depgraph.exec_trace import ObservationOverlay
-from python_deps.depgraph.integrate import integrate
-from python_deps.depgraph.diagnose import RepoContext
-from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy, EdgeType
-from python_deps.depgraph.ids import TEST_NODE_ID
+from graph.exec_trace import ObservationOverlay
+from graph.integrate import integrate
+from graph.diagnose import RepoContext
+from graph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy, EdgeType
+from graph.ids import TEST_NODE_ID
 
 _TEST_NODE = Node(id=TEST_NODE_ID, type=NodeType.TEST, name="repo tests",
                   layer=Layer.TESTS, discovered_by=DiscoveredBy.GOAL, state=State.UNKNOWN)

@@ -694,8 +694,8 @@ def test_g3_certifies_nodes_added_by_EXPANSION_not_just_by_enrich():
     hand the agent a `★ binary:pg_config` root whose state we never actually checked. The whole
     premise of the arm is that the agent is never shown a claim we have not verified.
     """
-    from python_deps.depgraph.ids import package_id
-    from python_deps.depgraph.schema import (
+    from graph.ids import package_id
+    from graph.schema import (
         DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
     )
 

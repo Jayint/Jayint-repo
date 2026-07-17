@@ -1,6 +1,6 @@
 import textwrap
 
-from python_deps.depgraph.service_scan import service_from_url, scan_compose_services, scan_ci_services
+from graph.service_scan import service_from_url, scan_compose_services, scan_ci_services
 
 
 def _w(tmp_path, rel, src):
@@ -90,7 +90,7 @@ def test_scan_ci_no_services_block(tmp_path):
     assert found == {} and present is False
 
 
-from python_deps.depgraph.service_scan import classify_service_error
+from graph.service_scan import classify_service_error
 
 
 def test_classify_service_errors():
@@ -142,7 +142,7 @@ def test_scan_compose_services_ignores_lookalike(tmp_path):
     assert scan_compose_services(str(tmp_path)) == {}
 
 
-from python_deps.depgraph.service_scan import service_db_from_url
+from graph.service_scan import service_db_from_url
 
 
 def test_service_db_from_url():

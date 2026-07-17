@@ -11,7 +11,7 @@ import json
 import re
 from dataclasses import dataclass
 
-from python_deps.depgraph.patch_gate import is_read_only
+from graph.patch_gate import is_read_only
 
 # Any fenced bash/sh (or unlabeled) block IS the replacement script. We match the fence
 # itself, not a `Script:` label, so the patch parses regardless of how the model announces it

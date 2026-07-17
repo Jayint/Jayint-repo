@@ -35,7 +35,7 @@ for p in (str(_ROOT), str(_SRC)):
 from src.envstate import orchestrator
 from src.envstate.ledger import ActionLedger
 from src.envstate.world_model import initial_map
-from python_deps.depgraph.schema import DepGraph
+from graph.schema import DepGraph
 
 
 class _Agent:
@@ -170,8 +170,8 @@ def test_discover_gate_external_import_is_not_auto_fabricated(tmp_path):
 # ``diagnose()``'s pre-existing REPO_INTERNAL_REF detection, and a call
 # counter proves the stub actually ran (not a vacuous pass via the
 # deterministic tier alone).
-from python_deps.depgraph.runtime_classify import Discovery
-from python_deps.depgraph.schema import Layer, NodeType
+from graph.runtime_classify import Discovery
+from graph.schema import Layer, NodeType
 
 
 class _FakeClient:

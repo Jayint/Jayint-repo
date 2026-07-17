@@ -1,6 +1,6 @@
 import textwrap
 
-from python_deps.depgraph.service_sources import (
+from graph.service_sources import (
     ComposeSource, GithubActionsSource, discover_all,
 )
 

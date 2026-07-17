@@ -1,4 +1,4 @@
-from python_deps.depgraph.patch import (
+from graph.patch import (
     parse_patch_proposal, PatchProposal, NodeSpec, ProviderSpec, EdgeSpec, ScriptPatch,
 )
 
@@ -59,7 +59,7 @@ def test_unknown_keys_ignored_and_state_maps_to_promotion():
 
 
 def test_parse_carries_service_fields():
-    from python_deps.depgraph.patch import parse_patch_proposal
+    from graph.patch import parse_patch_proposal
     p = parse_patch_proposal({"patch": {"add_requirements": [{
         "id": "service:postgres", "type": "Service", "layer": "services",
         "service_kind": "postgres", "service_params": {"db": "appdb"},
@@ -75,7 +75,7 @@ def test_parse_carries_service_fields():
 
 
 def test_parse_service_fields_default_absent():
-    from python_deps.depgraph.patch import parse_patch_proposal
+    from graph.patch import parse_patch_proposal
     p = parse_patch_proposal({"patch": {"add_requirements": [{
         "id": "pkg:x", "type": "Package", "layer": "pip"}]}})
     n = p.add_requirements[0]

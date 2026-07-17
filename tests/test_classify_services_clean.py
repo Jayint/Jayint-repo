@@ -19,10 +19,10 @@ for _p in (str(_ROOT), str(_SRC)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from python_deps.depgraph.build_script import render_build_script
-from python_deps.depgraph.emit import _is_service_reciped
-from python_deps.depgraph.schema import DepGraph, NodeType, State
-from python_deps.depgraph.service_recipes import render_probe_poll
+from graph.build_script import render_build_script
+from graph.emit import _is_service_reciped
+from graph.schema import DepGraph, NodeType, State
+from graph.service_recipes import render_probe_poll
 
 import src.envstate.classify_services_clean as csc
 from src.envstate.classify_services_clean import (

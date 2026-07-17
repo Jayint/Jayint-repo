@@ -29,10 +29,10 @@ from unittest.mock import patch
 
 from conftest import FakeExecutor, SequencedFakeExecutor  # type: ignore
 
-from python_deps.depgraph.build import build_dep_graph
-from python_deps.depgraph.executor import CommandResult
-from python_deps.depgraph.ids import import_id, package_id, syslib_id
-from python_deps.depgraph.schema import DiscoveredBy, NodeType
+from graph.build import build_dep_graph
+from graph.executor import CommandResult
+from graph.ids import import_id, package_id, syslib_id
+from graph.schema import DiscoveredBy, NodeType
 from python_deps.import_mapping import normalize_package_name
 
 
@@ -194,7 +194,7 @@ def test_record_coverage_drives_loop_not_per_round_packages_distributions(tmp_pa
     built; the count is therefore exactly the single relink call, independent of
     the round count.
     """
-    import python_deps.depgraph.build as build_mod
+    import graph.build as build_mod
 
     (tmp_path / "app.py").write_text("import yaml\n")  # under-declared -> >=1 repair round
     ex = SequencedFakeExecutor(

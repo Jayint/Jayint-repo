@@ -19,11 +19,11 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.depgraph.diagnose import (
+from graph.diagnose import (
     Diagnosis, Mode, RepoContext, _norm, diagnose, diagnose_all,
     make_diagnostic_classifier,
 )
-from python_deps.depgraph.schema import NodeType
+from graph.schema import NodeType
 
 
 # ---------------------------------------------------------------------------

@@ -3,14 +3,14 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Put <repo>/src on the path so python_deps.depgraph.* resolves
+# Put <repo>/src on the path so graph.* resolves
 # (mirrors the pattern in test_world_model_dep_graph.py and tests/depgraph/conftest.py).
 _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from src.envstate.depgraph_live import certify_refresh, ensure_python_shim  # noqa: E402
-from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy  # noqa: E402
+from graph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy  # noqa: E402
 
 
 def _pkg(name):

@@ -9,14 +9,14 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Put <repo>/src on the path so the canonical ``python_deps.depgraph.*`` import
+# Put <repo>/src on the path so the canonical ``graph.*`` import
 # resolves (mirrors tests/depgraph/conftest.py; this test lives one level up).
 _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from src.envstate.world_model import initial_map, merge_map  # noqa: E402
-from python_deps.depgraph.schema import (  # noqa: E402
+from graph.schema import (  # noqa: E402
     DepGraph,
     DiscoveredBy,
     Layer,

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import re
 
-from python_deps.depgraph.schema import NodeType
-from python_deps.depgraph.check_quality import check_can_detect_absence  # re-export
+from graph.schema import NodeType
+from graph.check_quality import check_can_detect_absence  # re-export
 
 __all__ = ["rewrite_syslib_check", "check_can_detect_absence"]
 

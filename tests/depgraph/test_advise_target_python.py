@@ -1,5 +1,5 @@
 import inspect
-from python_deps.depgraph.advise import build_advisory_for_repo
+from graph.advise import build_advisory_for_repo
 
 
 def test_advisory_accepts_target_python():

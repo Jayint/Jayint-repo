@@ -1,4 +1,4 @@
-from python_deps.depgraph.action_class import matches_action_class
+from graph.action_class import matches_action_class
 
 def test_pip3_and_apt_frontend():
     assert matches_action_class("pip", "pip3 install lxml") is True

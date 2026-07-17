@@ -31,7 +31,7 @@ from src.envstate.ledger import ActionLedger
 from src.envstate.orchestrator import VERIFY_TEST_CMD, run_v3
 from src.envstate.world_model import initial_map, merge_map
 from src.sandbox import InstallResult
-from python_deps.depgraph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
+from graph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
 
 
 # ---------------------------------------------------------------------------
@@ -160,7 +160,7 @@ def test_test_rc_backfilled_makes_canonical_success_reachable():
     back-fill the LAST replay's ``test_rc`` to 0, and ``canonical_success``
     must be reachable end-to-end.
     """
-    from python_deps.depgraph.build_script import render_build_script
+    from graph.build_script import render_build_script
     from src.envstate.proof import canonical_success
     from src.envstate.run_trace import RunTracer
 

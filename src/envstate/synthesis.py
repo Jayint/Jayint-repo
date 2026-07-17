@@ -347,7 +347,7 @@ def bakeable_config_env(graph, *, exclude: frozenset = frozenset()) -> list[tupl
     # Local import keeps synthesis.py decoupled from the depgraph package. Safe: this
     # function is only ever called when a dep_graph exists, which implies the
     # enable_dep_graph arm already put src/ on sys.path (agent.py constructor cascade).
-    from python_deps.depgraph.schema import NodeType
+    from graph.schema import NodeType
 
     out: list[tuple[str, str]] = []
     seen: set[str] = set()

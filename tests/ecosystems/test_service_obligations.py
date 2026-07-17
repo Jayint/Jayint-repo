@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from ecosystems.python.provider import PythonProvider
 from ecosystems.registry import PROVIDERS
-from python_deps.depgraph.schema import DepGraph
+from graph.schema import DepGraph
 
 
 def test_none_classifier_is_passthrough():

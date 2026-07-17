@@ -12,14 +12,14 @@ from __future__ import annotations
 from pathlib import Path
 
 from ecosystems.base import CertifyMode, ClosureMode
-from python_deps.depgraph.build import (
+from graph.build import (
     _project_build_manifest,
     _python_native_obligations,
     _python_package_obligations,
 )
-from python_deps.depgraph.executor import Executor
-from python_deps.depgraph.repair import DistGuesser, RecordProvider
-from python_deps.depgraph.schema import DepGraph
+from graph.executor import Executor
+from graph.repair import DistGuesser, RecordProvider
+from graph.schema import DepGraph
 from python_deps.evidence import collect_python_dependency_evidence
 
 

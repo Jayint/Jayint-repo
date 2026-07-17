@@ -1,6 +1,6 @@
-from python_deps.depgraph.classify import classify
-from python_deps.depgraph.repo_modules import stem_collisions
-from python_deps.depgraph.schema import NodeType
+from graph.classify import classify
+from graph.repo_modules import stem_collisions
+from graph.schema import NodeType
 
 
 def test_ladder_partitions_internal_external_collision(tmp_path):
@@ -63,10 +63,10 @@ def test_pep420_namespace_root_routes_to_collision(tmp_path):
     # Premise guard: without the fix the naive climb really mints `pkga` as a
     # false sys.path-accurate top-level (it stops one dir too low under the PEP
     # 420 namespace `mycompany`), so the collision-zone assertion is not vacuous.
-    from python_deps.depgraph.repo_modules import top_level_names
+    from graph.repo_modules import top_level_names
     assert "pkga" in top_level_names(str(tmp_path))
 
-    from python_deps.depgraph.classify import classify
+    from graph.classify import classify
     routing = classify(str(tmp_path), target_stdlib=frozenset(), declared=frozenset())
     assert "pkga" in routing.deferred                      # namespace-suspect → collision zone
     assert "pkga" not in {n for n, _ in routing.internal}  # NOT a trusted top-level

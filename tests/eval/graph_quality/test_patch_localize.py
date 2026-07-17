@@ -27,9 +27,9 @@ for _p in (_REPO_ROOT, _SRC):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from python_deps.depgraph.graph_context import render_graph_context
-from python_deps.depgraph.ids import TEST_NODE_ID, binary_id, package_id, syslib_id, tool_id
-from python_deps.depgraph.schema import (
+from graph.graph_context import render_graph_context
+from graph.ids import TEST_NODE_ID, binary_id, package_id, syslib_id, tool_id
+from graph.schema import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )
 from src.eval.graph_quality.patch_localize import (

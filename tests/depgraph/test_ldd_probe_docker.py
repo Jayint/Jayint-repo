@@ -35,10 +35,10 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.depgraph.build import build_dep_graph  # noqa: E402
-from python_deps.depgraph.executor import DockerExecutor, LocalSubprocessExecutor  # noqa: E402
-from python_deps.depgraph.schema import DiscoveredBy, NodeType  # noqa: E402
-from python_deps.depgraph.os_resolver import PROVIDER_TABLE  # noqa: E402
+from graph.build import build_dep_graph  # noqa: E402
+from graph.executor import DockerExecutor, LocalSubprocessExecutor  # noqa: E402
+from graph.schema import DiscoveredBy, NodeType  # noqa: E402
+from graph.os_resolver import PROVIDER_TABLE  # noqa: E402
 
 # soname -> apt subset of the unified resolver table (the former curated
 # soname->apt table was folded into os_resolver.PROVIDER_TABLE).

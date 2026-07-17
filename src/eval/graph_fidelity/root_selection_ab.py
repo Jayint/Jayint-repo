@@ -189,8 +189,8 @@ def reconstruct_generator_roots(
     extra-gated dep is still recovered as the generator's over-add — the very
     behavior the verifier drops. Host-only (lazy ``python_deps`` import); NOT one
     of the pure adjudication functions."""
-    from python_deps.depgraph.naming import package_roots
-    from python_deps.depgraph.roots import _is_non_distribution
+    from graph.naming import package_roots
+    from graph.roots import _is_non_distribution
     from python_deps.evidence import collect_python_dependency_evidence
     from python_deps.import_mapping import normalize_package_name
 
@@ -220,9 +220,9 @@ def score_repo(repo_dir: str, full_name: str, gold_imports: Mapping[str, str]) -
     Host-only: ``scan_to_nodes`` (AST scan) + the declared-only ``select_roots``
     (the verifier arm) + the reconstructed generator arm (``select_roots`` UNION
     ``naming.package_roots`` gap-fill). No container, no network, no build-agent phase."""
-    from python_deps.depgraph.roots import select_roots
-    from python_deps.depgraph.scan import scan_to_nodes
-    from python_deps.depgraph.schema import NodeType
+    from graph.roots import select_roots
+    from graph.scan import scan_to_nodes
+    from graph.schema import NodeType
 
     graph = scan_to_nodes(repo_dir)
     id_to_name = {n.id: n.name for n in graph.nodes if n.type is NodeType.IMPORT}

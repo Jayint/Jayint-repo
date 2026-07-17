@@ -35,7 +35,7 @@ from src.eval.language_package_eval.coverage import (
 )
 
 sys.path.insert(0, str(_REPO_ROOT / "src"))
-from python_deps.depgraph.schema import (  # noqa: E402
+from graph.schema import (  # noqa: E402
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
 

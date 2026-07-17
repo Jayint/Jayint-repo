@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from python_deps.depgraph.patch_gate import compose_script
+from graph.patch_gate import compose_script
 from src.envstate.script_runner import run_blocks
 from src.envstate.ledger import ActionEvent, ActionLedger
 

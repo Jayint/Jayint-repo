@@ -481,7 +481,7 @@ def test_v3_graph_scheduler_reaches_planner_done_with_real_replay(monkeypatch):
     replay guard (Phase 7) is satisfied and the run terminates 'planner_done'.
     """
     monkeypatch.setenv("DOCKERAGENT_ENABLE_SERVICE_PROVISION", "0")
-    from python_deps.depgraph.schema import DepGraph
+    from graph.schema import DepGraph
     world = merge_map(_base_map(), dep_graph=DepGraph())
 
     def passing_exec(cmd):

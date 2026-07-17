@@ -1,11 +1,11 @@
 import os
 import textwrap
-from python_deps.depgraph.config_scan import scan_env_reads
-from python_deps.depgraph.config_scan import scan_framework_config_reads
-from python_deps.depgraph.config_scan import parse_env_example, configured_vars
-from python_deps.depgraph.config_scan import scan_env_defaults
-from python_deps.depgraph.config_scan import _config_node
-from python_deps.depgraph.config_scan import (
+from graph.config_scan import scan_env_reads
+from graph.config_scan import scan_framework_config_reads
+from graph.config_scan import parse_env_example, configured_vars
+from graph.config_scan import scan_env_defaults
+from graph.config_scan import _config_node
+from graph.config_scan import (
     authoritative_ambiguous_vars,
     scan_authoritative_config,
     scan_pyproject_pytest,

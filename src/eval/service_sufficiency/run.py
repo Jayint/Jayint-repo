@@ -68,7 +68,7 @@ def dump_service_nodes(corpus_root: str, out_path: str) -> int:
     ``build_service_nodes`` is imported lazily so importing this module for the
     offline ablation/guard tests never requires ``python_deps`` on the path.
     """
-    from python_deps.depgraph.service_construct import build_service_nodes
+    from graph.service_construct import build_service_nodes
 
     rows: list[dict] = []
     for owner in sorted(os.listdir(corpus_root)):

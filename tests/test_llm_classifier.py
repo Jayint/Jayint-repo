@@ -7,7 +7,7 @@ _SRC = _ROOT / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.depgraph.schema import NodeType, Layer  # noqa: E402
+from graph.schema import NodeType, Layer  # noqa: E402
 from src.envstate.llm_classifier import make_llm_classifier  # noqa: E402
 
 

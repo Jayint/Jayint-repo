@@ -1,6 +1,6 @@
 # tests/depgraph/test_script_render.py
-from python_deps.depgraph.block import Block
-from python_deps.depgraph.script import render_setup_sh, parse_setup_sh
+from graph.block import Block
+from graph.script import render_setup_sh, parse_setup_sh
 
 _B = (
     Block(block_id="system.libpq", wave="system",

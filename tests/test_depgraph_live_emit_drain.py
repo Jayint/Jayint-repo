@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Put <repo>/src on the path so python_deps.depgraph.* resolves
+# Put <repo>/src on the path so graph.* resolves
 # (mirrors the pattern in tests/test_depgraph_live_certify.py and tests/depgraph/conftest.py).
 _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
@@ -12,7 +12,7 @@ if str(_SRC) not in sys.path:
 from src.envstate.depgraph_live import emit_drain  # noqa: E402
 from src.envstate.ledger import ActionLedger  # noqa: E402
 from src.envstate.world_model import TaskReport, CommandRecord  # noqa: E402
-from python_deps.depgraph.schema import (  # noqa: E402
+from graph.schema import (  # noqa: E402
     DepGraph, Edge, EdgeType, Layer, Node, NodeType, State, DiscoveredBy,
 )
 
@@ -108,7 +108,7 @@ class _FailingBuildAgent:
 def test_emit_drain_stops_re_emitting_after_backoff():
     # Fix #3: a perpetually-failing emit must stop after MAX_EMIT_ATTEMPTS passes
     # instead of re-emitting up to max_drain (=4) — and the node ends on the frontier.
-    from python_deps.depgraph.emit import MAX_EMIT_ATTEMPTS, partition
+    from graph.emit import MAX_EMIT_ATTEMPTS, partition
 
     g = DepGraph(nodes=(_pkg("doomed"),))
     ba = _FailingBuildAgent()

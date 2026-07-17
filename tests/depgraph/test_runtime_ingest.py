@@ -8,13 +8,13 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.depgraph.ids import (
+from graph.ids import (
     capability_id,
     TEST_NODE_ID, config_id, package_id, service_id, syslib_id, tool_id,
 )
-from python_deps.depgraph.runtime_classify import Discovery
-from python_deps.depgraph.runtime_ingest import ingest_runtime_failures
-from python_deps.depgraph.schema import (
+from graph.runtime_classify import Discovery
+from graph.runtime_ingest import ingest_runtime_failures
+from graph.schema import (
     DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State,
 )
 
@@ -268,7 +268,7 @@ def test_versioned_static_package_annotated_no_duplicate():
 # ── unresolved import (name=None) tolerance ────────────────────────────────
 
 def test_find_existing_node_tolerates_none_name():
-    import python_deps.depgraph.runtime_ingest as ri
+    import graph.runtime_ingest as ri
 
     graph = DepGraph(nodes=(), edges=())
     disc = Discovery(
@@ -282,7 +282,7 @@ def test_find_existing_node_tolerates_none_name():
 def test_annotate_or_append_skips_none_named_discovery():
     """A discovery with no resolvable package name (name=None) must mutate NOTHING —
     never fabricate a `pkg:None` node (plan invariant: unmapped import -> NO root)."""
-    from python_deps.depgraph.runtime_ingest import _annotate_or_append
+    from graph.runtime_ingest import _annotate_or_append
     graph = _base_graph()
     disc = Discovery(
         node_type=NodeType.PACKAGE, name=None, layer=Layer.PIP,

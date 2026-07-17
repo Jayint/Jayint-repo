@@ -24,7 +24,7 @@ from src.envstate.ledger import ActionLedger
 from src.envstate.repair_loop import RepairOutcome
 from src.envstate.world_model import TaskReport, initial_map, merge_map
 from src.sandbox import InstallResult
-from python_deps.depgraph.schema import (
+from graph.schema import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
 

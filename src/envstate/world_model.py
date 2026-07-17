@@ -20,8 +20,8 @@ from src.envstate.contracts.graph import ContractGraph
 if TYPE_CHECKING:
     # Imported only for type-checking to avoid a runtime import cycle
     # (python_deps depends on nothing here; this stays a string annotation).
-    from python_deps.depgraph.block import Block
-    from python_deps.depgraph.schema import DepGraph
+    from graph.block import Block
+    from graph.schema import DepGraph
 
 
 # ---------------------------------------------------------------------------

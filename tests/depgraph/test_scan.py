@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from python_deps.depgraph.ids import TEST_NODE_ID, import_id
-from python_deps.depgraph.scan import scan_to_nodes
-from python_deps.depgraph.schema import (
+from graph.ids import TEST_NODE_ID, import_id
+from graph.scan import scan_to_nodes
+from graph.schema import (
     DiscoveredBy,
     EdgeType,
     Layer,

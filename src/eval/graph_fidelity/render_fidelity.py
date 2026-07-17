@@ -24,9 +24,9 @@ for _p in (_REPO_ROOT, _SRC):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from python_deps.depgraph.build_script import render_build_script  # noqa: E402
-from python_deps.depgraph.emit import _is_installable_project, _is_reciped  # noqa: E402
-from python_deps.depgraph.schema import DepGraph, State  # noqa: E402
+from graph.build_script import render_build_script  # noqa: E402
+from graph.emit import _is_installable_project, _is_reciped  # noqa: E402
+from graph.schema import DepGraph, State  # noqa: E402
 
 # One #@node annotation line per reciped node (build_script._annotation); the
 # node id is the first whitespace-delimited token after the marker.

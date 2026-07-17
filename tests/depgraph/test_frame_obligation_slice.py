@@ -4,8 +4,8 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
-from python_deps.depgraph.schedule import frame_obligation
+from graph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
+from graph.schedule import frame_obligation
 
 
 def _g():

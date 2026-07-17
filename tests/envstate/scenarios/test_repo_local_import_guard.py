@@ -6,7 +6,7 @@ no ``build_agent.propose`` call, no ``pkg:docs-src`` node, no ``pip install
 docs-src``.
 
 Uses a REAL filesystem tree (not a monkeypatched ``scan.local_module_names``) so
-``python_deps.depgraph.scan.local_module_names`` is exercised for real, per the
+``graph.scan.local_module_names`` is exercised for real, per the
 brief's explicit ask.
 
 Mechanism note: this repo's ACTUAL local-import guard lives in
@@ -44,7 +44,7 @@ from src.envstate.run_trace import RunTracer
 from src.envstate.trace_verify import verify_local_import_guard
 from src.envstate.world_model import initial_map, merge_map
 from src.sandbox import InstallResult
-from python_deps.depgraph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
+from graph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
 
 
 class _FakeClient:

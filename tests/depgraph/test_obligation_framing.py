@@ -5,10 +5,10 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT / "src"))
 
-from python_deps.depgraph.schema import (  # noqa: E402
+from graph.schema import (  # noqa: E402
     DepGraph, Node, Edge, NodeType, Layer, State, EdgeType, DiscoveredBy,
 )
-from python_deps.depgraph.schedule import frame_obligation, ObligationPacket  # noqa: E402
+from graph.schedule import frame_obligation, ObligationPacket  # noqa: E402
 
 
 def _node(nid, ntype, name, state, *, check="true", evidence="", layer=Layer.SYSTEM):

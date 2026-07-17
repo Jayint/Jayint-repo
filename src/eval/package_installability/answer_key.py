@@ -71,7 +71,7 @@ def derive_answer_key(spec, mode: str, superset, *, base_image: str, platform: s
     collapse S* to []. Imported lazily by the CLI --derive path; not unit-tested."""
     from datetime import datetime, timezone
 
-    from python_deps.depgraph.executor import DockerExecutor
+    from graph.executor import DockerExecutor
     from src.eval.package_installability.gate import run_gate
 
     def gate_fn(subset: frozenset) -> bool:

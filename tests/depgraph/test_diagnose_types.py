@@ -8,10 +8,10 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.depgraph.diagnose import (
+from graph.diagnose import (
     Diagnosis, Locality, Mode, RepoContext, classify_locality, is_local_import,
 )
-from python_deps.depgraph.scan import local_module_names
+from graph.scan import local_module_names
 
 
 def test_repo_context_defaults_are_empty():

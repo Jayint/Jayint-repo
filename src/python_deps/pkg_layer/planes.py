@@ -4,7 +4,7 @@
 
 Pure data structures: frozen dataclasses + enums, plus a small set of pure
 query helpers on ``PackageLayer``. No I/O, no Docker, no LLM, no logic beyond
-those queries. Built SEPARATE from ``python_deps.depgraph`` so the two layers
+those queries. Built SEPARATE from ``graph`` so the two layers
 can be A/B-evaluated; do not import from ``depgraph`` here.
 """
 from __future__ import annotations

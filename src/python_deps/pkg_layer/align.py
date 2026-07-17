@@ -16,7 +16,7 @@ under-declared only when NONE of the following cover it: an existing
 dist, or its curated alias (``import_mapping.map_import_to_package``, e.g.
 ``cv2`` -> ``opencv-python``) resolving to a declared/closure dist.
 
-Built SEPARATE from ``python_deps.depgraph`` (per plan) so the two designs
+Built SEPARATE from ``graph`` (per plan) so the two designs
 can be A/B-evaluated; this module does not modify anything under
 ``depgraph/``.
 """

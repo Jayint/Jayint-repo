@@ -1,5 +1,5 @@
-from python_deps.depgraph.patch import PatchProposal, ProviderSpec
-from python_deps.depgraph.patch_gate import admit_proposal
+from graph.patch import PatchProposal, ProviderSpec
+from graph.patch_gate import admit_proposal
 
 def test_admit_rejects_with_errors(_graph_with_missing_syslib):
     bad = PatchProposal(add_providers=(ProviderSpec(

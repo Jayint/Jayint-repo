@@ -2,7 +2,7 @@ import dataclasses
 
 import pytest
 
-from python_deps.depgraph.service_evidence import (
+from graph.service_evidence import (
     CHECK_SOURCES, PORT_SOURCES, RELEVANCES, STATES,
     Check, Mount, Port, ServiceNode, Source,
 )

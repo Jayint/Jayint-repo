@@ -13,7 +13,7 @@ import enum
 from collections.abc import Callable
 from typing import Protocol
 
-from python_deps.depgraph.schema import DepGraph
+from graph.schema import DepGraph
 
 
 class ClosureMode(enum.Enum):
@@ -71,7 +71,7 @@ class EcosystemProvider(Protocol):
         accept-and-ignore ``None``. Surfaced for signature stability
         (``research_zero_impact.md`` §3). ``uv_sources_enabled`` (V3_UV_SOURCES,
         default OFF) is a Python/uv-specific false-green gate — see
-        ``python_deps.depgraph.build._python_package_obligations``'s docstring;
+        ``graph.build._python_package_obligations``'s docstring;
         other ecosystems accept-and-ignore it exactly like ``record_provider``.
         ``llm_dist_guesser`` is the opaque install-lane dist guesser
         ``(import_name, symbols) -> [dist, ...]`` the Python fixpoint calls on a

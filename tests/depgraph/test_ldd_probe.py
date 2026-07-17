@@ -13,14 +13,14 @@ import os
 import re
 import sys
 
-from python_deps.depgraph.ids import package_id, syslib_id
-from python_deps.depgraph.ldd_probe import (
+from graph.ids import package_id, syslib_id
+from graph.ldd_probe import (
     EXT_SO_MAP_CMD,
     ldd_probe,
     parse_ext_so_map,
     parse_ldd_not_found,
 )
-from python_deps.depgraph.schema import (
+from graph.schema import (
     DepGraph,
     DiscoveredBy,
     Edge,
@@ -182,7 +182,7 @@ def test_ext_so_map_cmd_does_not_crash_on_host():
     distributions on a real system have no RECORD file (e.g. system-managed
     packages), and the command must skip them gracefully.
     """
-    from python_deps.depgraph.executor import LocalSubprocessExecutor
+    from graph.executor import LocalSubprocessExecutor
 
     result = LocalSubprocessExecutor().run(_local_cmd(EXT_SO_MAP_CMD))
     assert result.ok, f"EXT_SO_MAP_CMD crashed: {result.stderr[:400]}"
@@ -199,7 +199,7 @@ def test_ext_so_map_cmd_excludes_bundled_helpers_locally():
     and must be excluded (standalone ldd on them produces false ``not found``
     because they can't follow their parent's RPATH).
     """
-    from python_deps.depgraph.executor import LocalSubprocessExecutor
+    from graph.executor import LocalSubprocessExecutor
 
     result = LocalSubprocessExecutor().run(_local_cmd(EXT_SO_MAP_CMD))
     assert result.ok

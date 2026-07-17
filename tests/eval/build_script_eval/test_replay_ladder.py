@@ -4,7 +4,7 @@ import pytest
 from src.eval.build_script_eval import replay
 from src.eval.build_script_eval.replay import _disconnect_network_cmd, run_replay_ladder
 from src.eval.language_package_eval.coverage import _docker_available
-from python_deps.depgraph.executor import CommandResult
+from graph.executor import CommandResult
 
 
 def test_disconnect_network_cmd_targets_bridge_and_container():

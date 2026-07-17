@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import subprocess
 
-from python_deps.depgraph.ids import binary_id, import_id, package_id, pkgconfig_id, syslib_id
-from python_deps.depgraph.os_resolver import ObservedNeed, check_command_for
-from python_deps.depgraph.probe import import_probe, install_closure, reconcile_predicted
-from python_deps.depgraph.schema import (
+from graph.ids import binary_id, import_id, package_id, pkgconfig_id, syslib_id
+from graph.os_resolver import ObservedNeed, check_command_for
+from graph.probe import import_probe, install_closure, reconcile_predicted
+from graph.schema import (
     DepGraph,
     DiscoveredBy,
     Edge,
@@ -110,7 +110,7 @@ def test_install_closure_records_attempt_on_packages(fake_executor, make_result_
 
 
 def test_install_cmd_uses_uv():
-    from python_deps.depgraph.probe import _install_cmd
+    from graph.probe import _install_cmd
 
     cmd = _install_cmd("numpy==2.2.6 scipy==1.15.3")
     assert cmd.startswith("uv pip install")
@@ -123,7 +123,7 @@ def test_install_cmd_uses_uv():
 def test_make_syslib_node_is_self_contained():
     # A probe-discovered SystemLib must carry chosen_fix, provenance, and evidence
     # so an agent can diagnose+fix it without traversing to the import node.
-    from python_deps.depgraph.probe import _make_syslib_node
+    from graph.probe import _make_syslib_node
 
     node = _make_syslib_node(
         "libxcb.so.1",
@@ -138,8 +138,8 @@ def test_make_syslib_node_is_self_contained():
 
 
 def test_make_capability_node_is_self_contained(fake_executor):
-    from python_deps.depgraph.os_resolver import ObservedNeed
-    from python_deps.depgraph.probe import _make_capability_node
+    from graph.os_resolver import ObservedNeed
+    from graph.probe import _make_capability_node
 
     need = ObservedNeed(kind="binary", name="pg_config", context="build")
     node = _make_capability_node(
@@ -153,7 +153,7 @@ def test_make_capability_node_is_self_contained(fake_executor):
 
 
 def test_failed_build_packages_parses_pip_patterns():
-    from python_deps.depgraph.probe import _failed_build_packages
+    from graph.probe import _failed_build_packages
 
     assert _failed_build_packages("Failed building wheel for picamera\n") == {"picamera"}
     assert _failed_build_packages(
@@ -204,7 +204,7 @@ def test_install_closure_drops_build_failing_package_and_reinstalls_survivors(
     # the survivor reinstall must keep the same generous timeout as the bulk
     # install, not silently fall back to the executor's short default — a cold
     # multi-package retry can be just as slow as the first attempt.
-    from python_deps.depgraph.probe import INSTALL_TIMEOUT
+    from graph.probe import INSTALL_TIMEOUT
     assert fake_executor.timeouts[install_idxs[1]] == INSTALL_TIMEOUT
     # survivors ended up installed; the build-failing package did not
     assert any(a.outcome == "succeeded" for a in out.get(opencv.id).attempts)
@@ -306,7 +306,7 @@ def test_install_closure_unknown_tool_has_empty_fix(fake_executor, make_result_f
 def test_install_closure_table_independent_unknown_header(fake_executor, make_result_fixture):
     # A header NOT in PROVIDER_TABLE is discovered anyway (via extract_needs) and
     # resolved through the apt-file fallback — the whole point of the extractor.
-    from python_deps.depgraph.ids import header_id
+    from graph.ids import header_id
     pkg = _package("hiredis", "2.3.2")
     graph = DepGraph().with_node(pkg)
     fake_executor.responses = {
@@ -334,7 +334,7 @@ def test_install_closure_table_independent_unknown_header(fake_executor, make_re
 def test_install_closure_ignores_bare_tool_mention(fake_executor, make_result_fixture):
     # The false positive the old _tool_gaps produced: a bare 'pg_config' mention in
     # a build log (no not-found signature) must NOT create a phantom tool node.
-    from python_deps.depgraph.ids import binary_id
+    from graph.ids import binary_id
     pkg = _package("psycopg2", "2.9.9")
     graph = DepGraph().with_node(pkg)
     fake_executor.responses = {
@@ -389,7 +389,7 @@ def test_install_closure_pkgconfig_gap_creates_node_via_apt_file(
 def test_install_closure_linker_lib_resolves_to_dev(fake_executor, make_result_fixture):
     # Build-time `cannot find -lssl` -> the UNVERSIONED libssl.so -> a -dev
     # package; the directional opposite of runtime soname resolution.
-    from python_deps.depgraph.ids import linker_id
+    from graph.ids import linker_id
     pkg = _package("pycrypto", "2.6.1")
     graph = DepGraph().with_node(pkg)
     fake_executor.responses = {
@@ -614,7 +614,7 @@ def test_import_probe_native_risk_package_probed_by_name(fake_executor, make_res
 def test_import_probe_widens_to_binary_gap(fake_executor, make_result_fixture):
     # A C-extension import that fails on a missing *binary* (not a .so) now
     # surfaces a binary Tool node — import_probe is no longer soname-only.
-    from python_deps.depgraph.ids import binary_id
+    from graph.ids import binary_id
     pkg = _package("somepkg", "1.0.0")
     imp = _import("somepkg")
     graph = (
@@ -1025,7 +1025,7 @@ def test_install_closure_excludes_git_sourced_package_even_with_a_version(
     ``resolve_lock._missing_source_node``) DOES carry a real version -- it
     still must never reach the bulk `pip install` command, or it would be
     installed as the bare public-PyPI namesake instead of the pinned fork."""
-    from python_deps.depgraph.resolve_lock import _missing_source_node
+    from graph.resolve_lock import _missing_source_node
 
     good = _package("requests", "2.31.0")
     git_sourced = _missing_source_node(
@@ -1054,7 +1054,7 @@ def test_install_closure_uses_generous_timeout(fake_executor, make_result_fixtur
     # A cold install of a large closure can exceed the 300s default and FALSE-fail,
     # which then certifies the whole graph MISSING (breaks honest certification).
     # The bulk install must therefore ask for generous headroom.
-    from python_deps.depgraph.probe import INSTALL_TIMEOUT
+    from graph.probe import INSTALL_TIMEOUT
 
     pkg = _package("requests", "2.31.0")
     graph = DepGraph().with_node(pkg)
@@ -1233,7 +1233,7 @@ _PIP_FAIL_STDERR = (
 
 
 def test_failed_build_packages_parses_uv_format():
-    from python_deps.depgraph.probe import _failed_build_packages
+    from graph.probe import _failed_build_packages
 
     assert _failed_build_packages(_UV_FAIL_STDERR) == {"psutil"}
 
@@ -1241,7 +1241,7 @@ def test_failed_build_packages_parses_uv_format():
 def test_failed_build_packages_uv_matches_pip():
     # The equivalence invariant: same underlying failure, same attributed name,
     # regardless of which installer framed it.
-    from python_deps.depgraph.probe import _failed_build_packages
+    from graph.probe import _failed_build_packages
 
     assert _failed_build_packages(_UV_FAIL_STDERR) == {"psutil"}
     assert _failed_build_packages(_UV_FAIL_STDERR) == _failed_build_packages(
@@ -1250,7 +1250,7 @@ def test_failed_build_packages_uv_matches_pip():
 
 
 def test_build_owners_parses_uv_format():
-    from python_deps.depgraph.probe import _build_owners
+    from graph.probe import _build_owners
 
     packages = [_package("psutil", "5.9.8")]
     expected = {packages[0].id}
@@ -1264,7 +1264,7 @@ def test_uv_building_re_matches_uv_line_only():
     # Guard against cross-contaminating the two installers' parsing: the uv
     # pattern must match uv's own framing and must NOT match pip's "Building
     # wheel for X" (no trailing "==version").
-    from python_deps.depgraph.probe import _UV_BUILDING_RE
+    from graph.probe import _UV_BUILDING_RE
 
     assert _UV_BUILDING_RE.search("   Building psutil==5.9.8")
     assert not _UV_BUILDING_RE.search("Building wheel for psutil")

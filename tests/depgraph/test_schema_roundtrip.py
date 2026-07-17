@@ -23,7 +23,7 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.depgraph.schema import (
+from graph.schema import (
     Attempt, DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, Phase, State,
     Strength,
 )
@@ -205,7 +205,7 @@ def test_roundtrip_rebuilds_TUPLES_and_MAPPINGS_not_the_lists_JSON_gives_back():
 
 
 def test_node_has_no_tier_field():
-    from python_deps.depgraph.schema import Node, NodeType, Layer, DiscoveredBy
+    from graph.schema import Node, NodeType, Layer, DiscoveredBy
     n = Node(id="x", type=NodeType.PACKAGE, name="x", layer=Layer.PIP,
              discovered_by=DiscoveredBy.RESOLVER)
     assert not hasattr(n, "tier")
@@ -213,7 +213,7 @@ def test_node_has_no_tier_field():
 
 
 def test_module_node_is_legal_requires_src_and_dst():
-    from python_deps.depgraph.schema import (
+    from graph.schema import (
         DepGraph, Node, Edge, NodeType, EdgeType, Layer, DiscoveredBy,
     )
     imp = Node(id="import:foo", type=NodeType.IMPORT, name="foo",
@@ -234,6 +234,6 @@ def test_module_node_is_legal_requires_src_and_dst():
 
 
 def test_module_node_type_exists_and_file_is_gone():
-    from python_deps.depgraph.schema import NodeType
+    from graph.schema import NodeType
     assert NodeType.MODULE.value == "Module"
     assert not hasattr(NodeType, "FILE")

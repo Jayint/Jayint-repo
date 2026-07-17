@@ -12,8 +12,8 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
-from python_deps.depgraph.schedule import frame_obligation
+from graph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
+from graph.schedule import frame_obligation
 from src.envstate.graph_scheduler import packet_to_task
 
 

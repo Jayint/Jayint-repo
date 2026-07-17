@@ -12,8 +12,8 @@ come from ``PACKAGE_TO_SYSTEM_DEPS``, now deleted — see the design doc's
 
 from __future__ import annotations
 
-from python_deps.depgraph.ids import package_id, tool_id
-from python_deps.depgraph.schema import (
+from graph.ids import package_id, tool_id
+from graph.schema import (
     DepGraph,
     DiscoveredBy,
     EdgeType,
@@ -22,7 +22,7 @@ from python_deps.depgraph.schema import (
     NodeType,
     State,
 )
-from python_deps.depgraph.seed import seed_wheel_oracle_prior
+from graph.seed import seed_wheel_oracle_prior
 
 
 def _package(name: str, version: str, *, build_from_source=None) -> Node:

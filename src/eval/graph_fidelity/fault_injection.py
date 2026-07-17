@@ -101,10 +101,10 @@ def inject_and_score(repo_dir: str, full_name: str, deleted_dep: str, import_nam
     still carry the deleted dep and falsely "recover" an identity-named dep through
     the declared-precedence path — inverting the post-Phase-2 result this measures.
     """
-    import python_deps.depgraph.roots as roots_mod
+    import graph.roots as roots_mod
     import python_deps.evidence as evidence_mod
-    from python_deps.depgraph.scan import scan_to_nodes
-    from python_deps.depgraph.schema import NodeType
+    from graph.scan import scan_to_nodes
+    from graph.schema import NodeType
 
     target = _canon(deleted_dep)
     real_collect = evidence_mod.collect_python_dependency_evidence

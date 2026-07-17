@@ -6,9 +6,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from python_deps.depgraph.exec_trace import ParsedFailure
-from python_deps.depgraph.schema import Node, NodeType, Layer, State, Strength, DiscoveredBy
-from python_deps.depgraph.ids import package_id, TEST_NODE_ID
+from graph.exec_trace import ParsedFailure
+from graph.schema import Node, NodeType, Layer, State, Strength, DiscoveredBy
+from graph.ids import package_id, TEST_NODE_ID
 
 
 @dataclass(frozen=True)

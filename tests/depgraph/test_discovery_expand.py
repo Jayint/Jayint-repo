@@ -8,9 +8,9 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-import python_deps.depgraph.discovery_expand as dx
-from python_deps.depgraph.ids import package_id
-from python_deps.depgraph.schema import (
+import graph.discovery_expand as dx
+from graph.ids import package_id
+from graph.schema import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )
 
@@ -18,7 +18,7 @@ from python_deps.depgraph.schema import (
 class _Exec:
     """CommandResult fields are (command, returncode, stdout, stderr) — there is NO `rc`."""
     def run(self, command, **_kw):
-        from python_deps.depgraph.executor import CommandResult
+        from graph.executor import CommandResult
         return CommandResult(command, 0, "", "")
 
 
@@ -111,7 +111,7 @@ def test_a_FAILING_expansion_is_not_retried_every_turn(monkeypatch):
     same failure recurs forever. Each retry is fresh network/container work inside a loop where
     one turn already costs a full container rebuild.
     """
-    import python_deps.depgraph.discovery_expand as dx
+    import graph.discovery_expand as dx
 
     calls = []
 

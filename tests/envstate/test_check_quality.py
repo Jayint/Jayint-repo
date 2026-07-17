@@ -6,7 +6,7 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from python_deps.depgraph.schema import DiscoveredBy, Layer, Node, NodeType, State
+from graph.schema import DiscoveredBy, Layer, Node, NodeType, State
 from src.envstate.check_quality import rewrite_syslib_check, check_can_detect_absence
 
 

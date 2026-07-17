@@ -5,8 +5,8 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.depgraph.schema import Node, NodeType, Layer, State, DiscoveredBy, Attempt, DepGraph, Edge, EdgeType
-from python_deps.depgraph.req_slice import providers_view, ProviderView, ProviderCand, TriedProvider, build_requirement_slice, RequirementSlice, DepView, render_requirement_slice
+from graph.schema import Node, NodeType, Layer, State, DiscoveredBy, Attempt, DepGraph, Edge, EdgeType
+from graph.req_slice import providers_view, ProviderView, ProviderCand, TriedProvider, build_requirement_slice, RequirementSlice, DepView, render_requirement_slice
 
 
 def _syslib(**kw):

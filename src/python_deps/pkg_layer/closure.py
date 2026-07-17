@@ -8,7 +8,7 @@ canon-deduped. The resolve SOURCE itself is the pluggable seam -- swapping
 is just injecting a different ``ResolveSource``, never touching
 ``build_closure``.
 
-Built SEPARATE from ``python_deps.depgraph`` (per plan) so the two designs
+Built SEPARATE from ``graph`` (per plan) so the two designs
 can be A/B-evaluated; this module does not modify anything under
 ``depgraph/``. ``UvResolveSource`` is the one exception that reaches into
 ``depgraph.resolve.resolve_closure`` (the real, tested uv-lock orchestrator)
@@ -21,10 +21,10 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from python_deps.depgraph.executor import Executor
-from python_deps.depgraph.resolve import resolve_closure
-from python_deps.depgraph.schema import NodeType
-from python_deps.depgraph.target_env import TargetEnv
+from graph.executor import Executor
+from graph.resolve import resolve_closure
+from graph.schema import NodeType
+from graph.target_env import TargetEnv
 from python_deps.pkg_layer.planes import ClosurePkg, Tier, _canon
 
 # ``resolve_closure`` returns real resolved Package nodes with this

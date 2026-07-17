@@ -16,7 +16,7 @@ if str(_SRC) not in sys.path:
 
 
 def test_done_unchanged_for_non_service_graph():
-    from python_deps.depgraph.schema import DepGraph
+    from graph.schema import DepGraph
     from src.envstate.graph_scheduler import next_decision
     decision, _ = next_decision(DepGraph(), run_tests=lambda: True, allow_services=True)
     assert decision.action == "done"
@@ -24,10 +24,10 @@ def test_done_unchanged_for_non_service_graph():
 
 def test_packet_to_task_no_service_facts_for_non_service():
     """packet_to_task adds no 'start the service' fact for a non-service obligation."""
-    from python_deps.depgraph.schema import (
+    from graph.schema import (
         DepGraph, Node, NodeType, Layer, DiscoveredBy, State,
     )
-    from python_deps.depgraph.schedule import frame_obligation
+    from graph.schedule import frame_obligation
     from src.envstate.graph_scheduler import packet_to_task
     node = Node(id="pkg:requests", type=NodeType.PACKAGE, name="requests",
                 layer=Layer.PIP, discovered_by=DiscoveredBy.STATIC_SCAN,
@@ -41,10 +41,10 @@ def test_packet_to_task_no_service_facts_for_non_service():
 
 def test_packet_to_task_no_binding_facts_without_setup():
     """A non-service obligation (no setup recipe) renders no binding/repoint facts."""
-    from python_deps.depgraph.schema import (
+    from graph.schema import (
         DepGraph, Node, NodeType, Layer, DiscoveredBy, State,
     )
-    from python_deps.depgraph.schedule import frame_obligation
+    from graph.schedule import frame_obligation
     from src.envstate.graph_scheduler import packet_to_task
     node = Node(id="pkg:requests", type=NodeType.PACKAGE, name="requests",
                 layer=Layer.PIP, discovered_by=DiscoveredBy.STATIC_SCAN,

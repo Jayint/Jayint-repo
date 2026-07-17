@@ -11,16 +11,16 @@ from __future__ import annotations
 
 import textwrap
 
-from python_deps.depgraph import build_deps
-from python_deps.depgraph.ids import (
+from graph import build_deps
+from graph.ids import (
     apt_build_id, linker_id, package_id, project_id, tool_id,
 )
-from python_deps.depgraph.os_resolver import ProviderCandidate
-from python_deps.depgraph.project_native_deps import project_native_obligations
-from python_deps.depgraph.schema import (
+from graph.os_resolver import ProviderCandidate
+from graph.project_native_deps import project_native_obligations
+from graph.schema import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
-from python_deps.depgraph.seed import seed_wheel_oracle_prior
+from graph.seed import seed_wheel_oracle_prior
 
 from conftest import FakeExecutor, make_result  # type: ignore
 

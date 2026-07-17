@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import textwrap
 
-from python_deps.depgraph.os_resolver import ObservedNeed
-from python_deps.depgraph.project_native_scan import (
+from graph.os_resolver import ObservedNeed
+from graph.project_native_scan import (
     has_native_build_signal,
     scan_native_build_surface,
 )

@@ -53,15 +53,15 @@ from pathlib import Path
 
 # repo root + src/ both on path (mirrors run_v3_e2e.py / gate_a bootstrap):
 # `from scripts.gate_a_cure_recovery import ...` resolves from root (namespace pkg)
-# and `from python_deps.depgraph.* import ...` resolves from src/, whether run as a
+# and `from graph.* import ...` resolves from src/, whether run as a
 # script OR imported by pytest from repo root.
 _ROOT = Path(__file__).resolve().parents[1]
 for _p in (_ROOT, _ROOT / "src"):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from python_deps.depgraph.build import build_dep_graph  # noqa: E402
-from python_deps.depgraph.executor import (  # noqa: E402
+from graph.build import build_dep_graph  # noqa: E402
+from graph.executor import (  # noqa: E402
     DockerExecutor,
     LocalSubprocessExecutor,
 )

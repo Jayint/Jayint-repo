@@ -28,8 +28,8 @@ from src.envstate.world_model import (
     initial_map,
     merge_map,
 )
-from python_deps.depgraph.ids import TEST_NODE_ID, package_id
-from python_deps.depgraph.schema import (
+from graph.ids import TEST_NODE_ID, package_id
+from graph.schema import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
 
@@ -174,9 +174,9 @@ def test_flag_on_runtime_node_appended():
 def test_flag_on_ingest_exception_does_not_crash():
     """If ingest raises internally, the loop must still complete normally."""
     # Monkey-patch the symbol the orchestrator imports (it imports the function
-    # from python_deps.depgraph.runtime_ingest INSIDE _runtime_ingest_phase, so
+    # from graph.runtime_ingest INSIDE _runtime_ingest_phase, so
     # patching the module attribute is the interception point).
-    import python_deps.depgraph.runtime_ingest as _m
+    import graph.runtime_ingest as _m
     original = _m.ingest_runtime_failures
 
     def _boom(graph, observations, classifiers=(_m.classify_observation,)):

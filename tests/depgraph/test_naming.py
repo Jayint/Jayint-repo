@@ -18,9 +18,9 @@ green test here as licence to re-connect ``package_roots`` to
 
 from __future__ import annotations
 
-from python_deps.depgraph.ids import TEST_NODE_ID, import_id
-from python_deps.depgraph.naming import package_roots
-from python_deps.depgraph.schema import (
+from graph.ids import TEST_NODE_ID, import_id
+from graph.naming import package_roots
+from graph.schema import (
     DepGraph,
     DiscoveredBy,
     Layer,
@@ -108,7 +108,7 @@ def test_non_import_nodes_are_ignored():
 
 
 def test_package_roots_omits_unresolved_import(monkeypatch):
-    import python_deps.depgraph.naming as naming
+    import graph.naming as naming
     from python_deps.import_mapping import unresolved_result, MappingResult
 
     def fake_map(import_name, declared_package_names=None):

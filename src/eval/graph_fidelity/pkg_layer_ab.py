@@ -109,9 +109,9 @@ def score_repo(repo_dir: str, full_name: str, gold_imports: Mapping[str, str]) -
     Host-only: AST scan + manifest reads. No container, no network, no
     build-agent phase.
     """
-    from python_deps.depgraph.roots import select_roots as current_select_roots
-    from python_deps.depgraph.scan import scan_to_nodes
-    from python_deps.depgraph.schema import NodeType
+    from graph.roots import select_roots as current_select_roots
+    from graph.scan import scan_to_nodes
+    from graph.schema import NodeType
     from python_deps.pkg_layer.construct import build_package_layer
     from python_deps.pkg_layer.contract import read_contract
     from python_deps.pkg_layer.contract import select_roots as new_select_roots

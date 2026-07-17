@@ -8,8 +8,8 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.depgraph.diagnose import Mode, RepoContext, diagnose
-from python_deps.depgraph.schema import NodeType
+from graph.diagnose import Mode, RepoContext, diagnose
+from graph.schema import NodeType
 
 
 def test_external_import_routes_environment_with_discovery():
@@ -81,9 +81,9 @@ def test_none_named_discovery_does_not_route_invalid_attempt(monkeypatch):
     # permanently match it as a previously-invalid attempt. A discovery with
     # no name is unnameable -- it cannot be "previously disproven" -- and
     # must route exactly as any other present-but-not-invalid name does.
-    import python_deps.depgraph.diagnose as diagnose_module
-    from python_deps.depgraph.runtime_classify import Discovery
-    from python_deps.depgraph.schema import Layer
+    import graph.diagnose as diagnose_module
+    from graph.runtime_classify import Discovery
+    from graph.schema import Layer
 
     unresolved = Discovery(
         node_type=NodeType.PACKAGE,

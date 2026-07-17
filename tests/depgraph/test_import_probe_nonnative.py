@@ -17,9 +17,9 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from python_deps.depgraph.ids import import_id, package_id, syslib_id
-from python_deps.depgraph.probe import import_probe
-from python_deps.depgraph.schema import (
+from graph.ids import import_id, package_id, syslib_id
+from graph.probe import import_probe
+from graph.schema import (
     DepGraph,
     DiscoveredBy,
     Edge,

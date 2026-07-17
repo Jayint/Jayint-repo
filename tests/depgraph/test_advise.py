@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-from python_deps.depgraph.advise import (
+from graph.advise import (
     _best_evidence_line,
     render_dep_graph_advisory,
 )
-from python_deps.depgraph.ids import (
+from graph.ids import (
     TEST_NODE_ID,
     import_id,
     package_id,
     project_id,
     syslib_id,
 )
-from python_deps.depgraph.schema import (
+from graph.schema import (
     DepGraph,
     DiscoveredBy,
     Edge,
@@ -144,8 +144,8 @@ def test_empty_graph_renders_nothing() -> None:
 def test_build_advisory_degrades_gracefully(monkeypatch) -> None:
     """ANY failure building the graph must yield ('', None), never raise — so a
     run proceeds exactly as if the feature were off (graceful degradation)."""
-    import python_deps.depgraph.advise as advise_mod
-    from python_deps.depgraph.advise import build_advisory_for_repo
+    import graph.advise as advise_mod
+    from graph.advise import build_advisory_for_repo
 
     class _BoomExecutor:
         def __init__(self, *a, **k):
@@ -168,9 +168,9 @@ def test_build_advisory_forwards_llm_dist_guesser(monkeypatch) -> None:
     to ``build_dep_graph`` (the single install-lane injection point). A spy on
     ``advise.build_dep_graph`` records its kwargs; ``DockerExecutor`` is a no-op
     context manager so no Docker is touched."""
-    import python_deps.depgraph.advise as advise_mod
-    from python_deps.depgraph.advise import build_advisory_for_repo
-    from python_deps.depgraph.schema import DepGraph
+    import graph.advise as advise_mod
+    from graph.advise import build_advisory_for_repo
+    from graph.schema import DepGraph
 
     captured: dict = {}
 
@@ -204,9 +204,9 @@ def test_build_advisory_forwards_llm_dist_guesser(monkeypatch) -> None:
 def test_build_advisory_default_none_forwards_none(monkeypatch) -> None:
     """With no guesser passed, the forwarded value is ``None`` — the deterministic
     (pre-guesser) install-lane path, byte-identical to before this wiring."""
-    import python_deps.depgraph.advise as advise_mod
-    from python_deps.depgraph.advise import build_advisory_for_repo
-    from python_deps.depgraph.schema import DepGraph
+    import graph.advise as advise_mod
+    from graph.advise import build_advisory_for_repo
+    from graph.schema import DepGraph
 
     captured: dict = {}
 
@@ -243,10 +243,10 @@ def test_best_evidence_line_helper() -> None:
 # --- Task 11: CONFIG tier in advisory ---
 
 def test_advisory_renders_missing_config_node_with_value_needed():
-    from python_deps.depgraph.schema import (
+    from graph.schema import (
         DepGraph, Node, NodeType, Layer, DiscoveredBy, State,
     )
-    from python_deps.depgraph.advise import render_dep_graph_advisory
+    from graph.advise import render_dep_graph_advisory
 
     cfg = Node(id="config:SECRET_KEY", type=NodeType.CONFIG, name="SECRET_KEY",
                layer=Layer.CONFIG, discovered_by=DiscoveredBy.STATIC_SCAN,
@@ -259,10 +259,10 @@ def test_advisory_renders_missing_config_node_with_value_needed():
 
 
 def test_advisory_config_with_derived_value_has_no_marker():
-    from python_deps.depgraph.schema import (
+    from graph.schema import (
         DepGraph, Node, NodeType, Layer, DiscoveredBy, State,
     )
-    from python_deps.depgraph.advise import render_dep_graph_advisory
+    from graph.advise import render_dep_graph_advisory
 
     cfg = Node(id="config:DEBUG", type=NodeType.CONFIG, name="DEBUG",
                layer=Layer.CONFIG, discovered_by=DiscoveredBy.STATIC_SCAN,
@@ -275,15 +275,15 @@ def test_advisory_config_with_derived_value_has_no_marker():
 # --- Task 9: SERVICES tier in advisory ---
 
 def _svc(name, **data):
-    from python_deps.depgraph.schema import Node, NodeType, Layer, DiscoveredBy, State
+    from graph.schema import Node, NodeType, Layer, DiscoveredBy, State
     return Node(id=f"service:{name}", type=NodeType.SERVICE, name=name, layer=Layer.SERVICES,
                 discovered_by=DiscoveredBy.STATIC_SCAN, state=State.UNKNOWN,
                 fix_candidates=(f"service:{name}:16",), data=dict(data))
 
 
 def test_advisory_renders_services_block():
-    from python_deps.depgraph.schema import DepGraph
-    from python_deps.depgraph.advise import render_dep_graph_advisory
+    from graph.schema import DepGraph
+    from graph.advise import render_dep_graph_advisory
     g = (DepGraph()
          .with_node(_svc("postgres", bound_config="DATABASE_URL"))
          .with_node(_svc("redis", inducing_package="celery")))
@@ -296,8 +296,8 @@ def test_advisory_renders_services_block():
 
 
 def test_advisory_no_services_block_when_none():
-    from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
-    from python_deps.depgraph.advise import render_dep_graph_advisory
+    from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+    from graph.advise import render_dep_graph_advisory
     pkg = Node(id="pkg:requests", type=NodeType.PACKAGE, name="requests", layer=Layer.PIP,
                discovered_by=DiscoveredBy.RESOLVER, state=State.SATISFIED)
     out = render_dep_graph_advisory(DepGraph().with_node(pkg))
@@ -307,8 +307,8 @@ def test_advisory_no_services_block_when_none():
 # --- advisory-only (non-setup) service render ---
 
 def test_advisory_advisory_only_service_unchanged():
-    from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
-    from python_deps.depgraph.advise import render_dep_graph_advisory
+    from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+    from graph.advise import render_dep_graph_advisory
     svc = Node(id="service:redis", type=NodeType.SERVICE, name="redis",
                layer=Layer.SERVICES, discovered_by=DiscoveredBy.RESOLVER, state=State.UNKNOWN,
                fix_candidates=("service:redis:7",),
@@ -325,8 +325,8 @@ def test_advisory_setup_service_renders_as_setup_not_mocked():
     MANDATORY provisioned obligation — it must render as [setup] and MUST NOT carry
     the legacy '[inferred] … may be mocked' caveat (cross-consumer consistency with
     the scheduler/certify path which blocks 'done' on it)."""
-    from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
-    from python_deps.depgraph.advise import render_dep_graph_advisory
+    from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+    from graph.advise import render_dep_graph_advisory
     svc = Node(id="service:redis", type=NodeType.SERVICE, name="redis",
                layer=Layer.SERVICES, discovered_by=DiscoveredBy.STATIC_SCAN, state=State.MISSING,
                fix_candidates=("service:redis:7",),

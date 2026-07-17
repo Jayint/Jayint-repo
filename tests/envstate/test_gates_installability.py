@@ -7,7 +7,7 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from python_deps.depgraph.schema import (
+from graph.schema import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
 from src.envstate.gates import (

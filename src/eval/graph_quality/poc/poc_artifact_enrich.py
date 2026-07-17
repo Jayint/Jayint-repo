@@ -27,12 +27,12 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from python_deps.depgraph.diagnose import RepoContext
-from python_deps.depgraph.executor import DockerExecutor
-from python_deps.depgraph.graph_enrich import enrich
-from python_deps.depgraph.ids import TEST_NODE_ID, package_id
-from python_deps.depgraph.ldd_probe import ldd_probe
-from python_deps.depgraph.schema import (
+from graph.diagnose import RepoContext
+from graph.executor import DockerExecutor
+from graph.graph_enrich import enrich
+from graph.ids import TEST_NODE_ID, package_id
+from graph.ldd_probe import ldd_probe
+from graph.schema import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
 from src.react_repair.loop import RunResult

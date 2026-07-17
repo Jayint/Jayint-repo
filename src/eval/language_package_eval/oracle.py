@@ -51,8 +51,8 @@ for _p in (_REPO_ROOT, _SRC):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from python_deps.depgraph.schema import NodeType  # noqa: E402
-from python_deps.depgraph.service_scan import scan_compose_services  # noqa: E402
+from graph.schema import NodeType  # noqa: E402
+from graph.service_scan import scan_compose_services  # noqa: E402
 from python_deps.evidence import _read_requirement_lines  # noqa: E402
 
 _TIER_KEYS: tuple[str, ...] = (

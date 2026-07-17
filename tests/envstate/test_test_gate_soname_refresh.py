@@ -9,8 +9,8 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from python_deps.depgraph.ids import syslib_id
-from python_deps.depgraph.schema import DepGraph
+from graph.ids import syslib_id
+from graph.schema import DepGraph
 from src.envstate.depgraph_live import test_gate_soname_refresh
 
 TEST_CMD = "python -m pytest -q"

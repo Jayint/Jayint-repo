@@ -15,16 +15,16 @@ from unittest.mock import patch
 
 from conftest import SequencedFakeExecutor  # type: ignore
 
-from python_deps.depgraph.build import (
+from graph.build import (
     build_dep_graph,
     reconcile_packages,
 )
-from python_deps.depgraph.coverage import resolved_record_coverage
-from python_deps.depgraph.executor import CommandResult
-from python_deps.depgraph.ids import import_id, package_id
-from python_deps.depgraph.resolve_errors import _offending_root_names
-from python_deps.depgraph.resolve_lock import _package_node
-from python_deps.depgraph.schema import (
+from graph.coverage import resolved_record_coverage
+from graph.executor import CommandResult
+from graph.ids import import_id, package_id
+from graph.resolve_errors import _offending_root_names
+from graph.resolve_lock import _package_node
+from graph.schema import (
     DepGraph,
     DiscoveredBy,
     Edge,
@@ -98,7 +98,7 @@ def _fallback_executor(compile_queue, *, install=None, packages_dist=None):
 
 def _build_counting(repo, ex, provider, **kwargs):
     """Run build_dep_graph, counting resolve_closure invocations (= rounds)."""
-    import python_deps.depgraph.build as build_mod
+    import graph.build as build_mod
 
     counter = {"resolve": 0}
     orig = build_mod.resolve_closure
@@ -209,8 +209,8 @@ def test_fixpoint_default_composite_provider_repairs_via_pypi_fetch(tmp_path):
     grounds ``PyYAML``, and the fixpoint ACCEPTs it as an AUDIT root. This is the
     test P1.4 could not write — it proves production repair is no longer inert.
     """
-    import python_deps.depgraph.build as build_mod
-    from python_deps.depgraph.coverage import pypi_record_provider
+    import graph.build as build_mod
+    from graph.coverage import pypi_record_provider
 
     repo = _repo(tmp_path, "import yaml\n")
     # The FIRST packages_distributions read (the memoized post-install container
@@ -649,8 +649,8 @@ def test_offending_drops_shared_pin_when_no_audit_alternative():
 
 def test_resolve_closure_threads_audit_root_names(tmp_path):
     """resolve_closure forwards its audit_root_names down to _offending_root_names."""
-    import python_deps.depgraph.resolve as resolve_mod
-    from python_deps.depgraph.target_env import TargetEnv
+    import graph.resolve as resolve_mod
+    from graph.target_env import TargetEnv
 
     captured = {}
     orig = resolve_mod._offending_root_names
@@ -686,7 +686,7 @@ def test_resolve_closure_threads_audit_root_names(tmp_path):
 def test_build_threads_repaired_into_resolve_audit_root_names(tmp_path):
     """After a repair adds an AUDIT root, build_dep_graph passes the repaired set
     as audit_root_names to the next resolve_closure call."""
-    import python_deps.depgraph.build as build_mod
+    import graph.build as build_mod
 
     repo = _repo(tmp_path, "import yaml\n")
     ex = _fallback_executor(["PyYAML==6.0\n    # via -r -\n"])
@@ -710,8 +710,8 @@ def test_build_threads_repaired_into_resolve_audit_root_names(tmp_path):
 # Stage B Task 7 — lane-aware `_missing_import_nodes` (module-routed + deferred)
 # --------------------------------------------------------------------------- #
 def test_missing_excludes_module_routed_and_deferred():
-    from python_deps.depgraph.build import _missing_import_nodes  # extracted pure helper
-    from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy
+    from graph.build import _missing_import_nodes  # extracted pure helper
+    from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy
 
     def imp(name, **data):
         return Node(id=f"import:{name}", type=NodeType.IMPORT, name=name,
@@ -728,8 +728,8 @@ def test_missing_excludes_module_routed_and_deferred():
 def test_missing_filter_is_byte_identical_without_lanes():
     # With no module-routed nodes and empty deferred, the new helper equals the
     # old comprehension exactly (behavior-preserving gate for Stage C).
-    from python_deps.depgraph.build import _missing_import_nodes
-    from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy
+    from graph.build import _missing_import_nodes
+    from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy
     imp = lambda n, **d: Node(id=f"import:{n}", type=NodeType.IMPORT, name=n,
                               layer=Layer.NAMING, discovered_by=DiscoveredBy.STATIC_SCAN, data=d)
     graph = DepGraph().with_node(imp("requests")).with_node(imp("flask", optional=True))

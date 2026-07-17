@@ -8,12 +8,12 @@ dependency excluded from ``needed_extras`` gets silently re-added because the
 code happens to import it (manifest-first, scan-gap-fill design). There is no
 import input here at all -- only ``(contract, needed_extras)`` in.
 
-Built SEPARATE from ``python_deps.depgraph`` (per plan) so the two designs can
+Built SEPARATE from ``graph`` (per plan) so the two designs can
 be A/B-evaluated; this module does not modify anything under ``depgraph/``.
 """
 from __future__ import annotations
 
-from python_deps.depgraph.roots import _requirement_group
+from graph.roots import _requirement_group
 from python_deps.evidence import collect_python_dependency_evidence
 from python_deps.pkg_layer.planes import DeclaredDep, _canon
 

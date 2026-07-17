@@ -16,7 +16,7 @@ for _p in (_REPO_ROOT, _SRC):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from python_deps.depgraph.executor import TIMEOUT_RC  # noqa: E402
+from graph.executor import TIMEOUT_RC  # noqa: E402
 from src.eval.language_package_eval.coverage import canon_pip  # noqa: E402
 
 _SYSTEM_TIERS: frozenset[str] = frozenset({"SYSTEM_LIB", "TOOL"})
@@ -111,7 +111,7 @@ def attribute_failure(ladder: LadderResult, *, static_ok: bool,
     return "unknown"
 
 
-from python_deps.depgraph.build_script import render_build_script  # noqa: E402
+from graph.build_script import render_build_script  # noqa: E402
 from src.eval.graph_fidelity.render_fidelity import check_render  # noqa: E402
 from src.eval.language_package_eval.coverage import (  # noqa: E402
     apt_names_in_graph, base_image_for_repo, build_graph_construction_only,

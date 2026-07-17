@@ -8,7 +8,7 @@ never called — each test hands ``pypi_record_provider`` a fake ``fetch``.
 
 from __future__ import annotations
 
-from python_deps.depgraph.coverage import (
+from graph.coverage import (
     composite_record_provider,
     pypi_record_provider,
 )

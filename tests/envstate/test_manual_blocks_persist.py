@@ -14,8 +14,8 @@ for p in (str(_ROOT), str(_SRC)):
         sys.path.insert(0, p)
 
 from src.envstate.world_model import WorldModelMap, initial_map, merge_map
-from python_deps.depgraph.block import Block
-from python_deps.depgraph.build_script import render_build_script
+from graph.block import Block
+from graph.build_script import render_build_script
 
 
 def _blk() -> Block:

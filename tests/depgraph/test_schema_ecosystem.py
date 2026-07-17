@@ -1,4 +1,4 @@
-from python_deps.depgraph.schema import DiscoveredBy, Layer, Node, NodeType
+from graph.schema import DiscoveredBy, Layer, Node, NodeType
 
 
 def _node(**kw):

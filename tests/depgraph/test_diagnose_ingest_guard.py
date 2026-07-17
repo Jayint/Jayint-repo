@@ -8,10 +8,10 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.depgraph.diagnose import RepoContext, make_diagnostic_classifier
-from python_deps.depgraph.ids import TEST_NODE_ID, package_id
-from python_deps.depgraph.runtime_ingest import ingest_runtime_failures
-from python_deps.depgraph.schema import (
+from graph.diagnose import RepoContext, make_diagnostic_classifier
+from graph.ids import TEST_NODE_ID, package_id
+from graph.runtime_ingest import ingest_runtime_failures
+from graph.schema import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType,
 )
 

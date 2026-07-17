@@ -48,8 +48,8 @@ from src.envstate.run_trace import RunTracer
 from src.envstate.trace_verify import verify_canonical_trace
 from src.envstate.world_model import initial_map, merge_map
 from src.sandbox import InstallResult
-from python_deps.depgraph.patch import PatchProposal, ProviderSpec
-from python_deps.depgraph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
+from graph.patch import PatchProposal, ProviderSpec
+from graph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
 
 _BAD_NAME = "libplacebodev"
 _GOOD_NAME = "libplacebo-dev"
@@ -177,7 +177,7 @@ def test_bad_provider_not_retried_valid_replacement_accepted():
         "the FINAL chosen_fix must be the valid replacement, not the disproven name"
     )
 
-    from python_deps.depgraph.build_script import render_build_script
+    from graph.build_script import render_build_script
     script_text = render_build_script(final_map.dep_graph, final_map.manual_blocks)
     assert _GOOD_NAME in script_text
     assert _BAD_NAME not in script_text, (

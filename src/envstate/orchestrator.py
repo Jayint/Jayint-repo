@@ -159,10 +159,10 @@ def run_v1(
             return
         if exec_readonly is None:                      # R3(c): no certify path -> no emit
             return
-        from python_deps.depgraph.schema import NodeType, State
+        from graph.schema import NodeType, State
         from src.envstate.world_model import Fact
         from src.envstate.depgraph_live import certify_refresh, emit_drain, ensure_python_shim
-        from python_deps.depgraph.advise import render_depgraph_planner
+        from graph.advise import render_depgraph_planner
         # Make a bare `python` resolve to python3 before any check runs, else a
         # python3-only base fails every `python -m pip show` and nothing certifies.
         ensure_python_shim(sandbox_execute)
@@ -193,9 +193,9 @@ def run_v1(
         if not enable_runtime_feedback or current_map.dep_graph is None:
             return
         try:
-            from python_deps.depgraph.advise import render_depgraph_planner
-            from python_deps.depgraph.runtime_ingest import ingest_runtime_failures
-            from python_deps.depgraph.runtime_classify import classify_observation
+            from graph.advise import render_depgraph_planner
+            from graph.runtime_ingest import ingest_runtime_failures
+            from graph.runtime_classify import classify_observation
             events = ledger.events()
             new_events = events[_rt_mark:]
             obs = [(e.cmd, e.stdout) for e in new_events if e.rc != 0]
@@ -340,7 +340,7 @@ def _build_install_evidence(result, failed_id, cycle):
     ``ev.block_id == failed_block.block_id``; setting block_id keeps the stderr visible on a
     #@block failure, while node_id stays correct for the common graph-node case.
     """
-    from python_deps.depgraph.evidence_log import Evidence, EvidenceBundle
+    from graph.evidence_log import Evidence, EvidenceBundle
     ev = Evidence(
         evidence_id=f"install.{cycle}.{failed_id or 'unknown'}",
         container_kind="fresh_replay",
@@ -361,7 +361,7 @@ def _build_testgate_evidence(out, cycle, target_id):
     forces the proposer to hallucinate an evidence_ref against an empty citation
     list before finding the add_providers loophole. Mirrors _build_install_evidence
     (which threads install stderr on the binding path)."""
-    from python_deps.depgraph.evidence_log import Evidence, EvidenceBundle
+    from graph.evidence_log import Evidence, EvidenceBundle
     if not out:
         return EvidenceBundle()
     ev = Evidence(
@@ -433,7 +433,7 @@ def run_v3(
     ``block_emit`` module — a quarantined ablation baseline, not a runnable
     entry point; a full ablation loop is future work).
 
-    Every failure bundle is diagnosed (``python_deps.depgraph.diagnose``) BEFORE
+    Every failure bundle is diagnosed (``graph.diagnose``) BEFORE
     typed repair is attempted (Phase 6): a repo-internal reference or a residual
     bug never spends a repair turn, and a pip-disproven package name is never
     retried. ``repo_path`` (optional) seeds the router's ``RepoContext.local_names``
@@ -674,8 +674,8 @@ def run_v3(
         Returns ``(graph, evidence_bundle_or_None, failed_node_id_or_None)``.
         """
         nonlocal _last_replay_result
-        from python_deps.depgraph.build_script import render_build_script
-        from python_deps.depgraph.emit import _is_reciped
+        from graph.build_script import render_build_script
+        from graph.emit import _is_reciped
         from src.envstate.install_localizer import localize_install_failure, certify_reciped_only
         # Defense-in-depth: a repair proposal must not add a reciped node that can't be certified.
         _missing = [n.id for n in graph.nodes if _is_reciped(n) and not n.check_command]
@@ -699,7 +699,7 @@ def run_v3(
             # (the test gate is a separate call, e.g. _run_tests_verified /
             # _run_discover_gate) — recorded as None/"" here; this record is
             # the INSTALL result only.
-            from python_deps.depgraph.schema import State
+            from graph.schema import State
             _certified_ids = tuple(sorted(
                 n.id for n in graph.nodes if _is_reciped(n) and n.state is State.SATISFIED
             ))
@@ -725,10 +725,10 @@ def run_v3(
     # degrades to "no known local names", never REPO_INTERNAL_REF). invalid_names
     # accumulates as pip disproves package names across cycles; the context is
     # rebuilt on every call so a name disproven THIS cycle is honored next cycle.
-    from python_deps.depgraph.diagnose import (
+    from graph.diagnose import (
         Locality, Mode, RepoContext, classify_locality, diagnose_all,
     )
-    from python_deps.depgraph import repo_modules as _repo_modules
+    from graph import repo_modules as _repo_modules
     from python_deps.failure_classifier import classify_dependency_failure
     from python_deps.import_mapping import normalize_package_name
     # PRECISE top-levels for the give-up decision; the COLLISION zone (broad-walk
@@ -884,10 +884,10 @@ def run_v3(
             return
         if exec_readonly is None:                      # R3(c): no certify path -> no emit
             return
-        from python_deps.depgraph.schema import NodeType, State
+        from graph.schema import NodeType, State
         from src.envstate.world_model import Fact
         from src.envstate.depgraph_live import certify_refresh
-        from python_deps.depgraph.emit import partition
+        from graph.emit import partition
         graph = certify_refresh(current_map.dep_graph, exec_readonly, cycle)
         # Snapshot: was the graph already fully certified BEFORE this cycle's
         # fresh replay? (Same predicate as the provisional installability
@@ -949,9 +949,9 @@ def run_v3(
         if not enable_runtime_feedback or current_map.dep_graph is None:
             return
         try:
-            from python_deps.depgraph.advise import render_depgraph_planner
-            from python_deps.depgraph.runtime_ingest import ingest_runtime_failures
-            from python_deps.depgraph.diagnose import (
+            from graph.advise import render_depgraph_planner
+            from graph.runtime_ingest import ingest_runtime_failures
+            from graph.diagnose import (
                 Locality, classify_locality, make_diagnostic_classifier,
             )
             events = ledger.events()
@@ -1069,9 +1069,9 @@ def run_v3(
             # deterministic frontier is clean, is not fixable by adding nodes. Record
             # the reason; the main loop returns planner_giveup. done_flag is NEVER set.
             import logging
-            from python_deps.depgraph.runtime_ingest import diverged_node_ids
-            from python_deps.depgraph.emit import partition
-            from python_deps.depgraph.schedule import scheduler_frontier
+            from graph.runtime_ingest import diverged_node_ids
+            from graph.emit import partition
+            from graph.schedule import scheduler_frontier
             diverged = diverged_node_ids(pre_graph, found)
             # Match the real scheduler call (next_decision): the give-up
             # frontier must see Service/binding obligations on-arm, or it
@@ -1261,8 +1261,8 @@ def run_v3(
                 # client. Do NOT silently downgrade to free-text mutation (that path
                 # no longer exists in run_v3) — give up honestly instead.
                 return _finish(TerminationReason.GIVEUP_CONFIG)
-            from python_deps.depgraph.patch_gate import compose_script
-            from python_deps.depgraph.evidence_log import EvidenceBundle
+            from graph.patch_gate import compose_script
+            from graph.evidence_log import EvidenceBundle
             _g = current_map.dep_graph
             _blocks = compose_script(_g, _manual_blocks) if _g is not None else ()
             _tid = _targets[0]

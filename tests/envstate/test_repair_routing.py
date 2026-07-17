@@ -30,7 +30,7 @@ for p in (str(_ROOT), str(_SRC)):
         sys.path.insert(0, p)
 
 import src.envstate.graph_scheduler as gs_module
-from python_deps.depgraph import repo_modules as repo_modules_module
+from graph import repo_modules as repo_modules_module
 from src.envstate import orchestrator
 from src.envstate.ledger import ActionLedger
 from src.envstate.world_model import (
@@ -40,7 +40,7 @@ from src.envstate.world_model import (
     merge_map,
 )
 from src.sandbox import InstallResult
-from python_deps.depgraph.schema import (
+from graph.schema import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
 

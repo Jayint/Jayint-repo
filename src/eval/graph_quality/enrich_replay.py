@@ -1,7 +1,7 @@
 """Enrich replay — the HEADLINE graph-quality metric (design spec §3, plan Task 3).
 
 Replays each real past failure's error text through the REAL
-``python_deps.depgraph.graph_enrich.enrich`` and scores whether the graph names --
+``graph.graph_enrich.enrich`` and scores whether the graph names --
 from the error text alone -- a node whose fix matches what the repair actually
 added. Pure offline: no Docker, no network, no LLM.
 
@@ -39,13 +39,13 @@ for _p in (_REPO_ROOT, _SRC):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from python_deps.depgraph.diagnose import RepoContext  # noqa: E402
-from python_deps.depgraph.discovery_expand import expand_discovery  # noqa: E402
-from python_deps.depgraph.executor import CommandResult  # noqa: E402
-from python_deps.depgraph.graph_enrich import enrich  # noqa: E402
-from python_deps.depgraph.ids import TEST_NODE_ID, package_id  # noqa: E402
+from graph.diagnose import RepoContext  # noqa: E402
+from graph.discovery_expand import expand_discovery  # noqa: E402
+from graph.executor import CommandResult  # noqa: E402
+from graph.graph_enrich import enrich  # noqa: E402
+from graph.ids import TEST_NODE_ID, package_id  # noqa: E402
 from python_deps.import_mapping import normalize_package_name  # noqa: E402
-from python_deps.depgraph.schema import (  # noqa: E402
+from graph.schema import (  # noqa: E402
     DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State,
 )
 

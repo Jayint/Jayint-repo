@@ -7,14 +7,14 @@ from __future__ import annotations
 import os
 import pathlib
 
-from python_deps.depgraph import repo_modules
-from python_deps.depgraph.certify import EXECUTION_LAYER_ORDER, certify_all
-from python_deps.depgraph.diagnose import RepoContext
-from python_deps.depgraph.discovery_expand import expand_discovery
-from python_deps.depgraph.executor import CommandResult
-from python_deps.depgraph.graph_context import render_graph_context
-from python_deps.depgraph.graph_enrich import certify_only, enrich
-from python_deps.depgraph.schema import Layer
+from graph import repo_modules
+from graph.certify import EXECUTION_LAYER_ORDER, certify_all
+from graph.diagnose import RepoContext
+from graph.discovery_expand import expand_discovery
+from graph.executor import CommandResult
+from graph.graph_context import render_graph_context
+from graph.graph_enrich import certify_only, enrich
+from graph.schema import Layer
 from src.envstate.constants import VERIFY_TEST_CMD           # shared canonical "python -m pytest -q"
 from src.react_repair.gate import test_verdict
 from src.react_repair.history import History

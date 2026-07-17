@@ -2,7 +2,7 @@ import dataclasses
 
 import pytest
 
-from python_deps.depgraph.os_resolver import (
+from graph.os_resolver import (
     ObservedNeed, ProviderCandidate, PROVIDER_TABLE, default_context,
 )
 
@@ -84,7 +84,7 @@ def test_provider_table_is_exactly_the_curated_set():
     }
     assert PROVIDER_TABLE == expected
 
-from python_deps.depgraph.os_resolver import (
+from graph.os_resolver import (
     parse_apt_file_rows, filter_by_kind, rank,
 )
 
@@ -130,7 +130,7 @@ def test_build_binary_prefers_dev():
     need = ObservedNeed(kind="binary", name="pg_config", context="build")
     assert rank(filter_by_kind(rows, need), need)[0][0] == "libpq-dev"
 
-from python_deps.depgraph.os_resolver import check_command_for, _candidate
+from graph.os_resolver import check_command_for, _candidate
 
 def test_check_command_per_kind():
     assert check_command_for(ObservedNeed("soname", "libGL.so.1")) == "ldconfig -p | grep libGL.so.1"
@@ -173,8 +173,8 @@ def test_candidate_carries_apt_and_check():
     assert cand.source == "table"
     assert cand.check_command == "command -v pg_config"
 
-from python_deps.depgraph.os_resolver import resolve
-from python_deps.depgraph.executor import CommandResult
+from graph.os_resolver import resolve
+from graph.executor import CommandResult
 
 class _Fake:
     """Minimal Executor: returns canned CommandResult by substring match."""
@@ -252,11 +252,11 @@ def test_resolve_apt_file_search_failure_returns_empty():
     assert resolve(need, executor=fake) == []
 
 def test_default_context_linker_lib_is_build():
-    from python_deps.depgraph.os_resolver import default_context
+    from graph.os_resolver import default_context
     assert default_context("linker_lib") == "build"
 
 def test_resolve_linker_lib_prefers_dev_via_unversioned_so(fake_executor, make_result_fixture):
-    from python_deps.depgraph.os_resolver import ObservedNeed, resolve
+    from graph.os_resolver import ObservedNeed, resolve
     need = ObservedNeed(kind="linker_lib", name="ssl", context="build")
     fake_executor.responses = {
         "command -v apt-file": make_result_fixture(stdout="/usr/bin/apt-file"),
@@ -272,7 +272,7 @@ def test_resolve_linker_lib_prefers_dev_via_unversioned_so(fake_executor, make_r
     assert cands[0].package == "libssl-dev"  # -dev preferred; libssl.so.3 filtered out
 
 def test_check_command_for_linker_lib_is_find_not_ldconfig():
-    from python_deps.depgraph.os_resolver import ObservedNeed, check_command_for
+    from graph.os_resolver import ObservedNeed, check_command_for
     cmd = check_command_for(ObservedNeed(kind="linker_lib", name="ssl", context="build"))
     assert "find" in cmd and "libssl.so" in cmd
     assert "ldconfig" not in cmd  # dev symlinks lack a SONAME; not in the linker cache

@@ -37,7 +37,7 @@ from src.envstate.ledger import ActionLedger
 from src.envstate.repair_loop import RepairOutcome
 from src.envstate.world_model import PlannerDecision, Task, initial_map, merge_map
 from src.sandbox import InstallResult
-from python_deps.depgraph.schema import DepGraph
+from graph.schema import DepGraph
 
 
 class _FakeClient:

@@ -6,10 +6,10 @@ derives its bounded `check_command` from `render_probe_poll(setup["probe"])`. Tr
 anti-deadlock gate: a probe-less service must NEVER be admitted with a `render_probe_poll("")`
 check_command (a broken shell + a node that can never demote). As of Inc 5B the setup-shape
 is the SOLE Service shape (the legacy confidence/binding shape was deleted)."""
-from python_deps.depgraph.patch import PatchProposal, NodeSpec
-from python_deps.depgraph.patch_gate import admit_proposal, _requirement_errors
-from python_deps.depgraph.schema import DepGraph, State
-from python_deps.depgraph.service_recipes import render_probe_poll
+from graph.patch import PatchProposal, NodeSpec
+from graph.patch_gate import admit_proposal, _requirement_errors
+from graph.schema import DepGraph, State
+from graph.service_recipes import render_probe_poll
 
 _EV = frozenset({"e0"})
 _PROBE = "nc -z 127.0.0.1 6379"

@@ -8,10 +8,10 @@ tests).  All tests use the ``FakeExecutor`` (no Docker/network).
 
 from __future__ import annotations
 
-from python_deps.depgraph.certify import certify, certify_all
-from python_deps.depgraph.executor import CommandResult
-from python_deps.depgraph.ids import TEST_NODE_ID, import_id, package_id, syslib_id
-from python_deps.depgraph.schema import (
+from graph.certify import certify, certify_all
+from graph.executor import CommandResult
+from graph.ids import TEST_NODE_ID, import_id, package_id, syslib_id
+from graph.schema import (
     DepGraph,
     DiscoveredBy,
     Layer,
@@ -228,8 +228,8 @@ def test_certify_all_certifies_each_node(make_result_fixture):
 # --- Task 4: certify Config-layer nodes ---
 
 def test_certify_all_certifies_config_nodes():
-    from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
-    from python_deps.depgraph.certify import certify_all
+    from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+    from graph.certify import certify_all
 
     class FakeResult:
         def __init__(self, ok): self.ok = ok; self.stdout = ""; self.stderr = ""
@@ -248,8 +248,8 @@ def test_certify_all_certifies_config_nodes():
 
 
 def test_certify_skips_service_nodes():
-    from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
-    from python_deps.depgraph.certify import certify
+    from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+    from graph.certify import certify
 
     class FakeResult:
         def __init__(self, ok): self.ok = ok; self.stdout = ""; self.stderr = ""
@@ -270,15 +270,15 @@ def test_certify_skips_service_nodes():
 # --- Task 4: certify in-image services via loopback probe (arm-gated, setup-only) ---
 
 def _service_node(check="pg_isready -h 127.0.0.1 -p 5432"):
-    from python_deps.depgraph.schema import Node, NodeType, Layer, DiscoveredBy, State
+    from graph.schema import Node, NodeType, Layer, DiscoveredBy, State
     return Node(id="service:postgres", type=NodeType.SERVICE, name="postgres",
                 layer=Layer.SERVICES, discovered_by=DiscoveredBy.STATIC_SCAN,
                 state=State.UNKNOWN, check_command=check, data={})
 
 
 def test_service_unknown_when_not_allowed():
-    from python_deps.depgraph.schema import DepGraph, State
-    from python_deps.depgraph.certify import certify
+    from graph.schema import DepGraph, State
+    from graph.certify import certify
 
     class Ex:
         def __init__(self): self.calls = []
@@ -292,8 +292,8 @@ def test_service_unknown_when_not_allowed():
 
 
 def test_service_without_setup_stays_unknown_even_when_allowed():
-    from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
-    from python_deps.depgraph.certify import certify
+    from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+    from graph.certify import certify
 
     class Ex:
         def __init__(self): self.calls = []

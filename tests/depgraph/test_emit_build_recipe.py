@@ -1,6 +1,6 @@
 # tests/depgraph/test_emit_build_recipe.py
-from python_deps.depgraph.emit import build_recipe, EmitStep
-from python_deps.depgraph.schema import (
+from graph.emit import build_recipe, EmitStep
+from graph.schema import (
     DepGraph, Layer, Node, NodeType, State, DiscoveredBy,
 )
 

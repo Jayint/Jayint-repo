@@ -72,12 +72,12 @@ from src.envstate.llm_response import complete_with_retry
 from src.envstate.jsonutil import extract_json_object
 from src.envstate.run_trace import RunTracer
 from src.envstate.proof import finalize_trace
-from python_deps.depgraph.advise import build_advisory_for_repo
-from python_deps.depgraph.build_script import (
+from graph.advise import build_advisory_for_repo
+from graph.build_script import (
     render_build_script,
     render_service_start_script,
 )
-from python_deps.depgraph.schema import State
+from graph.schema import State
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
@@ -279,7 +279,7 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     # ── 2. BELIEF: build the dep-graph (skipped in --seed-script repair-only mode) ──────
     arch = _target_arch(choice.platform_override)
     if args.seed_script:
-        from python_deps.depgraph.schema import DepGraph
+        from graph.schema import DepGraph
         graph = DepGraph()          # empty — repair-only ablation doesn't use graph state
         print(f"[v3] seed-script mode: repair-only on {args.seed_script} "
               f"(construction skipped, empty graph)")

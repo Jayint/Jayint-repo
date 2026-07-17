@@ -6,7 +6,7 @@ hostname is strictly more precise -- it disambiguates two services of the same k
 which a kind-match cannot -- and it does not silently drop an exotic-scheme DSN.
 """
 
-from python_deps.depgraph.repoint import render_bind_steps
+from graph.repoint import render_bind_steps
 
 
 def test_bind_matches_by_declared_hostname_not_kind():

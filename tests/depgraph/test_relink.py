@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from python_deps.depgraph.relink import (
+from graph.relink import (
     PACKAGES_DIST_CMD,
     parse_packages_distributions,
 )
@@ -26,8 +26,8 @@ def test_command_is_stdlib_only():
     assert "importlib.metadata" in PACKAGES_DIST_CMD
 
 
-from python_deps.depgraph.ids import import_id, package_id
-from python_deps.depgraph.schema import (
+from graph.ids import import_id, package_id
+from graph.schema import (
     DepGraph,
     DiscoveredBy,
     Edge,
@@ -36,7 +36,7 @@ from python_deps.depgraph.schema import (
     Node,
     NodeType,
 )
-from python_deps.depgraph.relink import import_to_package_edges
+from graph.relink import import_to_package_edges
 
 
 def _imp(name):
@@ -103,7 +103,7 @@ def test_edge_builder_skips_existing_edge():
     assert edges == []
 
 
-from python_deps.depgraph.relink import certified_import_links
+from graph.relink import certified_import_links
 
 
 def test_certified_import_links_adds_edge(fake_executor, make_result_fixture):
@@ -127,7 +127,7 @@ def test_certified_import_links_graceful_on_command_failure(fake_executor):
     assert out.edges == ()
 
 
-from python_deps.depgraph.relink import flag_unresolved_imports
+from graph.relink import flag_unresolved_imports
 
 
 def test_unlinked_import_is_flagged_unresolved():

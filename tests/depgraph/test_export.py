@@ -11,9 +11,9 @@ from __future__ import annotations
 from pathlib import Path
 from xml.dom import minidom
 
-from python_deps.depgraph.export import to_graphml
-from python_deps.depgraph.ids import TEST_NODE_ID, import_id, package_id, syslib_id
-from python_deps.depgraph.schema import (
+from graph.export import to_graphml
+from graph.ids import TEST_NODE_ID, import_id, package_id, syslib_id
+from graph.schema import (
     DepGraph,
     DiscoveredBy,
     Edge,

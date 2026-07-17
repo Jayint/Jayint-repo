@@ -9,9 +9,9 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from python_deps.depgraph.block import compile_replay_blocks
-from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
-from python_deps.depgraph.script import render_setup_sh
+from graph.block import compile_replay_blocks
+from graph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
+from graph.script import render_setup_sh
 from src.envstate.block_emit import block_emit
 from src.envstate.ledger import ActionLedger
 

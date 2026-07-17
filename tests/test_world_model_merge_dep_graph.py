@@ -1,5 +1,5 @@
 from src.envstate.world_model import merge_map, initial_map
-from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
+from graph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
 
 
 def _graph(state):

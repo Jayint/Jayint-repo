@@ -1,8 +1,8 @@
 from conftest import FakeExecutor
-from python_deps.depgraph.build import build_dep_graph
-from python_deps.depgraph.executor import CommandResult
-from python_deps.depgraph.ids import runtime_id
-from python_deps.depgraph.schema import NodeType, Layer
+from graph.build import build_dep_graph
+from graph.executor import CommandResult
+from graph.ids import runtime_id
+from graph.schema import NodeType, Layer
 
 
 def test_runtime_id_is_stable():

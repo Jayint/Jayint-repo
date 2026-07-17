@@ -5,9 +5,9 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.depgraph.patch import NodeSpec, PatchProposal, ScriptPatch
-from python_deps.depgraph.patch_gate import validate_proposal
-from python_deps.depgraph.schema import DepGraph
+from graph.patch import NodeSpec, PatchProposal, ScriptPatch
+from graph.patch_gate import validate_proposal
+from graph.schema import DepGraph
 
 
 def test_proposal_with_trivial_check_is_rejected():

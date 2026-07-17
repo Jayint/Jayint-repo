@@ -174,13 +174,13 @@ for _p in (_REPO_ROOT, _SRC):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from python_deps.depgraph.diagnose import RepoContext  # noqa: E402
-from python_deps.depgraph.discovery_expand import expand_discovery  # noqa: E402
-from python_deps.depgraph.graph_context import in_conflict, render_graph_context  # noqa: E402
-from python_deps.depgraph.graph_enrich import certify_only, enrich  # noqa: E402
-from python_deps.depgraph.ids import TEST_NODE_ID, package_id  # noqa: E402
-from python_deps.depgraph.naming import normalize_package_name  # noqa: E402
-from python_deps.depgraph.schema import (  # noqa: E402
+from graph.diagnose import RepoContext  # noqa: E402
+from graph.discovery_expand import expand_discovery  # noqa: E402
+from graph.graph_context import in_conflict, render_graph_context  # noqa: E402
+from graph.graph_enrich import certify_only, enrich  # noqa: E402
+from graph.ids import TEST_NODE_ID, package_id  # noqa: E402
+from graph.naming import normalize_package_name  # noqa: E402
+from graph.schema import (  # noqa: E402
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )
 

@@ -1,8 +1,8 @@
 # tests/depgraph/test_arbitrate.py
 from dataclasses import dataclass
-from python_deps.depgraph.arbitrate import arbitrate, probe_name
-from python_deps.depgraph.cure import CureResult
-from python_deps.depgraph.invocation_resolver import TestEnvPlan
+from graph.arbitrate import arbitrate, probe_name
+from graph.cure import CureResult
+from graph.invocation_resolver import TestEnvPlan
 
 
 @dataclass
@@ -24,7 +24,7 @@ class _FakeExec:
 
 
 def _plan(tmp_path):
-    from python_deps.depgraph.invocation_resolver import resolve
+    from graph.invocation_resolver import resolve
     return resolve(str(tmp_path))
 
 

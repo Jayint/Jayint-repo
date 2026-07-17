@@ -12,10 +12,10 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from python_deps.depgraph.schema import (  # noqa: E402
+from graph.schema import (  # noqa: E402
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy,
 )
-from python_deps.depgraph.schedule import _is_actionable, frame_obligation  # noqa: E402
+from graph.schedule import _is_actionable, frame_obligation  # noqa: E402
 
 
 _SETUP = {

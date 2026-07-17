@@ -17,13 +17,13 @@ whether a source build waits on its build tool.
 
 from __future__ import annotations
 
-from python_deps.depgraph import wheel_preflight
-from python_deps.depgraph.build import _python_package_obligations
-from python_deps.depgraph.build_script import render_build_script
-from python_deps.depgraph.emit import next_deterministic_wave
-from python_deps.depgraph.executor import CommandResult
-from python_deps.depgraph.ids import package_id, tool_id
-from python_deps.depgraph.schema import (
+from graph import wheel_preflight
+from graph.build import _python_package_obligations
+from graph.build_script import render_build_script
+from graph.emit import next_deterministic_wave
+from graph.executor import CommandResult
+from graph.ids import package_id, tool_id
+from graph.schema import (
     DepGraph,
     DiscoveredBy,
     Edge,

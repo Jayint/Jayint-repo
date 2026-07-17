@@ -67,14 +67,14 @@ for _p in (_REPO_ROOT, _SRC):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from python_deps.depgraph.emit import (  # noqa: E402
+from graph.emit import (  # noqa: E402
     _conflicted_ids, _is_emittable, _toolchain_ready,
 )
-from python_deps.depgraph.graph_context import (  # noqa: E402
+from graph.graph_context import (  # noqa: E402
     ACTIONABLE, BLOCKED, SATISFIED_OK, UNCERTIFIED, WAITING, in_conflict, verdict,
 )
-from python_deps.depgraph.ids import binary_id, package_id  # noqa: E402
-from python_deps.depgraph.schema import (  # noqa: E402
+from graph.ids import binary_id, package_id  # noqa: E402
+from graph.schema import (  # noqa: E402
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )
 

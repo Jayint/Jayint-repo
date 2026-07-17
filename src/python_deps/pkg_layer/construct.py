@@ -18,7 +18,7 @@ beyond the two plane reads (``read_contract`` walks manifests, ``scan_usage``
 walks the repo's ``.py`` files) and is exercised in tests with real fixtures
 on ``tmp_path`` -- no fakes needed since nothing external is invoked.
 
-Built SEPARATE from ``python_deps.depgraph`` (per plan) so the two designs
+Built SEPARATE from ``graph`` (per plan) so the two designs
 can be A/B-evaluated; this module does not modify anything under
 ``depgraph/``.
 """

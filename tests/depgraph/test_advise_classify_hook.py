@@ -4,8 +4,8 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-import python_deps.depgraph.advise as advise
-from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+import graph.advise as advise
+from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
 
 
 def test_classify_hook_invoked_and_graph_returned(monkeypatch):

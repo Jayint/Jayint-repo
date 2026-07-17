@@ -28,7 +28,7 @@ import logging
 import os
 from urllib.parse import urlsplit
 
-from python_deps.depgraph.config_scan import (
+from graph.config_scan import (
     authoritative_ambiguous_vars,
     parse_env_example,
     scan_authoritative_config,
@@ -36,11 +36,11 @@ from python_deps.depgraph.config_scan import (
     scan_env_reads,
     scan_framework_config_reads,
 )
-from python_deps.depgraph.patch import NodeSpec, PatchProposal
-from python_deps.depgraph.patch_gate import admit_proposal
-from python_deps.depgraph.repoint import render_bind_steps
-from python_deps.depgraph.service_construct import build_service_nodes
-from python_deps.depgraph.static_collect import collect_static_evidence
+from graph.patch import NodeSpec, PatchProposal
+from graph.patch_gate import admit_proposal
+from graph.repoint import render_bind_steps
+from graph.service_construct import build_service_nodes
+from graph.static_collect import collect_static_evidence
 
 logger = logging.getLogger(__name__)
 

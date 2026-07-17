@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from python_deps.depgraph.emit import _is_reciped
-from python_deps.depgraph.schema import State
+from graph.emit import _is_reciped
+from graph.schema import State
 from src.envstate.depgraph_live import certify_refresh
 
 _EVIDENCE_CAP = 500

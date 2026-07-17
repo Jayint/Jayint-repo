@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from python_deps.depgraph.apt_verify import (
+from graph.apt_verify import (
     apt_name_installable,
     parse_showpkg_reverse_provides,
     reconcile_apt_names,
@@ -10,8 +10,8 @@ from python_deps.depgraph.apt_verify import (
     resolve_virtual_provider,
     t64_variant,
 )
-from python_deps.depgraph.ids import syslib_id
-from python_deps.depgraph.schema import (
+from graph.ids import syslib_id
+from graph.schema import (
     DepGraph,
     DiscoveredBy,
     Layer,

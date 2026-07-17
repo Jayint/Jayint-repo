@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from python_deps.depgraph.pins import (
+from graph.pins import (
     compute_exclude_newer,
     parse_pinned_roots,
     pypi_upload_date,

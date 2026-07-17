@@ -37,7 +37,7 @@ from src.envstate.world_model import (
     merge_map,
 )
 from src.sandbox import InstallResult
-from python_deps.depgraph.schema import (
+from graph.schema import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
 

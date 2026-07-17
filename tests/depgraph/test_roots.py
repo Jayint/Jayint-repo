@@ -6,9 +6,9 @@ import textwrap
 from pathlib import Path
 from types import SimpleNamespace
 
-from python_deps.depgraph.roots import _env_marker_excludes, select_roots
-from python_deps.depgraph.scan import scan_to_nodes
-from python_deps.depgraph.target_env import TargetEnv
+from graph.roots import _env_marker_excludes, select_roots
+from graph.scan import scan_to_nodes
+from graph.target_env import TargetEnv
 
 
 def _write(repo: Path, rel: str, body: str) -> None:
@@ -213,7 +213,7 @@ def test_declared_version_specifier_is_propagated(tmp_path):
 def test_unsafe_specifier_falls_back_to_bare_name(tmp_path):
     # A specifier carrying a marker / odd chars is dropped (bare name kept) rather
     # than risking injection into the resolver's temp pyproject.
-    from python_deps.depgraph.roots import _manifest_root_token
+    from graph.roots import _manifest_root_token
     from python_deps.models import PythonRequirement
 
     assert _manifest_root_token(PythonRequirement("flask", ">=2.0")) == "flask>=2.0"
@@ -537,7 +537,7 @@ def test_unmarked_dep_always_kept(tmp_path):
     assert "foo" in dists
 
 
-from python_deps.depgraph.roots import _requirement_group, _DEV_GROUP_DENYLIST
+from graph.roots import _requirement_group, _DEV_GROUP_DENYLIST
 
 
 def test_requirement_group_parses_optional_dependencies_source():
@@ -575,7 +575,7 @@ def test_dev_group_denylist_contents():
 # Task 4 — fixed testability-scope policy: runtime + dev/test groups (minus
 # docs/release denylist) + import-signalled feature extras.
 # --------------------------------------------------------------------------- #
-from python_deps.depgraph.roots import _in_test_scope
+from graph.roots import _in_test_scope
 
 
 def _req(kind, source, name="x"):
@@ -714,7 +714,7 @@ def test_dash_separator_extra_signal_matches_underscore_group(tmp_path):
 # feature extras (cpu/gpu/backend-selection) stay gated unless explicitly
 # signalled. See `_TEST_SCOPE_EXTRA_ALLOWLIST` for the exact set + rationale.
 # --------------------------------------------------------------------------- #
-from python_deps.depgraph.roots import _TEST_SCOPE_EXTRA_ALLOWLIST
+from graph.roots import _TEST_SCOPE_EXTRA_ALLOWLIST
 
 
 def test_test_scope_extra_allowlist_contents():

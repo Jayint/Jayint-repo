@@ -1,5 +1,5 @@
-from python_deps.depgraph.block import Block, compile_blocks
-from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
+from graph.block import Block, compile_blocks
+from graph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
 
 
 def test_block_fields_default():

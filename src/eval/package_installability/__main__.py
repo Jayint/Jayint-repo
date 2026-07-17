@@ -13,7 +13,7 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 
-# Dual bootstrap: make both the detector path (python_deps.depgraph.*, under src/)
+# Dual bootstrap: make both the detector path (graph.*, under src/)
 # and this package (src.eval.*, under repo root) importable when run as
 # `python3 -m src.eval.package_installability`. parents[3] = repo root
 # (src/eval/package_installability/__main__.py -> depth 3; was parents[2] under evals/).

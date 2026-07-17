@@ -9,11 +9,11 @@ from __future__ import annotations
 
 from typing import Callable
 
-from python_deps.depgraph.schema import DepGraph
-from python_deps.depgraph.schedule import (
+from graph.schema import DepGraph
+from graph.schedule import (
     ObligationPacket, frame_obligation, scheduler_frontier,
 )
-from python_deps.depgraph.req_slice import render_requirement_slice
+from graph.req_slice import render_requirement_slice
 from src.envstate.constants import VERIFY_TEST_CMD
 from src.envstate.world_model import PlannerDecision, Task
 
@@ -82,7 +82,7 @@ def unsatisfied_provisionable_services(
     ``next_decision`` (below) and ``orchestrator.run_v3``'s fast-termination so
     the two apply the identical guard.
     """
-    from python_deps.depgraph.schema import NodeType, State
+    from graph.schema import NodeType, State
     if not allow_services or graph is None:
         return ()
     return tuple(

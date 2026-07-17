@@ -1,11 +1,11 @@
 # tests/depgraph/test_patch_gate_apply.py
 from dataclasses import FrozenInstanceError
 
-from python_deps.depgraph.patch import (
+from graph.patch import (
     PatchProposal, NodeSpec, ProviderSpec, EdgeSpec, ScriptPatch,
 )
-from python_deps.depgraph.patch_gate import apply_proposal, ApplyResult
-from python_deps.depgraph.schema import (
+from graph.patch_gate import apply_proposal, ApplyResult
+from graph.schema import (
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy, EdgeType,
 )
 

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from python_deps.depgraph.executor import Executor
+from graph.executor import Executor
 
 # python3 -c program: import the package; nonzero exit iff the import fails (a
 # missing runtime system lib for the package's own extension surfaces here).

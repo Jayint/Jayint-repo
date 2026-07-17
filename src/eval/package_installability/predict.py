@@ -15,12 +15,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from python_deps.depgraph.artifact_map import resolve_artifact_map
-from python_deps.depgraph.build_deps import seed_build_deps
-from python_deps.depgraph.ids import package_id
-from python_deps.depgraph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType
-from python_deps.depgraph.seed import seed_wheel_oracle_prior
-from python_deps.depgraph.target_env import detect_target_env
+from graph.artifact_map import resolve_artifact_map
+from graph.build_deps import seed_build_deps
+from graph.ids import package_id
+from graph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType
+from graph.seed import seed_wheel_oracle_prior
+from graph.target_env import detect_target_env
 from python_deps.import_mapping import normalize_package_name
 
 _APT = "apt:"

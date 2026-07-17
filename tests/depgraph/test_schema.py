@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from python_deps.depgraph import ids
-from python_deps.depgraph.schema import (
+from graph import ids
+from graph.schema import (
     Attempt,
     DepGraph,
     DiscoveredBy,
@@ -419,7 +419,7 @@ def test_conflicts_with_rejects_non_package_endpoint():
 
 # --- Task 1: new env-tier NodeTypes, Layer.CONFIG, config_id ---
 
-from python_deps.depgraph.schema import NodeType, Layer
+from graph.schema import NodeType, Layer
 
 
 def test_new_environment_node_types_exist():
@@ -439,7 +439,7 @@ def test_config_id_format():
 # --- Task 3: requires edges into new env-tier node types ---
 
 def test_requires_edge_into_config_is_allowed():
-    from python_deps.depgraph.schema import DepGraph, Edge, EdgeType
+    from graph.schema import DepGraph, Edge, EdgeType
     proj = make_node("project:app", NodeType.PROJECT, "app", Layer.PIP)
     cfg = make_node("config:SECRET_KEY", NodeType.CONFIG, "SECRET_KEY", Layer.CONFIG)
     g = DepGraph().with_node(proj).with_node(cfg)
@@ -453,7 +453,7 @@ def test_requires_edge_from_config_to_service_is_allowed():
     # binds to (config:<VAR> -> service:postgres): the rewritten DB var is only
     # usable once the in-image service is up. `Config` is therefore a legal
     # `requires` source (widened alongside `Service` in the services slice).
-    from python_deps.depgraph.schema import DepGraph, Edge, EdgeType
+    from graph.schema import DepGraph, Edge, EdgeType
     cfg = make_node("config:DB_STRING", NodeType.CONFIG, "DB_STRING", Layer.CONFIG)
     svc = make_node("service:postgres", NodeType.SERVICE, "postgres", Layer.SERVICES)
     g = DepGraph().with_node(cfg).with_node(svc)
@@ -467,7 +467,7 @@ def test_requires_edge_from_config_to_service_is_allowed():
 
 
 def test_service_layer_and_id():
-    from python_deps.depgraph.schema import Layer
+    from graph.schema import Layer
     assert Layer.SERVICES.value == "services"
     assert ids.service_id("postgres") == "service:postgres"
 
@@ -480,7 +480,7 @@ def test_node_data_defaults_empty_and_frozen():
 
 
 def test_node_data_roundtrips_and_serializes():
-    from python_deps.depgraph.schema import Node
+    from graph.schema import Node
     n = Node(id="service:postgres", type=NodeType.SERVICE, name="postgres",
              layer=Layer.SERVICES, discovered_by=DiscoveredBy.STATIC_SCAN,
              data={"service_confidence": "confirmed", "port": 5432})
@@ -489,7 +489,7 @@ def test_node_data_roundtrips_and_serializes():
 
 
 def test_service_may_require_systemlib():
-    from python_deps.depgraph.schema import (
+    from graph.schema import (
         DepGraph, Node, NodeType, Layer, DiscoveredBy, Edge, EdgeType,
     )
     svc = Node(id="service:postgres", type=NodeType.SERVICE, name="postgres",
@@ -507,7 +507,7 @@ def test_service_may_require_systemlib():
 
 def test_service_still_illegal_as_conflicts_source():
     # Only the `requires` source set is widened; conflicts_with is unchanged.
-    from python_deps.depgraph.schema import (
+    from graph.schema import (
         DepGraph, Node, NodeType, Layer, DiscoveredBy, Edge, EdgeType,
     )
     svc = Node(id="service:postgres", type=NodeType.SERVICE, name="postgres",
@@ -522,5 +522,5 @@ def test_service_still_illegal_as_conflicts_source():
 
 
 def test_discovered_by_has_classifier():
-    from python_deps.depgraph.schema import DiscoveredBy
+    from graph.schema import DiscoveredBy
     assert DiscoveredBy.CLASSIFIER.value == "classifier"

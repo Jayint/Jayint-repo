@@ -5,12 +5,12 @@ _ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_ROOT))
 sys.path.insert(0, str(_ROOT / "src"))
 
-from python_deps.depgraph.schema import (  # noqa: E402
+from graph.schema import (  # noqa: E402
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy,
 )
 from src.envstate.graph_scheduler import next_decision, packet_to_task  # noqa: E402
 from src.envstate.orchestrator import VERIFY_TEST_CMD  # noqa: E402
-from python_deps.depgraph.schedule import frame_obligation  # noqa: E402
+from graph.schedule import frame_obligation  # noqa: E402
 
 
 def _missing(state=State.MISSING):

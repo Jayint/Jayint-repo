@@ -4,8 +4,8 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.depgraph.block import compile_blocks, compile_replay_blocks
-from python_deps.depgraph.schema import (
+from graph.block import compile_blocks, compile_replay_blocks
+from graph.schema import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )
 

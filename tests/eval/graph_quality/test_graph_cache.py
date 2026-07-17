@@ -36,7 +36,7 @@ for _p in (_REPO_ROOT, _SRC):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from python_deps.depgraph.schema import DepGraph  # noqa: E402
+from graph.schema import DepGraph  # noqa: E402
 from src.eval.graph_quality.graph_cache import (  # noqa: E402
     _DEFAULT_OUT_DIR, _DEFAULT_SMOKE_ROOT, load_graphs, mint,
 )

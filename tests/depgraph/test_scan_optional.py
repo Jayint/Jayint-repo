@@ -15,8 +15,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from python_deps.depgraph.ids import import_id
-from python_deps.depgraph.scan import scan_to_nodes
+from graph.ids import import_id
+from graph.scan import scan_to_nodes
 
 
 def test_optional_import_tagged(tmp_path: Path) -> None:

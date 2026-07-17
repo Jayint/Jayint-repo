@@ -19,11 +19,11 @@ as a platform-matching wheel (``build_from_source is False``) — the exact stam
 
 from __future__ import annotations
 
-from python_deps.depgraph import wheel_preflight
-from python_deps.depgraph.build import _python_package_obligations
-from python_deps.depgraph.executor import CommandResult
-from python_deps.depgraph.ids import syslib_id
-from python_deps.depgraph.schema import DiscoveredBy, NodeType, State
+from graph import wheel_preflight
+from graph.build import _python_package_obligations
+from graph.executor import CommandResult
+from graph.ids import syslib_id
+from graph.schema import DiscoveredBy, NodeType, State
 
 
 def _r(returncode: int = 0, stdout: str = "", stderr: str = "") -> CommandResult:
@@ -106,7 +106,7 @@ def test_wheel_preflight_prior_seeds_unknown_syslib(tmp_path, monkeypatch):
     # Table hit fills the apt fix without any container apt-file lookup.
     assert node.chosen_fix == "apt:libgl1"
     # A requires edge from the owning wheel package to the prior.
-    from python_deps.depgraph.ids import package_id
+    from graph.ids import package_id
 
     assert any(
         e.src == package_id("opencv-python", "4.9.0.80")
@@ -204,7 +204,7 @@ def test_sdist_gets_specific_dev_prior_and_generic_floor(tmp_path, monkeypatch):
     B3 baseline ``binary:pkg-config`` are added beyond the floor."""
     from conftest import SequencedFakeExecutor  # type: ignore
 
-    from python_deps.depgraph.ids import binary_id, package_id, tool_id
+    from graph.ids import binary_id, package_id, tool_id
 
     # An sdist closure never triggers a wheel download; if the pre-pass did, this
     # fake path would surface (guard: it must not be inspected for sonames).

@@ -6,7 +6,7 @@ confirm/deny/blind mapping ported from the spike's ``wheel_provides``/
 ``Judged.record``, plus shim-pruning, ambiguity refusal, blind-deferral, and the
 canon-distinct counting contract carried over from the P1.2 review.
 """
-from python_deps.depgraph.repair import (
+from graph.repair import (
     Candidate,
     RepairDecision,
     Verdict,

@@ -1,4 +1,4 @@
-from python_deps.depgraph.schema import (
+from graph.schema import (
     DiscoveredBy, Layer, Node, NodeType, Phase, Strength,
 )
 

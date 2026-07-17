@@ -1,5 +1,5 @@
 # tests/depgraph/test_shadow.py
-from python_deps.depgraph.shadow import run_shadow_config_lane, ShadowRecord
+from graph.shadow import run_shadow_config_lane, ShadowRecord
 
 
 class _StubExec:
@@ -17,7 +17,7 @@ class _StubExec:
 def test_shadow_emits_record_without_mutating_graph(tmp_path):
     (tmp_path / "mypkg").mkdir(); (tmp_path / "mypkg" / "__init__.py").write_text("")
     (tmp_path / "mypkg" / "a.py").write_text("import requests\n")
-    from python_deps.depgraph.scan import scan_to_nodes
+    from graph.scan import scan_to_nodes
     graph = scan_to_nodes(str(tmp_path))
     before = {n.id for n in graph.nodes}
     rec = run_shadow_config_lane(graph, str(tmp_path), _StubExec(), declared=frozenset())
