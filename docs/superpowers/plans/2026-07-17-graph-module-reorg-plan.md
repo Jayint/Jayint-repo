@@ -145,9 +145,32 @@ All 830 sites must be rewritten. Handle by category — the last four are the si
 
 ## Sequencing summary
 
+0. **Ideally first (separate pass):** the verified dead-code audit (see the Follow-up section below) — every dead symbol removed first is code the move never has to relocate + rewrite. Not gated on anything; not part of a move commit.
 1. **Now (Phase 0):** the six decoupling tasks — Stage-C-independent, each behavior-preserving, each shrinks the move. Land them incrementally; re-run the sweep at the end.
 2. **After Stage C + in-flight work lands:** freeze the tree, then Phase 1 as one atomic sweep-gated commit.
 3. Keep `pkg_layer/` and the `eval/` harnesses on the import-rewrite checklist — they're downstream consumers, rewritten in the same commit, not folded in.
+
+## Follow-up (separate pass, NOT part of this refactor): verified dead-code audit
+
+Explicitly queued. This refactor deliberately does not delete beyond the four whole files in Task 0.6 — deletions don't belong in a behavior-preserving move commit. Three cleanup buckets exist; this follow-up owns the third:
+
+| Bucket | What | Owner |
+|---|---|---|
+| Whole dead files | `resolve_link`, `script`, `translate_sanitize`, `config_tables` | ✅ this plan, Task 0.6 |
+| Dead emission code (~3k lines) | demoted-tier node construction (Test-hub, Config/Runtime/Platform) | Stage C model change |
+| **Orphan symbols** | zero-consumer functions / classes / constants | **this follow-up** |
+
+**Method — verified-delete, not raw tool output:**
+1. Run `vulture src/python_deps/` (or equivalent) for unused-symbol candidates over the graph concern + the 5 root files.
+2. For each candidate, run a repo-wide **zero-importer** check — top-level AND function-local imports, `getattr`/`importlib`/string references, and monkeypatch targets (the same silent-reference classes the blast-radius audit enumerated). A vulture hit that is dynamically referenced, re-exported, or legitimately test-only is NOT dead.
+3. Produce a removal guide: per surviving candidate, its definition site + the evidence of no consumer + a one-line justification. Delete each in its own scoped, sweep-gated commit.
+
+**Seed candidates already surfaced by the reorg research (start here):**
+- `build._detect_target_python` (`build.py:282`) — superseded by `detect_target_env`.
+- `config_scan.configured_vars` (`:516`) and `_config_node` (`:545`) — Agent 2 found no external consumer.
+- The overlapping-linker cluster to review for further dead paths — `resolve` / `resolve_lock` / `relink` / `naming` (`resolve_link` already covered by Task 0.6); this is handoff §9's "retired code never gets deleted" theme.
+
+**Sequencing:** a SEPARATE pass, ideally run BEFORE Phase 0 (it shrinks the move surface). NEVER fold a deletion into a move/relocation commit — it makes both un-reviewable and the sweep cannot attribute a regression.
 
 ## Self-Review
 
