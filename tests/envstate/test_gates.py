@@ -248,7 +248,7 @@ def test_done_with_failed_replay_gives_up():
 
 
 def test_done_flag_without_green_replay_gives_up():
-    """Mirrors the run_v1 done_flag tests (pre-set done_flag=True on the
+    """Uses the done_flag-preset pattern (pre-set done_flag=True on the
     initial map, NoopMaintainer preserves it). With ``dep_graph=None``,
     ``_dep_emit_phase`` never calls ``_binding_emit`` (existing R3(c) guard),
     so ``_last_replay_result`` stays None for the whole run even though

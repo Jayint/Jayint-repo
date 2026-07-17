@@ -184,7 +184,7 @@ def initial_map(
 
     Sets done_flag=False, empty installed/open_problems/notes, and
     progress={layer: False} for all six known layers.
-    Called once in run_v1() before the loop.
+    Called once before the orchestrator loop begins.
     base_image and workdir come from Synthesizer;
     language/build_system/repo_layout come from ImageSelector + repo tree scan.
     """

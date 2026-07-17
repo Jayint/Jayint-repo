@@ -3,8 +3,8 @@ replay from base (Model B). Confirms the collapsed `_dep_emit_phase` body:
 
   - every cycle renders the WHOLE certified graph and replays it via
     `reset_to_base` + `run_install_script` (`orchestrator._binding_emit`), NOT
-    `block_emit`/`emit_drain` (both removed from `_dep_emit_phase`; they
-    survive only in `run_v1` / a future ablation entry point).
+    `block_emit`/`emit_drain` (both removed from `_dep_emit_phase`; the legacy
+    loop that used them was retired in Phase 0, leaving only a future ablation entry point).
   - there is NO render-hash memoization/skip: every cycle does a real fresh
     replay from base, unconditionally. Each cycle must produce a fresh
     evidence bundle for `run_structured_repair`, so a byte-identical render

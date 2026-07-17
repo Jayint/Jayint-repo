@@ -41,18 +41,13 @@ def test_residual_giveup_is_gated_and_never_sets_done_flag():
 
 def test_llm_classifier_injected_only_under_graph_scheduler():
     src = _SRC.read_text()
-    # After the split, make_llm_classifier lives exclusively in run_v3's
-    # _runtime_ingest_phase (the gate is now at the function/dispatch level).
-    run_v1_start = src.index("def run_v1(")
+    # make_llm_classifier lives exclusively in run_v3's _runtime_ingest_phase (the
+    # gate is at the function/dispatch level). The legacy planner-driven loop that
+    # never wired it was retired in Phase 0.
     run_v3_start = src.index("def run_v3(")
-    run_v1_body = src[run_v1_start:run_v3_start]
     run_v3_body = src[run_v3_start:]
     v3_ingest_body = run_v3_body[run_v3_body.index("def _runtime_ingest_phase"):]
-    # make_llm_classifier is in run_v3, not run_v1
     assert "make_llm_classifier" in v3_ingest_body
-    assert "make_llm_classifier" not in run_v1_body, (
-        "make_llm_classifier must NOT appear in run_v1"
-    )
     # the deterministic classifier is always present
     assert "classify_observation" in v3_ingest_body
     # temperature 0 on the wrapped completion
@@ -62,10 +57,8 @@ def test_llm_classifier_injected_only_under_graph_scheduler():
 # ── Behavioral tests (dynamic semantics) ─────────────────────────────────────
 
 from src.envstate.ledger import ActionLedger, make_action_event
-from src.envstate.orchestrator import run_v1, run_v3
+from src.envstate.orchestrator import run_v3
 from src.envstate.world_model import (
-    PlannerDecision,
-    Task,
     TaskReport,
     initial_map,
     merge_map,

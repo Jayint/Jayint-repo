@@ -1,9 +1,8 @@
-"""Shared pure-function helpers for the v1 and v3 orchestrator loops.
+"""Pure-function helpers for the v3 orchestrator loop.
 
-These free functions hold the few genuinely-shared, low-state operations so
-each arm can call them without duplicating logic or sharing mutable closure
-state.  Both ``run_v1`` and ``run_v3`` use them; neither arm depends on the
-other's internal state variables.
+These free functions hold a few low-state operations so the loop body can call
+them without duplicating logic or sharing mutable closure state. (Historically
+shared with the retired legacy planner-driven loop; ``run_v3`` is now the sole caller.)
 """
 from __future__ import annotations
 

@@ -1,13 +1,14 @@
-"""T5 guard — pin the run_v1/run_v3 SHARED helpers before the v1 shed (plan Phase 0 / T5).
+"""T5 guard — pin the SHARED orchestrator helpers before the legacy-loop shed (plan Phase 0 / T5).
 
-`run_v1` and `run_v3` co-live in `orchestrator.py` and share two pure helpers — `host_refresh_facts`
-(`_loop_common`) and `merge_map` (`world_model`). T6 deletes `run_v1`; this file pins the invariant
-that the shed must preserve: **the shared helpers stay, and `run_v3` keeps using them.** If a T6/T7
-edit accidentally strips a shared helper from `run_v3`, the source-guard below fails.
+The legacy three-role planner-driven loop and ``run_v3`` co-lived in ``orchestrator.py`` and shared
+two pure helpers — ``host_refresh_facts`` (``_loop_common``) and ``merge_map`` (``world_model``). T6
+deletes the legacy loop; this file pins the invariant the shed must preserve: **the shared helpers
+stay, and ``run_v3`` keeps using them.** If a T6/T7 edit accidentally strips a shared helper from
+``run_v3``, the source-guard below fails.
 
-Behavioral coverage of `host_refresh_facts` already lives in `tests/test_loop_common.py` and of
-`merge_map`/`apply_deterministic` in `tests/test_world_model*` / `tests/test_apply_deterministic*`;
-this guard is the shed-specific complement, not a duplicate. Its sibling `test_deletions_v1_gone.py`
+Behavioral coverage of ``host_refresh_facts`` already lives in ``tests/test_loop_common.py`` and of
+``merge_map``/``apply_deterministic`` in ``tests/test_world_model*`` / ``tests/test_apply_deterministic*``;
+this guard is the shed-specific complement, not a duplicate. Its sibling ``test_deletions_v1_gone.py``
 (added in T6) pins what must be GONE; this pins what must SURVIVE.
 """
 from __future__ import annotations
@@ -31,9 +32,9 @@ def test_shared_helpers_are_importable():
 
 
 def test_run_v3_still_uses_the_shared_helpers():
-    """Source-guard: `run_v3` must keep calling BOTH shared helpers. This is the tripwire the
-    shed protects — deleting `run_v1` must not strip `host_refresh_facts`/`merge_map` from the
-    surviving loop (a whole-file-delete of a mixed helper would do exactly that)."""
+    """Source-guard: ``run_v3`` must keep calling BOTH shared helpers. This is the tripwire the
+    shed protects — deleting the legacy loop must not strip ``host_refresh_facts``/``merge_map``
+    from the surviving loop (a whole-file-delete of a mixed helper would do exactly that)."""
     from src.envstate import orchestrator
     v3_src = inspect.getsource(orchestrator.run_v3)
     assert "host_refresh_facts(" in v3_src, "run_v3 must keep calling host_refresh_facts"

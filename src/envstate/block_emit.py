@@ -11,10 +11,10 @@ container to base, and replays it every cycle (Model B). ``run_v3`` never
 imports or calls ``block_emit`` (grep-confirmed at Phase 9); it exists here
 only for (a) its own direct unit tests and (b) a future incremental-vs-replay
 ablation harness — a separate experiment, not part of the canonical claim.
-Do not wire this back into ``run_v3``; if you need incremental block-at-a-time
-execution today, that is ``run_v1``'s ``emit_drain``/``repair_failed_nodes``
-path (``src/envstate/depgraph_live.py``), which has the same quarantine
-status relative to ``run_v3``."""
+Do not wire this back into ``run_v3``. The incremental block-at-a-time execution
+path (``emit_drain``/``repair_failed_nodes`` in ``src/envstate/depgraph_live.py``)
+was driven by the retired legacy planner-driven loop and likewise has the same
+quarantine status relative to ``run_v3``."""
 from __future__ import annotations
 
 from typing import Callable

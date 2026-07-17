@@ -1,15 +1,12 @@
-"""EnvState orchestrator loops.
-
-run_v1() — three-role planner-driven loop (spec §4):
-    initial_map → planner.decide → (done/giveup → break)
-                → build_agent.run → maintainer.update
-                → (done_flag → break)
-                → repeat up to max_cycles
+"""EnvState orchestrator loop.
 
 run_v3() — graph-scheduler loop (no planner):
     initial_map → dep-graph scheduler (next_decision) → build_agent.run
                 → maintainer.update → (done_flag/giveup/budget → break)
                 → repeat up to max_cycles
+
+(The legacy three-role planner-driven loop was retired in Phase 0 of the
+src/ stage-refactor; ``run_v3`` is the sole orchestrator loop.)
 """
 from __future__ import annotations
 
@@ -27,7 +24,6 @@ from src.envstate.repair_loop import run_structured_repair
 from src.envstate.world_model import (
     CommandRecord,
     PlannerDecision,
-    RecipePatch,
     TaskReport,
     WorldModelMap,
     merge_map,
@@ -41,7 +37,6 @@ Executor = Callable[[str], Tuple[bool, str]]
 
 # Module-level constants (spec §8).
 MAX_CYCLES: int = 12
-LOCAL_BUDGET: int = 8
 # Canonical collect-only command — kept for back-compat (some tests/modules import it).
 COLLECT_ONLY_CMD: str = "pytest --collect-only -q --disable-warnings"
 
@@ -105,223 +100,6 @@ def _to_stop_reason(reason: TerminationReason) -> str:
     are unaffected.
     """
     return _TERMINATION_TO_STOP_REASON[reason]
-
-
-# ---------------------------------------------------------------------------
-# run_v1 — three-role planner-driven loop
-# ---------------------------------------------------------------------------
-
-def run_v1(
-    planner,
-    build_agent,
-    maintainer,
-    initial_world_map: WorldModelMap,
-    ledger: ActionLedger,
-    sandbox_execute: Executor,
-    max_cycles: int = MAX_CYCLES,
-    local_budget: int = LOCAL_BUDGET,
-    on_cycle=None,
-    *,
-    probe=None,
-    manifest=None,
-    exec_readonly=None,
-    enable_dep_emit: bool = False,
-    enable_runtime_feedback: bool = False,
-):
-    """Top-level v1 three-role orchestrator loop (planner-driven).
-
-    Returns ``(final_map, stop_reason)`` where ``stop_reason`` is one of:
-      ``'done_flag'``     — maintainer set WorldModelMap.done_flag=True
-      ``'planner_done'``  — planner emitted action='done'
-      ``'planner_giveup'``— planner emitted action='giveup'
-      ``'max_cycles'``    — loop ran for max_cycles without terminating
-
-    The loop terminates the instant done_flag is set — it does NOT wait
-    for the next planner.decide call (structural fix for the 'reached gate
-    but never committed' failure mode).
-
-    New optional kwargs (all default off — every existing test and the A1 arm
-    are byte-for-byte unchanged):
-      exec_readonly         — callable(cmd) -> (rc: int, out: str) for read-only probes
-    """
-    current_map: WorldModelMap = initial_world_map
-    # Monotonic step counter for ledger offsets (avoids cycle-based aliasing).
-    global_step: int = 0
-    # Runtime-feedback high-water mark: index into ledger.events() up to which we
-    # have already ingested. Starts at 0 so the first ingest captures every event
-    # not yet ingested — including any written before the loop began (e.g. a
-    # pre-seeded failure). _runtime_ingest_phase advances it.
-    _rt_mark: int = 0
-
-    def _dep_emit_phase(cycle: int) -> None:
-        nonlocal current_map, global_step
-        if not enable_dep_emit or current_map.dep_graph is None:
-            return
-        if exec_readonly is None:                      # R3(c): no certify path -> no emit
-            return
-        from graph.schema import NodeType, State
-        from src.envstate.world_model import Fact
-        from src.envstate.depgraph_live import certify_refresh, emit_drain, ensure_python_shim
-        from graph.advise import render_depgraph_planner
-        # Make a bare `python` resolve to python3 before any check runs, else a
-        # python3-only base fails every `python -m pip show` and nothing certifies.
-        ensure_python_shim(sandbox_execute)
-        graph = certify_refresh(current_map.dep_graph, exec_readonly, cycle)
-        # Certify still runs (populating the frontier); emit_drain runs as a
-        # deterministic prefix regardless of arm so the LLM only sees the
-        # irreducible non-emittable residual. global_step is advanced here only
-        # if emit_drain consumed steps, so LLM turns are NOT counted.
-        graph, _reports, steps = emit_drain(
-            graph, build_agent, sandbox_execute, ledger, exec_readonly,
-            step_offset=global_step, cycle=cycle,
-        )
-        if steps:
-            global_step += steps
-        # Fold emit-certified packages into installed so the synthesizer's closure
-        # recipe includes them even when the planner finalizes immediately.
-        sat = tuple(Fact(n.name, n.version or "") for n in graph.nodes
-                    if n.type is NodeType.PACKAGE and n.state is State.SATISFIED)
-        have = {f.name for f in current_map.installed}
-        installed = current_map.installed + tuple(f for f in sat if f.name not in have)
-        advisory = render_depgraph_planner(graph)
-        current_map = merge_map(
-            current_map, dep_graph=graph, dep_advisory=advisory, installed=installed,
-        )
-
-    def _runtime_ingest_phase() -> None:
-        nonlocal current_map, _rt_mark
-        if not enable_runtime_feedback or current_map.dep_graph is None:
-            return
-        try:
-            from graph.advise import render_depgraph_planner
-            from graph.runtime_ingest import ingest_runtime_failures
-            from graph.runtime_classify import classify_observation
-            events = ledger.events()
-            new_events = events[_rt_mark:]
-            obs = [(e.cmd, e.stdout) for e in new_events if e.rc != 0]
-            if not obs:
-                return
-            pre_graph = current_map.dep_graph
-
-            # Deterministic regex classifier only — no LLM tier in the v1 arm.
-            classifiers = (classify_observation,)
-
-            new_graph, found = ingest_runtime_failures(pre_graph, obs, classifiers=classifiers)
-            # Advance the mark ONLY after a successful ingest call returns — so an
-            # exception mid-ingest does not permanently drop those events (they are
-            # re-read next cycle). (spec §11; C4 event-loss fix.)
-            _rt_mark = len(events)
-            if not found:
-                return
-            advisory = render_depgraph_planner(new_graph)
-            current_map = merge_map(current_map, dep_graph=new_graph, dep_advisory=advisory)
-        except (NameError, AttributeError, ImportError, TypeError) as exc:
-            # Programming errors are always bugs, never operational. Still don't
-            # break the run (spec §11), but log LOUDLY with a traceback — a bare
-            # suppress here once hid a missing `import os` that silently disabled
-            # the runtime-feedback loop for an entire benchmark arm.
-            import logging
-            logging.getLogger(__name__).error(
-                "runtime_ingest_phase: PROGRAMMING BUG suppressed: %s", exc,
-                exc_info=True,
-            )
-        except Exception as exc:  # noqa: BLE001 — operational errors must never break the run (spec §11)
-            import logging
-            logging.getLogger(__name__).warning(
-                "runtime_ingest_phase: exception suppressed: %s", exc
-            )
-
-    current_map = host_refresh_facts(current_map, probe, manifest)
-
-    for cycle in range(1, max_cycles + 1):
-        # ── 0. Graph-first: certify + emit the certified closure ────────────
-        _dep_emit_phase(cycle)
-        # ── 0b. Runtime feedback: ingest ledger failures from the PREVIOUS cycle
-        #        into the live dep-graph. Runs once per cycle before any branch so
-        #        it fires regardless of which branch returns (I2 done-path fix).
-        _runtime_ingest_phase()
-        # ── 1. Planner decides what to do next ──────────────────────────────
-        decision: PlannerDecision = planner.decide(current_map)
-
-        if decision.action == "done":
-            if on_cycle is not None:
-                on_cycle(cycle, current_map, decision, None)
-            return current_map, _to_stop_reason(TerminationReason.DONE)
-
-        if decision.action == "giveup":
-            if on_cycle is not None:
-                on_cycle(cycle, current_map, decision, None)
-            return current_map, _to_stop_reason(TerminationReason.GIVEUP_RESIDUAL)
-
-        # ── 2. Recipe patch branch ───────────────────────────────────────────
-        if decision.action == "apply_recipe_patch":
-            recipe: RecipePatch | None = decision.recipe_patch
-            if recipe is None or not recipe.steps:
-                # Empty recipe — nothing to execute; let maintainer decide.
-                empty_report = TaskReport("recipe", "done", (), "empty recipe")
-                current_map = maintainer.update(current_map, empty_report)
-                if on_cycle is not None:
-                    on_cycle(cycle, current_map, decision, empty_report)
-                if current_map.done_flag:
-                    return current_map, _to_stop_reason(TerminationReason.DONE_FLAG)
-                continue
-
-            # Execute the whole recipe as a single unified run.
-            report: TaskReport = build_agent.run_recipe(
-                recipe,
-                sandbox_execute,
-                ledger,
-                step_offset=global_step,
-            )
-            global_step += len(report.commands)
-
-            # Deterministic facts after recipe (before the maintainer).
-            current_map = host_refresh_facts(current_map, probe, manifest)
-
-            # ── 3. Maintainer updates the world model ─────────────────────
-            current_map = maintainer.update(current_map, report)
-
-            if on_cycle is not None:
-                on_cycle(cycle, current_map, decision, report)
-
-            # ── 4. Hard-stop on done_flag — do NOT check mid-recipe ───────
-            if current_map.done_flag:
-                return current_map, _to_stop_reason(TerminationReason.DONE_FLAG)
-
-            continue
-
-        # ── 3. Legacy build-agent flow (action == "task") ────────────────────
-        assert decision.task is not None, (
-            f"PlannerDecision action='task' but .task is None (cycle {cycle})"
-        )
-        task = decision.task
-
-        report = build_agent.run(
-            task,
-            sandbox_execute,
-            ledger,
-            step_offset=global_step,
-            check=None,
-            budget=local_budget,
-        )
-        global_step += len(report.commands)
-
-        # ── 3b. Deterministic facts (read-only probe, OFF the ledger) ────────
-        current_map = host_refresh_facts(current_map, probe, manifest)
-
-        # ── 4. Maintainer updates the world model ────────────────────────────
-        current_map = maintainer.update(current_map, report)
-
-        # ── 5. Notify caller (optional telemetry hook) ───────────────────────
-        if on_cycle is not None:
-            on_cycle(cycle, current_map, decision, report)
-
-        # ── 6. Hard-stop on done_flag — do NOT re-enter planner ──────────────
-        if current_map.done_flag:
-            return current_map, _to_stop_reason(TerminationReason.DONE_FLAG)
-
-    # Exhausted all cycles without termination.
-    return current_map, _to_stop_reason(TerminationReason.MAX_CYCLES)
 
 
 # ---------------------------------------------------------------------------
@@ -429,9 +207,8 @@ def run_v3(
     are therefore required, not optional — there is no other executor, and no
     flag selects one (Phase 9 removed the vestigial ``enable_script_materialization``/
     ``enable_binding_install`` deprecation flags; for incremental/legacy
-    execution, use ``run_v1`` (its real entry point is ``emit_drain``) or the
-    ``block_emit`` module — a quarantined ablation baseline, not a runnable
-    entry point; a full ablation loop is future work).
+    execution, the ``block_emit`` module remains as a quarantined ablation
+    baseline — not a runnable entry point; a full ablation loop is future work).
 
     Every failure bundle is diagnosed (``graph.diagnose``) BEFORE
     typed repair is attempted (Phase 6): a repo-internal reference or a residual
@@ -452,7 +229,7 @@ def run_v3(
     if reset_to_base is None or run_install_script is None:
         raise ValueError(
             "run_v3 is fresh-replay-only: reset_to_base and run_install_script are required "
-            "(use the block_emit ablation or run_v1 for incremental/legacy execution)")
+            "(the block_emit ablation module remains for incremental/legacy execution)")
     # ── Container generation + VERIFY_TEST_CMD memo ──────────────────────────
     # `_container_gen` is a monotonic token bumped on EVERY container mutation
     # reachable from run_v3 — reset_to_base / run_install_script (the complete
@@ -492,7 +269,7 @@ def run_v3(
     current_map: WorldModelMap = initial_world_map
     # Monotonic step counter for ledger offsets (avoids cycle-based aliasing).
     global_step: int = 0
-    # Runtime-feedback high-water mark (same semantics as in run_v1).
+    # Runtime-feedback high-water mark: index into ledger.events() already ingested.
     _rt_mark: int = 0
     _residual_giveup: str | None = None   # set when a residual is non-env / divergent (spec §3 G3, §8)
     _handed: dict[str, int] = {}          # per-obligation hand-out counts

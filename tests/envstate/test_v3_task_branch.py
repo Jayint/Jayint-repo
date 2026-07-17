@@ -369,7 +369,7 @@ def test_block_emit_absent_from_run_v3_source():
     """Task 5a/5b: block_emit is fully gone as an EXECUTABLE code path in
     run_v3 — the task branch's typed-repair emit is now the SAME hoisted
     replay closure (_binding_emit) that _dep_emit_phase uses. block_emit
-    remains a standalone, directly-unit-tested module for run_v1 / a future
+    remains a standalone, directly-unit-tested module for a future
     ablation entry point (Phase 9); run_v3's docstring still names it
     (pointing callers at that ablation), so this checks for the actual
     import/call sites rather than any mention of the string.
