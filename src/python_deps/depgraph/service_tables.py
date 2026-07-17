@@ -10,6 +10,10 @@ them into structural ``requires`` edges without corroborating evidence (design
 from __future__ import annotations
 
 from python_deps.import_mapping import normalize_package_name
+# The admission-time service vocabulary now lives on the schema waist; re-exported
+# here so `from ...service_tables import KNOWN_SERVICE_KINDS` consumers keep working.
+# Invariant: SERVICE_DEFAULTS' keys must stay within KNOWN_SERVICE_KINDS.
+from python_deps.depgraph.schema import KNOWN_SERVICE_KINDS  # noqa: F401
 
 # service kind -> (default image, default port)
 SERVICE_DEFAULTS: dict[str, tuple[str, int]] = {
@@ -21,8 +25,6 @@ SERVICE_DEFAULTS: dict[str, tuple[str, int]] = {
     "broker": ("redis:7", 6379),       # generic broker; default to redis
     "elasticsearch": ("elasticsearch:8", 9200),
 }
-
-KNOWN_SERVICE_KINDS: frozenset[str] = frozenset(SERVICE_DEFAULTS)
 
 # Concrete service kinds that can satisfy an abstract `broker` need (celery/kombu).
 # Used to suppress the generic `broker` node when a concrete broker is already present.

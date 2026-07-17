@@ -17,9 +17,8 @@ from python_deps.depgraph.patch import (
 )
 from python_deps.depgraph.schema import (
     DepGraph, Node, Edge, NodeType, Layer, EdgeType, State, DiscoveredBy, EDGE_RULES,
+    KNOWN_SERVICE_KINDS,
 )
-from python_deps.depgraph.service_recipes import render_probe_poll
-from python_deps.depgraph.service_tables import KNOWN_SERVICE_KINDS
 
 # Node-type -> ACCEPTED id prefixes (ids.py). Types not listed accept any "<kind>:<rest>".
 #
@@ -51,6 +50,15 @@ def is_read_only(cmd: str) -> bool:
     redirects are stripped first. Load-bearing: admitted check_commands are host-executed."""
     scrubbed = _BENIGN_REDIR.sub("", cmd or "")
     return not _MUTATING.search(scrubbed)
+
+
+def render_probe_poll(probe: str) -> str:
+    """Bounded readiness loop for an admitted service probe. Input is ALWAYS a
+    normalize_probe output. Homed here (the admission gate that consumes it at
+    ``compose_script``) rather than in the runtime service subsystem, so mutate
+    imports no service module upward. Re-exported from ``service_recipes`` for
+    existing callers."""
+    return f"for i in $(seq 1 15); do {probe} && exit 0; sleep 2; done; exit 1"
 
 
 def _node_type(value: str) -> NodeType | None:

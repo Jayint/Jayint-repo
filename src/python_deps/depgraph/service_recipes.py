@@ -7,6 +7,13 @@ pass before node admission, plus the bounded readiness loop that wraps an admitt
 """
 from __future__ import annotations
 
+# ``render_probe_poll`` was hoisted to patch_gate (the admission gate that consumes
+# it) so mutate imports no service module upward. With that edge gone, patch_gate no
+# longer imports this module, so ``is_read_only`` can be a plain top-level import
+# (the former cycle band-aid, a lazy import inside normalize_probe, is dissolved).
+# ``render_probe_poll`` is re-exported here for existing service-side callers/tests.
+from python_deps.depgraph.patch_gate import is_read_only, render_probe_poll  # noqa: F401
+
 
 def normalize_probe(probe: str | None, port: int | None, kind: str | None = None) -> str:
     """Return an admissible (read-only) probe command — the admissibility firewall
@@ -18,17 +25,8 @@ def normalize_probe(probe: str | None, port: int | None, kind: str | None = None
     ``kind`` is accepted for backward-compatible call sites but is no longer consulted:
     the per-kind recipe table it used to short-circuit through was removed in Task 10.
     """
-    # Lazy import: patch_gate imports this module (render_probe_poll), so a top-level
-    # `from patch_gate import is_read_only` here would be circular.
-    from python_deps.depgraph.patch_gate import is_read_only
-
     if probe and is_read_only(probe):
         return probe
     if port:
         return f"nc -z 127.0.0.1 {port}"
     return ""
-
-
-def render_probe_poll(probe: str) -> str:
-    """Bounded readiness loop. Input is ALWAYS a normalize_probe output."""
-    return f"for i in $(seq 1 15); do {probe} && exit 0; sleep 2; done; exit 1"

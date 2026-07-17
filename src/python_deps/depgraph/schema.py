@@ -30,6 +30,22 @@ class NodeType(enum.Enum):
     MODULE = "Module"  # first-party module (config-cured lane); emitted by the classifier stage (later task)
 
 
+# Admission-time SERVICE vocabulary: the recognized service kinds a legacy node
+# may carry (patch_gate restricts non-setup-shape Service nodes to these). This is
+# an admission vocabulary, not a runtime detail, so it lives on the model waist
+# rather than in the runtime service tables. ``service_tables.SERVICE_DEFAULTS``
+# (image/port per kind) must stay within this vocabulary.
+KNOWN_SERVICE_KINDS: frozenset[str] = frozenset({
+    "postgres",
+    "mysql",
+    "redis",
+    "mongo",
+    "rabbitmq",
+    "broker",
+    "elasticsearch",
+})
+
+
 class EdgeType(enum.Enum):
     REQUIRES = "requires"
     ALTERNATIVE_TO = "alternative_to"  # reserved; not emitted in this plan
