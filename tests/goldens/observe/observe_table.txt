@@ -1,0 +1,83 @@
+########## CASE: envelope/build_fail ##########
+$ bash setup.sh          # fresh container from the base image — EVERY turn
+exit 1 — halted at line 5: `pip install psycopg2`
+
+########## CASE: envelope/build_ok_no_tests ##########
+$ bash setup.sh          # fresh container from the base image — EVERY turn
+exit 0
+
+########## CASE: envelope/tests_all_pass ##########
+$ bash setup.sh          # fresh container from the base image — EVERY turn
+exit 0
+
+$ python -m pytest -q
+10 passed, 0 failed
+
+########## CASE: envelope/tests_collection_errors ##########
+$ bash setup.sh          # fresh container from the base image — EVERY turn
+exit 0
+
+$ python -m pytest -q
+0 passed, 0 failed, 5 collection errors — no tests ran
+
+########## CASE: envelope/tests_partial ##########
+$ bash setup.sh          # fresh container from the base image — EVERY turn
+exit 0
+
+$ python -m pytest -q
+3 passed, 2 failed
+
+########## CASE: envelope/tests_silent_skip ##########
+$ bash setup.sh          # fresh container from the base image — EVERY turn
+exit 0
+
+$ python -m pytest -q
+8 passed, 2 failed — 200 tests collected
+
+########## CASE: edit_result/insert_single ##########
+setup.sh updated:
+  4| apt-get install -y libpq-dev
+
+########## CASE: edit_result/insert_multi ##########
+setup.sh updated:
+  4| apt-get update
+  5| apt-get install -y libpq-dev gcc
+
+########## CASE: edit_result/delete_span ##########
+setup.sh updated — deleted lines 4-6.
+
+########## CASE: edit_result/replace_single ##########
+setup.sh updated:
+  5| pip install psycopg2-binary
+
+########## CASE: edit_result/non_edit ##########
+None
+
+########## CASE: pytest_summary/same_cause ##########
+  2 × [collect] ModuleNotFoundError: No module named 'redis'
+
+########## CASE: pytest_summary/mixed_causes ##########
+  1 × [call] AssertionError
+  1 × [call] ModuleNotFoundError: No module named 'redis'
+
+########## CASE: pytest_blocks/dedup ##########
+==================================== ERRORS ====================================
+_______________________ ERROR collecting tests/test_a.py _______________________
+tests/test_a.py:3: in <module>
+    import redis
+E   ModuleNotFoundError: No module named 'redis'
+
+… 1 more block, same cause (ModuleNotFoundError: No module named 'redis'):
+    tests/test_b.py
+
+=========================== short test summary info ============================
+ERROR tests/test_a.py
+ERROR tests/test_b.py
+
+########## CASE: compression/strip_pip_progress ##########
+    Error: pg_config executable not found.
+Successfully installed psycopg2-2.9.9
+
+########## CASE: compression/noise_strip ##########
+Setting up libpq-dev (15.4) ...
+Successfully installed psycopg2-2.9.9

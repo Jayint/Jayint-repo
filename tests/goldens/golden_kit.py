@@ -267,3 +267,174 @@ def build_history_message_list(steps):
     return message_view.build_messages(
         steps, system_prompt=_T2_SYSTEM_PROMPT, numbered_script=_t2_numbered_script(),
         closing_line=_T2_CLOSING_LINE, graph_context_text=None, rejection=None, rejected=None)
+
+
+# --------------------------------------------------------------------------------------
+# T3: OBSERVE ("what the agent sees") + GATE (verdict). These transforms are env-independent
+# (no REACT_* lever), so the tables need no pinning — they are naturally hermetic.
+# --------------------------------------------------------------------------------------
+def serialize_table(cases: dict) -> str:
+    """A `{case_name: rendered_text}` table → a delimiter-framed dump (readable + faithful),
+    ordered by the dict's insertion order so the fixture is stable."""
+    blocks = []
+    for name, text in cases.items():
+        blocks.append(f"########## CASE: {name} ##########\n{text}")
+    return "\n\n".join(blocks) + "\n"
+
+
+# Raw pytest fragments used by several observe/gate cases.
+_PYTEST_SAME_CAUSE = (
+    "==================================== ERRORS ====================================\n"
+    "_______________ ERROR collecting tests/test_a.py _______________\n"
+    "ImportError while importing test module 'tests/test_a.py'.\n"
+    "Hint: make sure your test modules/packages have valid Python names.\n"
+    "Traceback:\n"
+    "/usr/lib/python3.11/importlib/__init__.py:126: in import_module\n"
+    "    return _bootstrap._gcd_import(name[level:], package, level)\n"
+    "tests/test_a.py:3: in <module>\n"
+    "    import redis\n"
+    "E   ModuleNotFoundError: No module named 'redis'\n"
+    "_______________ ERROR collecting tests/test_b.py _______________\n"
+    "ImportError while importing test module 'tests/test_b.py'.\n"
+    "Hint: make sure your test modules/packages have valid Python names.\n"
+    "Traceback:\n"
+    "/usr/lib/python3.11/importlib/__init__.py:126: in import_module\n"
+    "    return _bootstrap._gcd_import(name[level:], package, level)\n"
+    "tests/test_b.py:5: in <module>\n"
+    "    import redis\n"
+    "E   ModuleNotFoundError: No module named 'redis'\n"
+    "=========================== short test summary info ============================\n"
+    "ERROR tests/test_a.py\n"
+    "ERROR tests/test_b.py\n"
+)
+_PYTEST_MIXED = (
+    "=================================== FAILURES ===================================\n"
+    "_______________________ test_encode ________________________\n"
+    "    def test_encode():\n"
+    ">       assert encode(3) == 4\n"
+    "E       assert 3 == 4\n"
+    "tests/test_enc.py:12: AssertionError\n"
+    "_______________________ test_decode ________________________\n"
+    "    def test_decode():\n"
+    ">       import redis\n"
+    "E       ModuleNotFoundError: No module named 'redis'\n"
+    "tests/test_dec.py:4: ModuleNotFoundError\n"
+    "=========================== short test summary info ============================\n"
+    "FAILED tests/test_enc.py::test_encode\n"
+    "FAILED tests/test_dec.py::test_decode\n"
+)
+_PIP_NOISY = (
+    "Collecting psycopg2\n"
+    "  Downloading psycopg2-2.9.9.tar.gz (384 kB)\n"
+    "     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 384.0/384.0 kB 5.2 MB/s\n"
+    "  Preparing metadata (setup.py): started\n"
+    "WARNING: Running pip as the 'root' user can result in broken permissions.\n"
+    "    Error: pg_config executable not found.\n"
+    "Successfully installed psycopg2-2.9.9\n"
+)
+# apt/maven-style TRANSPORT noise — matches SAFETY_NOISE_PATTERNS (the always-on pass-1
+# strip in safety_compress_observation), unlike pip's chatter above.
+_APT_NOISY = (
+    "Get:1 http://deb.debian.org/debian bookworm/main amd64 libpq-dev\n"
+    "Hit:2 http://deb.debian.org/debian bookworm InRelease\n"
+    "Downloading from central: https://repo1.maven.org/foo.jar\n"
+    "Progress (1): 2.2 MB\n"
+    "Setting up libpq-dev (15.4) ...\n"
+    "Successfully installed psycopg2-2.9.9\n"
+)
+
+
+def observe_cases() -> dict:
+    """The observe cluster's pure renders: the `$ cmd -> result` envelope, edit tool-results,
+    the ranked pytest cause histogram, block dedup, and the noise-strip compression."""
+    from src.react_repair.envelope import edit_result, run_envelope
+    from src.react_repair.observation import safety_compress_observation, strip_pip_progress
+    from src.react_repair.pytest_blocks import compact_pytest_blocks
+    from src.react_repair.pytest_summary import format_breakdown, summarize
+
+    outcomes = {
+        "envelope/build_fail": {"build_ok": False, "failing_command": "pip install psycopg2", "lineno": 5},
+        "envelope/build_ok_no_tests": {"build_ok": True, "ran_tests": False},
+        "envelope/tests_all_pass": {"build_ok": True, "ran_tests": True, "passed": 10, "failed": 0},
+        "envelope/tests_collection_errors": {"build_ok": True, "ran_tests": True, "passed": 0,
+                                             "failed": 0, "errors": 5, "collected": 0},
+        "envelope/tests_partial": {"build_ok": True, "ran_tests": True, "passed": 3, "failed": 2,
+                                   "collected": 5},
+        "envelope/tests_silent_skip": {"build_ok": True, "ran_tests": True, "passed": 8, "failed": 2,
+                                       "collected": 200},
+    }
+    edits = {
+        "edit_result/insert_single": {"kind": "edit", "verb": "insert", "start": 4,
+                                      "content": "apt-get install -y libpq-dev"},
+        "edit_result/insert_multi": {"kind": "edit", "verb": "insert", "start": 4,
+                                     "content": "apt-get update\napt-get install -y libpq-dev gcc"},
+        "edit_result/delete_span": {"kind": "edit", "verb": "delete", "start": 4, "end": 6},
+        "edit_result/replace_single": {"kind": "edit", "verb": "replace", "start": 5, "end": 5,
+                                       "content": "pip install psycopg2-binary"},
+        "edit_result/non_edit": {"kind": "explore", "command": "ls /app"},
+    }
+    cases = {}
+    for name, o in outcomes.items():
+        cases[name] = run_envelope(o)
+    for name, a in edits.items():
+        cases[name] = str(edit_result(a))          # None -> "None" for the non-edit case
+    cases["pytest_summary/same_cause"] = format_breakdown(summarize(_PYTEST_SAME_CAUSE))
+    cases["pytest_summary/mixed_causes"] = format_breakdown(summarize(_PYTEST_MIXED))
+    cases["pytest_blocks/dedup"] = compact_pytest_blocks(_PYTEST_SAME_CAUSE)
+    cases["compression/strip_pip_progress"] = strip_pip_progress(_PIP_NOISY)
+    cases["compression/noise_strip"] = safety_compress_observation(_APT_NOISY)[0]
+    return cases
+
+
+def gate_cases() -> dict:
+    """The gate verdict across the >=80% boundary + the anti-hollow guards, and the anti-gaming
+    detectors (test-collection narrowing + self-install-from-index), incl. must-NOT-trip cases."""
+    from src.react_repair.anti_cheat import (
+        added_self_install_reason, detect_test_narrowing, narrowing_reason, self_install_reason)
+    from src.react_repair.gate import test_verdict
+
+    verdict_inputs = {
+        "verdict/boundary_exactly_80": "8 passed, 2 failed",
+        "verdict/just_below_80": "7 passed, 3 failed",
+        "verdict/small_denominator_80": "4 passed, 1 failed",
+        "verdict/all_pass": "10 passed",
+        "verdict/half_pass": "5 passed, 3 failed, 2 errors",
+        "verdict/hollow_all_collection_errors": "0 passed, 5 errors",
+        "verdict/hollow_zero_collected": "0 passed",
+        "verdict/hollow_all_skipped": "5 skipped",
+        "verdict/collected_gt_executed": "8 passed, 2 failed collected 200 items",
+        "verdict/ansi_stripped": "\x1b[32m8 passed\x1b[0m, \x1b[31m2 failed\x1b[0m",
+    }
+    cases = {}
+    for name, out in verdict_inputs.items():
+        v = test_verdict(out)
+        cases[name] = (f"ok={v.ok} passed={v.passed} executed={v.executed} collected={v.collected} "
+                       f"failed={v.failed} errors={v.errors} skipped={v.skipped}")
+
+    # Anti-gaming: (old_script, new_script[, project]) -> reason or None. Includes the legitimate
+    # edits that must NOT trip (pip --ignore-installed, installing a *different* dep, removing a cheat).
+    _SEED = "set -e\npip install -e .\n"
+    narrowing = {
+        "narrowing/add_ignore_tests": (_SEED, _SEED + "pytest --ignore=tests/test_slow.py\n"),
+        "narrowing/add_testpaths_ini": (_SEED, _SEED + "printf 'testpaths = fast\\n' > pytest.ini\n"),
+        "narrowing/add_collect_ignore": (_SEED, _SEED + "echo 'collect_ignore = [\"test_x.py\"]' > conftest.py\n"),
+        "narrowing/rm_test_file": (_SEED, _SEED + "rm tests/test_broken.py\n"),
+        "narrowing/legit_pip_ignore_installed": (_SEED, _SEED + "pip install --ignore-installed six\n"),
+        "narrowing/legit_no_change": (_SEED, _SEED),
+    }
+    for name, (old, new) in narrowing.items():
+        cases[name] = str(narrowing_reason(old, new))
+    cases["detect/deselect_flag"] = str(detect_test_narrowing("pytest --deselect tests/test_a.py::t"))
+    cases["detect/clean_setup"] = str(detect_test_narrowing("pip install -e .[test]"))
+
+    self_install = {
+        "self_install/index_project": (_SEED, _SEED + "pip install itsdangerous\n", "itsdangerous"),
+        "self_install/editable_ok": (_SEED, _SEED + "pip install -e .\n", "itsdangerous"),
+        "self_install/other_dep_ok": (_SEED, _SEED + "pip install redis\n", "itsdangerous"),
+    }
+    for name, (old, new, proj) in self_install.items():
+        cases[name] = str(added_self_install_reason(old, new, proj))
+    # PEP 503: `Flask_Foo` and `flask-foo` normalize to the same distribution -> must trip.
+    cases["self_install/normalized_match"] = str(
+        self_install_reason("pip install Flask_Foo", "flask-foo"))
+    return cases
