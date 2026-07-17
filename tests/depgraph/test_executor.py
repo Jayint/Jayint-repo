@@ -165,3 +165,40 @@ def test_bootstrap_uv_and_cache_volumes_default_false():
     ex = DockerExecutor("python:3.11-slim-bookworm")
     assert ex.bootstrap_uv is False
     assert ex.cache_volumes is False
+
+
+# --- DockerExecutor mount_repo / repo_mount_dir params (additive; default
+# None = byte-identical to the pre-existing docker run command) ---
+
+
+def test_run_command_without_mount_is_unchanged():
+    ex = DockerExecutor("python:3.11-slim")
+    cmd = ex._run_command()
+    assert "sleep infinity" in cmd
+    assert "/workspace/repo" not in cmd  # no repo mount when mount_repo is None
+    # Byte-identical to the historical (pre-mount) docker run command.
+    assert cmd == (
+        f"docker run -d --name {ex._name} python:3.11-slim sleep infinity"
+    )
+
+
+def test_run_command_with_mount_binds_repo(tmp_path):
+    ex = DockerExecutor("python:3.11-slim", mount_repo=str(tmp_path))
+    cmd = ex._run_command()
+    assert f"-v {tmp_path.resolve()}:/workspace/repo" in cmd
+    assert ex.repo_mount_dir == "/workspace/repo"
+
+
+def test_run_command_mount_is_the_only_difference(tmp_path):
+    """Byte-identical proof: adding a mount is the ONLY textual delta.
+
+    Pin the container names equal so the sole difference between the bare and
+    the mounted command is the ``-v <abspath>:/workspace/repo `` fragment. If
+    the fragment is stripped, the mounted command must equal the bare command
+    character-for-character -- the behavior-preserving invariant for this task.
+    """
+    bare = DockerExecutor("python:3.11-slim")
+    mounted = DockerExecutor("python:3.11-slim", mount_repo=str(tmp_path))
+    mounted._name = bare._name  # neutralise the random per-instance container name
+    fragment = f"-v {tmp_path.resolve()}:/workspace/repo "
+    assert mounted._run_command().replace(fragment, "") == bare._run_command()

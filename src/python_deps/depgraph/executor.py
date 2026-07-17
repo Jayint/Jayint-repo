@@ -13,6 +13,7 @@ import subprocess
 import typing
 import uuid
 from dataclasses import dataclass
+from pathlib import Path
 
 # returncode used when a command exceeds its timeout.
 TIMEOUT_RC = 124
@@ -91,12 +92,16 @@ class DockerExecutor:
         platform: str | None = None,
         bootstrap_uv: bool = False,
         cache_volumes: bool = False,
+        mount_repo: str | None = None,
+        repo_mount_dir: str = "/workspace/repo",
     ) -> None:
         self.image = image
         self.network = network
         self.platform = platform
         self.bootstrap_uv = bootstrap_uv
         self.cache_volumes = cache_volumes
+        self.mount_repo = mount_repo
+        self.repo_mount_dir = repo_mount_dir
         self.container_id: str | None = None
         self._name = f"depgraph-probe-{uuid.uuid4().hex[:12]}"
 
@@ -109,7 +114,12 @@ class DockerExecutor:
             if self.cache_volumes
             else ""
         )
-        return f"docker run -d {net}{plat}{vols}--name {self._name} {self.image} sleep infinity"
+        repo = (
+            f"-v {Path(self.mount_repo).resolve()}:{self.repo_mount_dir} "
+            if self.mount_repo
+            else ""
+        )
+        return f"docker run -d {net}{plat}{vols}{repo}--name {self._name} {self.image} sleep infinity"
 
     def __enter__(self) -> "DockerExecutor":
         start = _run_subprocess(self._run_command(), timeout=300)
