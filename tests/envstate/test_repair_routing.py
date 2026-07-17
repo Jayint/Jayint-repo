@@ -30,7 +30,7 @@ for p in (str(_ROOT), str(_SRC)):
         sys.path.insert(0, p)
 
 import src.envstate.graph_scheduler as gs_module
-from graph import repo_modules as repo_modules_module
+from graph.python.read import repo_modules as repo_modules_module
 from src.envstate import orchestrator
 from src.envstate.ledger import ActionLedger
 from src.envstate.world_model import (

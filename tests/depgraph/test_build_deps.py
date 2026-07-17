@@ -2,15 +2,15 @@ from dataclasses import replace
 
 import pytest
 
-from graph import build_deps
-from graph.build_deps import (
+from graph.python.native import build_deps
+from graph.python.native.build_deps import (
     PACKAGE_TO_BUILD_NEEDS, build_env_for, seed_build_deps,
 )
-from graph.emit import _is_reciped
+from graph.emit.emit import _is_reciped
 from graph.ids import (
     apt_build_id, binary_id, header_id, package_id, pkgconfig_id,
 )
-from graph.os_resolver import ObservedNeed
+from graph.python.native.os_resolver import ObservedNeed
 from graph.schema import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
@@ -308,7 +308,7 @@ def test_seed_build_deps_logs_aggregate(monkeypatch, caplog):
     import logging as _log
     monkeypatch.setattr(build_deps, "debian_build_deps",
                         lambda name, ex: ["libgeos-dev", "libgdal-dev"])
-    with caplog.at_level(_log.INFO, logger="graph.build_deps"):
+    with caplog.at_level(_log.INFO, logger="graph.python.native.build_deps"):
         seed_build_deps(_graph(_pkg("shapely", "2.0.1")), _EX)
     line = next(r.getMessage() for r in caplog.records if "seed_build_deps: pkgs=" in r.getMessage())
     # cap_nodes=1: the baseline binary:pkg-config node (B3), shapely's own

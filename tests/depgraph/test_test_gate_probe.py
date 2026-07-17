@@ -7,9 +7,9 @@ same extract_needs + _ingest_need machinery as import_probe.
 """
 from __future__ import annotations
 
-from graph.emit import _is_reciped
+from graph.emit.emit import _is_reciped
 from graph.ids import TEST_NODE_ID, syslib_id
-from graph.probe import test_gate_probe
+from graph.python.native.probe import test_gate_probe
 from graph.schema import (
     DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State,
 )
@@ -95,7 +95,7 @@ def test_returns_new_graph_immutability():
 def test_gate_probe_logs_dlopen_tail(caplog):
     import logging as _log
     stderr = "ImportError: libGL.so.1: cannot open shared object file"
-    with caplog.at_level(_log.INFO, logger="graph.probe"):
+    with caplog.at_level(_log.INFO, logger="graph.python.native.probe"):
         test_gate_probe(DepGraph(), None, stderr)
     line = next(r.getMessage() for r in caplog.records if "test_gate: dlopen-tail" in r.getMessage())
     assert "soname=libGL.so.1" in line and "fix=apt:libgl1" in line

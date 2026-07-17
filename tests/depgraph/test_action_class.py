@@ -1,5 +1,5 @@
 # tests/depgraph/test_action_class.py
-from graph.action_class import matches_action_class, ACTION_CLASSES
+from graph.mutate.action_class import matches_action_class, ACTION_CLASSES
 
 
 def test_apt_class():

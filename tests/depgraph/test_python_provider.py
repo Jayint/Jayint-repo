@@ -95,8 +95,8 @@ def test_build_dep_graph_reaches_fixpoint_llm_end_to_end(tmp_path):
     ``build_dep_graph -> provider seam -> _python_package_obligations`` boundary."""
     from conftest import SequencedFakeExecutor  # type: ignore
 
-    from graph.build import build_dep_graph
-    from graph.executor import CommandResult
+    from graph.core.build import build_dep_graph
+    from graph.contracts.executor import CommandResult
 
     def _r(rc=0, stdout="", stderr=""):
         return CommandResult(command="", returncode=rc, stdout=stdout, stderr=stderr)
@@ -130,7 +130,7 @@ def test_build_dep_graph_threads_shadow_config_lane_through_seam(monkeypatch, tm
     drives it end-to-end from ``build_dep_graph``; a sentinel exception
     short-circuits the downstream (native/certify) so this stays a pure wiring
     proof — no container/network."""
-    from graph import build as buildmod
+    from graph.core import build as buildmod
 
     seen = {}
 
@@ -175,7 +175,8 @@ def test_provider_preserves_hermeticity_symbols():
     autouse _no_pypi_network stub patches (build.py's module imports are untouched;
     the composite default is still built at the old 569-571 site inside the helper).
     End-to-end hermeticity is re-proven by oracle (a) after Task 7."""
-    from graph import build, coverage, relink
+    from graph.core import build
+    from graph.python.lanes.install import coverage, relink
 
     assert build.pypi_record_provider is coverage.pypi_record_provider
     assert build.composite_record_provider is coverage.composite_record_provider

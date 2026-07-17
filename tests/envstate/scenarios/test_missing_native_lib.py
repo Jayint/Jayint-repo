@@ -31,7 +31,7 @@ from src.envstate.trace_verify import verify_canonical_trace
 from src.envstate.world_model import initial_map, merge_map
 from src.sandbox import InstallResult
 from graph.diagnose import Mode, RepoContext, diagnose
-from graph.patch import PatchProposal, ProviderSpec
+from graph.mutate.patch import PatchProposal, ProviderSpec
 from graph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
 
 

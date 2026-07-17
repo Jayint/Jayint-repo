@@ -19,9 +19,9 @@ as a platform-matching wheel (``build_from_source is False``) — the exact stam
 
 from __future__ import annotations
 
-from graph import wheel_preflight
-from graph.build import _python_package_obligations
-from graph.executor import CommandResult
+from graph.python.native import wheel_preflight
+from graph.core.build import _python_package_obligations
+from graph.contracts.executor import CommandResult
 from graph.ids import syslib_id
 from graph.schema import DiscoveredBy, NodeType, State
 

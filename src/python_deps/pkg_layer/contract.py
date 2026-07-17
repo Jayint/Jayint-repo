@@ -3,7 +3,7 @@
 
 The "verifier" root selection: roots come from the declared CONTRACT ONLY.
 Imports are never consulted, which is what makes it structurally impossible
-to reproduce the ``depgraph.roots``/``package_roots`` bug where an optional
+to reproduce the ``depgraph.python.lanes.install.roots``/``package_roots`` bug where an optional
 dependency excluded from ``needed_extras`` gets silently re-added because the
 code happens to import it (manifest-first, scan-gap-fill design). There is no
 import input here at all -- only ``(contract, needed_extras)`` in.
@@ -13,7 +13,7 @@ be A/B-evaluated; this module does not modify anything under ``depgraph/``.
 """
 from __future__ import annotations
 
-from graph.roots import _requirement_group
+from graph.python.lanes.install.roots import _requirement_group
 from python_deps.evidence import collect_python_dependency_evidence
 from python_deps.pkg_layer.planes import DeclaredDep, _canon
 
@@ -27,7 +27,7 @@ def read_contract(repo_path: str) -> tuple[DeclaredDep, ...]:
     resulting ``PythonRequirement`` 1:1. The extras GROUP for a
     ``kind=="optional_dependency"`` requirement is derived from its
     ``.source`` string using the same ``_requirement_group`` helper
-    ``depgraph.roots.select_roots`` uses, so the two designs agree on what an
+    ``depgraph.python.lanes.install.roots.select_roots`` uses, so the two designs agree on what an
     "extra" is; runtime (non-optional) deps always get ``group=None``.
     """
     evidence = collect_python_dependency_evidence(repo_path)

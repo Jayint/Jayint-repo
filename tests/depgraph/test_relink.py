@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from graph.relink import (
+from graph.python.lanes.install.relink import (
     PACKAGES_DIST_CMD,
     parse_packages_distributions,
 )
@@ -36,7 +36,7 @@ from graph.schema import (
     Node,
     NodeType,
 )
-from graph.relink import import_to_package_edges
+from graph.python.lanes.install.relink import import_to_package_edges
 
 
 def _imp(name):
@@ -103,7 +103,7 @@ def test_edge_builder_skips_existing_edge():
     assert edges == []
 
 
-from graph.relink import certified_import_links
+from graph.python.lanes.install.relink import certified_import_links
 
 
 def test_certified_import_links_adds_edge(fake_executor, make_result_fixture):
@@ -127,7 +127,7 @@ def test_certified_import_links_graceful_on_command_failure(fake_executor):
     assert out.edges == ()
 
 
-from graph.relink import flag_unresolved_imports
+from graph.python.lanes.install.relink import flag_unresolved_imports
 
 
 def test_unlinked_import_is_flagged_unresolved():

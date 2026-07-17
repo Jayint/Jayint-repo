@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from graph.pins import (
+from graph.python.lanes.install.pins import (
     compute_exclude_newer,
     parse_pinned_roots,
     pypi_upload_date,

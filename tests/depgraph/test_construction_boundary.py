@@ -23,7 +23,9 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from graph import build, roots, scan
+from graph.core import build
+from graph.python.lanes.install import roots
+from graph.python.read import scan
 
 _FORBIDDEN = frozenset({"top_level_names", "stem_collisions", "repo_modules"})
 
@@ -79,8 +81,8 @@ def test_ast_guard_actually_catches_a_reintroduction():
     """
     leaks = (
         "from graph import repo_modules",
-        "from graph.repo_modules import top_level_names",
-        "import graph.repo_modules as rm",
+        "from graph.python.read.repo_modules import top_level_names",
+        "import graph.python.read.repo_modules as rm",
         "local = rm.top_level_names(repo_path)",
         'marker = "#"; local = repo_modules.top_level_names(repo_path)',
     )

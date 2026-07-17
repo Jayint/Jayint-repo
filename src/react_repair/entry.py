@@ -7,11 +7,11 @@ from __future__ import annotations
 import os
 import pathlib
 
-from graph import repo_modules
-from graph.certify import EXECUTION_LAYER_ORDER, certify_all
+from graph.python.read import repo_modules
+from graph.core.certify import EXECUTION_LAYER_ORDER, certify_all
 from graph.diagnose import RepoContext
 from graph.discovery_expand import expand_discovery
-from graph.executor import CommandResult
+from graph.contracts.executor import CommandResult
 from graph.graph_context import render_graph_context
 from graph.graph_enrich import certify_only, enrich
 from graph.schema import Layer

@@ -12,7 +12,7 @@ def tool_id(name):        # the scanned-executable id, spelled the canonical way
 from graph.schema import (
     DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State,
 )
-from graph.subprocess_scan import (
+from graph.python.read.subprocess_scan import (
     add_subprocess_tool_nodes,
     scan_subprocess_tools,
 )
@@ -88,8 +88,8 @@ def test_tables_are_disjoint():
     # tool:<apt>) MUST stay disjoint so a future edit can't silently mint two
     # nodes for one apt package. (The old build-tool half was retired into
     # PROVIDER_TABLE; this now guards CLI tools vs the single apt authority.)
-    from graph.os_resolver import PROVIDER_TABLE
-    from graph.tables import CLI_TOOL_TO_APT
+    from graph.python.native.os_resolver import PROVIDER_TABLE
+    from graph.python.native.tables import CLI_TOOL_TO_APT
     provider_binaries = {name for (kind, name) in PROVIDER_TABLE if kind == "binary"}
     assert not (set(CLI_TOOL_TO_APT) & provider_binaries)
 

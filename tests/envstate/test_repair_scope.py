@@ -7,7 +7,7 @@ for p in (str(_ROOT), str(_SRC)):
         sys.path.insert(0, p)
 
 import src.envstate.repair_scope as rs
-from graph.block import Block
+from graph.mutate.block import Block
 from graph.evidence_log import Evidence, EvidenceBundle
 
 def _bundle():

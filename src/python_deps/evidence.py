@@ -419,7 +419,7 @@ _MAX_INCLUDE_DEPTH = 5
 # (`_discover_soft_requirements_files`) -- HARD discovery (a direct,
 # non-recursive glob, see `_discover_hard_requirements_files`) never walks at
 # all, so this set does not apply to it.
-# Deliberately NARROWER than `depgraph.scan.SKIP_WALK_DIRS` / its
+# Deliberately NARROWER than `depgraph.python.read.scan.SKIP_WALK_DIRS` / its
 # `_EXCLUDED_SEGMENTS` (which additionally exclude "docs"/"doc"/"tests"/
 # "test"/"scripts"/"tools"/"examples"/"benchmarks"): those are exactly where
 # real per-directory requirements files live (root-level `docs/requirements.txt`

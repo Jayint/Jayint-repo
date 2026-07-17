@@ -1,4 +1,4 @@
-from graph.patch_gate import is_read_only
+from graph.mutate.patch_gate import is_read_only
 
 
 def test_dev_null_redirect_is_read_only():

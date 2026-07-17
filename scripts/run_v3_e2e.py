@@ -73,7 +73,7 @@ from src.envstate.jsonutil import extract_json_object
 from src.envstate.run_trace import RunTracer
 from src.envstate.proof import finalize_trace
 from graph.advise import build_advisory_for_repo
-from graph.build_script import (
+from graph.emit.build_script import (
     render_build_script,
     render_service_start_script,
 )

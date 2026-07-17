@@ -92,7 +92,7 @@ def test_unmapped_import_is_unresolved_not_identity():
 
 # --------------------------------------------------------------------------- #
 # FIX 2 (B3) — declared_metadata_match factored out of map_import_to_package
-# so `depgraph.repair.generate_candidates` can reuse the SAME rung as an
+# so `depgraph.python.lanes.install.repair.generate_candidates` can reuse the SAME rung as an
 # evidence-grounded candidate source (never a fresh guess).
 # --------------------------------------------------------------------------- #
 def test_declared_metadata_match_returns_normalized_hit():

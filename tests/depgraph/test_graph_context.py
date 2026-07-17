@@ -9,7 +9,7 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from graph.emit import _conflicted_ids, _is_emittable
+from graph.emit.emit import _conflicted_ids, _is_emittable
 from graph.graph_context import (
     ACTIONABLE, BLOCKED, SATISFIED_OK, UNCERTIFIED, WAITING, blocks, in_conflict,
     render_graph_context, verdict,

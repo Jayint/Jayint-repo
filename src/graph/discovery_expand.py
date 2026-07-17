@@ -19,8 +19,8 @@ from __future__ import annotations
 import logging
 from dataclasses import replace
 
-from graph.build_deps import seed_build_deps_for
-from graph.os_resolver import ObservedNeed, resolve
+from graph.python.native.build_deps import seed_build_deps_for
+from graph.python.native.os_resolver import ObservedNeed, resolve
 from graph.schema import DepGraph, NodeType
 
 logger = logging.getLogger(__name__)

@@ -6,7 +6,7 @@ no ``build_agent.propose`` call, no ``pkg:docs-src`` node, no ``pip install
 docs-src``.
 
 Uses a REAL filesystem tree (not a monkeypatched ``scan.local_module_names``) so
-``graph.scan.local_module_names`` is exercised for real, per the
+``graph.python.read.scan.local_module_names`` is exercised for real, per the
 brief's explicit ask.
 
 Mechanism note: this repo's ACTUAL local-import guard lives in

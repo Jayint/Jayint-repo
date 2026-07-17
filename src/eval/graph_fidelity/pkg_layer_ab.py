@@ -9,7 +9,7 @@ two A/B evals share one adjudication vocabulary and one verdict grammar.
                     -- contract-only, no import ever consulted (Task 3); this
                     is the "verifier" design.
   * CURRENT roots = the RECONSTRUCTED generator: the in-tree declared-only
-                    ``depgraph.roots.select_roots`` UNION the ``naming.package_roots``
+                    ``depgraph.python.lanes.install.roots.select_roots`` UNION the ``naming.package_roots``
                     scan-gap-fill P0.1 deleted from it (see
                     ``root_selection_ab.reconstruct_generator_roots``). Post-P0.1
                     ``select_roots`` alone is declared-only, so without this
@@ -68,10 +68,10 @@ def build_divergence(
     current_roots: Sequence[tuple[str | None, str]],
     id_to_name: Mapping[str, str],
 ) -> tuple[DivergentAdd, ...]:
-    """Packages CURRENT (full ``depgraph.roots`` output) has that NEW (the
+    """Packages CURRENT (full ``depgraph.python.lanes.install.roots`` output) has that NEW (the
     pkg_layer contract-only selector) omits, canon-deduped and sorted.
 
-    ``current_roots`` is the raw ``depgraph.roots.select_roots`` output --
+    ``current_roots`` is the raw ``depgraph.python.lanes.install.roots.select_roots`` output --
     ``(import_id | None, distribution_name)`` pairs, where a manifest-
     declared token may carry a ``[extras]``/version-specifier suffix (see
     ``_bare_name``) that is stripped before comparison. A pair's
@@ -109,8 +109,8 @@ def score_repo(repo_dir: str, full_name: str, gold_imports: Mapping[str, str]) -
     Host-only: AST scan + manifest reads. No container, no network, no
     build-agent phase.
     """
-    from graph.roots import select_roots as current_select_roots
-    from graph.scan import scan_to_nodes
+    from graph.python.lanes.install.roots import select_roots as current_select_roots
+    from graph.python.read.scan import scan_to_nodes
     from graph.schema import NodeType
     from python_deps.pkg_layer.construct import build_package_layer
     from python_deps.pkg_layer.contract import read_contract
@@ -151,7 +151,7 @@ def score_repo(repo_dir: str, full_name: str, gold_imports: Mapping[str, str]) -
 
 def render_report_md(scorecards: Sequence[Mapping], agg: Mapping) -> str:
     lines = [
-        "# pkg_layer root-selection A/B — NEW (contract-only) vs CURRENT (depgraph.roots)",
+        "# pkg_layer root-selection A/B — NEW (contract-only) vs CURRENT (depgraph.python.lanes.install.roots)",
         "",
         f"Corpus: {agg['repos']} repos. **Verdict: {agg['verdict']}.**",
         "",

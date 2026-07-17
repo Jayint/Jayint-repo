@@ -2,7 +2,7 @@
 
 ``select_roots`` here is the "verifier" root selection: it consults ONLY the
 declared contract, never imports. This is the structural fix for the
-``depgraph.roots``/``package_roots`` bug where an optional dep excluded from
+``depgraph.python.lanes.install.roots``/``package_roots`` bug where an optional dep excluded from
 ``needed_extras`` gets silently re-added because the code happens to import
 it (scan gap-fill). A contract-only selector cannot do that -- there is no
 import input at all.

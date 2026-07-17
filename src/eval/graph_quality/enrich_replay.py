@@ -41,7 +41,7 @@ for _p in (_REPO_ROOT, _SRC):
 
 from graph.diagnose import RepoContext  # noqa: E402
 from graph.discovery_expand import expand_discovery  # noqa: E402
-from graph.executor import CommandResult  # noqa: E402
+from graph.contracts.executor import CommandResult  # noqa: E402
 from graph.graph_enrich import enrich  # noqa: E402
 from graph.ids import TEST_NODE_ID, package_id  # noqa: E402
 from python_deps.import_mapping import normalize_package_name  # noqa: E402

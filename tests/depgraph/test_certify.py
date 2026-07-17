@@ -8,8 +8,8 @@ tests).  All tests use the ``FakeExecutor`` (no Docker/network).
 
 from __future__ import annotations
 
-from graph.certify import certify, certify_all
-from graph.executor import CommandResult
+from graph.core.certify import certify, certify_all
+from graph.contracts.executor import CommandResult
 from graph.ids import TEST_NODE_ID, import_id, package_id, syslib_id
 from graph.schema import (
     DepGraph,
@@ -229,7 +229,7 @@ def test_certify_all_certifies_each_node(make_result_fixture):
 
 def test_certify_all_certifies_config_nodes():
     from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
-    from graph.certify import certify_all
+    from graph.core.certify import certify_all
 
     class FakeResult:
         def __init__(self, ok): self.ok = ok; self.stdout = ""; self.stderr = ""
@@ -249,7 +249,7 @@ def test_certify_all_certifies_config_nodes():
 
 def test_certify_skips_service_nodes():
     from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
-    from graph.certify import certify
+    from graph.core.certify import certify
 
     class FakeResult:
         def __init__(self, ok): self.ok = ok; self.stdout = ""; self.stderr = ""
@@ -278,7 +278,7 @@ def _service_node(check="pg_isready -h 127.0.0.1 -p 5432"):
 
 def test_service_unknown_when_not_allowed():
     from graph.schema import DepGraph, State
-    from graph.certify import certify
+    from graph.core.certify import certify
 
     class Ex:
         def __init__(self): self.calls = []
@@ -293,7 +293,7 @@ def test_service_unknown_when_not_allowed():
 
 def test_service_without_setup_stays_unknown_even_when_allowed():
     from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
-    from graph.certify import certify
+    from graph.core.certify import certify
 
     class Ex:
         def __init__(self): self.calls = []

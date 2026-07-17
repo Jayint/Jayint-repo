@@ -36,7 +36,7 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from graph import wheel_preflight  # noqa: E402
+from graph.python.native import wheel_preflight  # noqa: E402
 from graph.ids import package_id, syslib_id  # noqa: E402
 from graph.schema import (  # noqa: E402
     DepGraph,
@@ -46,8 +46,8 @@ from graph.schema import (  # noqa: E402
     NodeType,
     State,
 )
-from graph.target_env import TargetEnv  # noqa: E402
-from graph.wheel_preflight import wheel_preflight_probe  # noqa: E402
+from graph.python.read.target_env import TargetEnv  # noqa: E402
+from graph.python.native.wheel_preflight import wheel_preflight_probe  # noqa: E402
 
 FIXTURE_SO = (
     Path(__file__).parent / "fixtures" / "mod.cpython-311-x86_64-linux-gnu.so"
@@ -129,8 +129,8 @@ def test_wheel_preflight_seeds_runtime_soname_reconciled_by_ldd(tmp_path):
     if not _docker_available():
         pytest.skip("Docker binary not on PATH — skipping Docker integration test")
 
-    from graph.build import build_dep_graph
-    from graph.executor import (
+    from graph.core.build import build_dep_graph
+    from graph.contracts.executor import (
         DockerExecutor,
         LocalSubprocessExecutor,
     )

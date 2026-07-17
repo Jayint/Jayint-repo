@@ -60,8 +60,8 @@ for _p in (_ROOT, _ROOT / "src"):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from graph.build import build_dep_graph  # noqa: E402
-from graph.executor import (  # noqa: E402
+from graph.core.build import build_dep_graph  # noqa: E402
+from graph.contracts.executor import (  # noqa: E402
     DockerExecutor,
     LocalSubprocessExecutor,
 )

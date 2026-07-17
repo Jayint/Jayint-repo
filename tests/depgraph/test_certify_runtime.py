@@ -1,5 +1,5 @@
-from graph.certify import certify_all
-from graph.executor import CommandResult
+from graph.core.certify import certify_all
+from graph.contracts.executor import CommandResult
 from graph.ids import runtime_id
 from graph.schema import (
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy,

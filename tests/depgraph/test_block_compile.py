@@ -1,4 +1,4 @@
-from graph.block import Block, compile_blocks
+from graph.mutate.block import Block, compile_blocks
 from graph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
 
 

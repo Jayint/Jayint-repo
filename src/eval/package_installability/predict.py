@@ -15,12 +15,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from graph.artifact_map import resolve_artifact_map
-from graph.build_deps import seed_build_deps
+from graph.python.util.artifact_map import resolve_artifact_map
+from graph.python.native.build_deps import seed_build_deps
 from graph.ids import package_id
 from graph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType
-from graph.seed import seed_wheel_oracle_prior
-from graph.target_env import detect_target_env
+from graph.python.native.seed import seed_wheel_oracle_prior
+from graph.python.read.target_env import detect_target_env
 from python_deps.import_mapping import normalize_package_name
 
 _APT = "apt:"

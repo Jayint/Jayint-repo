@@ -6,8 +6,8 @@ import sys
 
 from conftest import FakeExecutor, make_result
 
-import graph.executor as executor_mod
-from graph.executor import (
+import graph.contracts.executor as executor_mod
+from graph.contracts.executor import (
     CommandResult,
     DockerExecutor,
     Executor,

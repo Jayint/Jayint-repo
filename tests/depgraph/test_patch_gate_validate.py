@@ -1,7 +1,7 @@
-from graph.patch import (
+from graph.mutate.patch import (
     PatchProposal, NodeSpec, ProviderSpec, EdgeSpec, ScriptPatch,
 )
-from graph.patch_gate import validate_proposal
+from graph.mutate.patch_gate import validate_proposal
 from graph.schema import (
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy,
 )
@@ -193,7 +193,7 @@ def test_validate_rejects_non_dict_params_end_to_end():
     # None, so validate_proposal's isinstance check could never fire on the real
     # ingestion path. Proves the rejection is reachable end-to-end (not just via a
     # directly-constructed NodeSpec, as in test_validate_rejects_non_dict_params above).
-    from graph.patch import parse_patch_proposal
+    from graph.mutate.patch import parse_patch_proposal
     p = parse_patch_proposal({"patch": {"add_requirements": [{
         "id": "service:postgres", "type": "Service", "name": "postgres", "layer": "services",
         "evidence_ref": "e0", "service_params": "nope"}]}})
@@ -205,8 +205,8 @@ def test_validate_rejects_non_dict_params_end_to_end():
 # both call this so a single malformed field drops one node, not the whole batch ---
 
 def test_requirement_errors_flags_empty_service_kind_and_passes_clean():
-    from graph.patch_gate import _requirement_errors
-    from graph.patch import NodeSpec
+    from graph.mutate.patch_gate import _requirement_errors
+    from graph.mutate.patch import NodeSpec
     bad = NodeSpec(id="config:X", type="Config", name="X", layer="config",
                    evidence_ref="e0", service_kind="")
     assert any("service_kind" in e for e in _requirement_errors(DepGraph(), bad, frozenset({"e0"})))
@@ -216,8 +216,8 @@ def test_requirement_errors_flags_empty_service_kind_and_passes_clean():
 
 
 def test_requirement_errors_is_total_on_malformed_types():
-    from graph.patch_gate import _requirement_errors
-    from graph.patch import NodeSpec
+    from graph.mutate.patch_gate import _requirement_errors
+    from graph.mutate.patch import NodeSpec
     ev = frozenset({"e0"})
     # list where a string is expected must yield an error, NOT raise
     for bad in (NodeSpec(id="service:x", type="Service", name="x", layer="services",

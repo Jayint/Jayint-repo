@@ -5,7 +5,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 from graph.schema import (  # noqa: E402
     DepGraph, Node, Edge, NodeType, Layer, State, EdgeType, DiscoveredBy,
 )
-from graph.emit import failed_reciped_nodes  # noqa: E402
+from graph.emit.emit import failed_reciped_nodes  # noqa: E402
 
 
 def _pkg(nid, name, state, *, version="1.0", check="true"):

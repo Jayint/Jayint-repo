@@ -1,4 +1,4 @@
-from graph.scan import scan_to_nodes
+from graph.python.read.scan import scan_to_nodes
 from graph.schema import NodeType
 
 

@@ -1,5 +1,5 @@
-from graph.cure import render_cure_commands
-from graph.invocation_resolver import TestEnvPlan, resolve
+from graph.python.lanes.config.cure import render_cure_commands
+from graph.python.invocation_resolver import TestEnvPlan, resolve
 
 
 def test_cure_commands_are_the_fallback_chain(tmp_path):

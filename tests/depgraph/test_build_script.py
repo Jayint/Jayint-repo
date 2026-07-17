@@ -3,9 +3,9 @@ import re
 from graph.schema import (
     DepGraph, Node, Edge, NodeType, Layer, State, DiscoveredBy, EdgeType,
 )
-from graph.build_script import render_build_script, _LAYER_ORDER
-from graph.block import Block, compile_replay_blocks
-from graph.emit import _is_reciped, _apt_name, _pip_spec
+from graph.emit.build_script import render_build_script, _LAYER_ORDER
+from graph.mutate.block import Block, compile_replay_blocks
+from graph.emit.emit import _is_reciped, _apt_name, _pip_spec
 
 
 def test_empty_graph_emits_preamble():
@@ -135,7 +135,7 @@ def test_git_sourced_package_never_rendered_as_bare_pip_install():
     gate (which already excludes ``data['uninstallable']``, wired by Fix A
     and reused by Gate 1's ``_missing_source_node``) closes this without any
     change needed in this module."""
-    from graph.resolve_lock import _missing_source_node
+    from graph.python.lanes.install.resolve_lock import _missing_source_node
 
     git_sourced = _missing_source_node(
         "infi-clickhouse-orm",
@@ -308,7 +308,7 @@ def test_block_with_empty_targets_renders_and_covers_nothing():
 
 def test_block_with_unknown_wave_raises():
     import pytest
-    from graph.block import Block
+    from graph.mutate.block import Block
     blk = Block(block_id="blk:x", wave="post-install", commands=("echo hi",),
                 target_node_ids=(), provider_ids=(), check_commands=(), evidence_refs=())
     with pytest.raises(ValueError, match="illegal waves"):
@@ -517,7 +517,7 @@ def test_config_precedes_tests():
 
 
 def test_build_script_order_agrees_with_certify_on_shared_tiers():
-    from graph.certify import EXECUTION_LAYER_ORDER  # created in Step 3
+    from graph.core.certify import EXECUTION_LAYER_ORDER  # created in Step 3
 
     positions = [_LAYER_ORDER.index(L) for L in EXECUTION_LAYER_ORDER]
     assert positions == sorted(positions), (
@@ -773,7 +773,7 @@ def test_soft_requirements_deterministic_and_sorted_regardless_of_input_order():
 # code. See build_script._EXCLUDED_CONSTRAINT_VERSION for the chosen specifier.
 # ---------------------------------------------------------------------------
 
-from graph.build_script import _EXCLUDED_CONSTRAINT_VERSION
+from graph.emit.build_script import _EXCLUDED_CONSTRAINT_VERSION
 
 
 def _excluded_pkg(id_, name, version=None):

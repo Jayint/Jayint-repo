@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from graph.schema import DepGraph, Node, NodeType, State, EdgeType
-from graph.emit import topo_order
+from graph.emit.emit import topo_order
 from graph.req_slice import RequirementSlice, build_requirement_slice
 
 
@@ -34,7 +34,7 @@ def _dependencies_satisfied(graph: DepGraph, node: Node) -> bool:
 def _is_actionable(graph: DepGraph, node: Node, *, allow_services: bool = False) -> bool:
     # Lazy import to avoid any circular dependency: schedule.py must stay PURE
     # (no src.envstate imports), and emit.py is a pure sibling in this package.
-    from graph.emit import _is_emittable, _conflicted_ids
+    from graph.emit.emit import _is_emittable, _conflicted_ids
     service_ok = (
         node.type is not NodeType.SERVICE
         or (allow_services and node.data.get("setup") is not None)  # clean setup-shape only

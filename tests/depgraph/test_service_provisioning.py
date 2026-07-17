@@ -17,7 +17,7 @@ import tempfile
 from pathlib import Path
 
 from graph.schema import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
-from graph.build_script import render_build_script, render_service_start_script
+from graph.emit.build_script import render_build_script, render_service_start_script
 from graph.service_recipes import render_probe_poll
 
 # A realistic known-kind recipe dict, shaped exactly like

@@ -24,8 +24,8 @@ for _p in (_REPO_ROOT, _SRC):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from graph.build_script import render_build_script  # noqa: E402
-from graph.emit import _is_installable_project, _is_reciped  # noqa: E402
+from graph.emit.build_script import render_build_script  # noqa: E402
+from graph.emit.emit import _is_installable_project, _is_reciped  # noqa: E402
 from graph.schema import DepGraph, State  # noqa: E402
 
 # One #@node annotation line per reciped node (build_script._annotation); the

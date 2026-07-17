@@ -60,7 +60,7 @@ def _canon(name: str) -> str:
 def _bare_name(token: str) -> str:
     """Strip a ``[extras]`` bracket and/or PEP 440 version specifier suffix.
 
-    ``depgraph.roots.select_roots`` carries the declared constraint on a
+    ``depgraph.python.lanes.install.roots.select_roots`` carries the declared constraint on a
     manifest-declared root -- e.g. ``numpy<2`` or ``uvicorn[standard]>=0.30`` --
     so the resolver can see version conflicts (see ``_manifest_root_token``).
     Comparing such a token against a bare mapped-import name (``numpy``) requires
@@ -179,7 +179,7 @@ def reconstruct_generator_roots(
     roots UNION the mapped-import gap-fill ``select_roots`` no longer performs.
 
     Reproduces, byte-for-byte in behavior, the scan-gap-fill block deleted from
-    ``depgraph.roots.select_roots`` in P0.1, using the retained reference helper
+    ``depgraph.python.lanes.install.roots.select_roots`` in P0.1, using the retained reference helper
     ``naming.package_roots``: for every mapped Import node whose distribution is
     not already covered by a declared root (deduped by PEP 503 name), append it
     as a ``(import_id, dist)`` gap-fill root — after dropping non-distribution
@@ -189,8 +189,8 @@ def reconstruct_generator_roots(
     extra-gated dep is still recovered as the generator's over-add — the very
     behavior the verifier drops. Host-only (lazy ``python_deps`` import); NOT one
     of the pure adjudication functions."""
-    from graph.naming import package_roots
-    from graph.roots import _is_non_distribution
+    from graph.python.lanes.install.naming import package_roots
+    from graph.python.lanes.install.roots import _is_non_distribution
     from python_deps.evidence import collect_python_dependency_evidence
     from python_deps.import_mapping import normalize_package_name
 
@@ -220,8 +220,8 @@ def score_repo(repo_dir: str, full_name: str, gold_imports: Mapping[str, str]) -
     Host-only: ``scan_to_nodes`` (AST scan) + the declared-only ``select_roots``
     (the verifier arm) + the reconstructed generator arm (``select_roots`` UNION
     ``naming.package_roots`` gap-fill). No container, no network, no build-agent phase."""
-    from graph.roots import select_roots
-    from graph.scan import scan_to_nodes
+    from graph.python.lanes.install.roots import select_roots
+    from graph.python.read.scan import scan_to_nodes
     from graph.schema import NodeType
 
     graph = scan_to_nodes(repo_dir)

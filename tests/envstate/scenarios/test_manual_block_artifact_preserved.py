@@ -26,8 +26,8 @@ from src.envstate.run_trace import RunTracer
 from src.envstate.trace_verify import verify_artifact_consistency, verify_canonical_trace
 from src.envstate.world_model import initial_map, merge_map
 from src.sandbox import InstallResult
-from graph.build_script import render_build_script
-from graph.patch import PatchProposal, ScriptPatch
+from graph.emit.build_script import render_build_script
+from graph.mutate.patch import PatchProposal, ScriptPatch
 from graph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
 
 _BLOCK_ID = "system.manual-libfoo"

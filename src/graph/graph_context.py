@@ -257,7 +257,7 @@ def _anchor_for_cause(graph: DepGraph, cause) -> Node | None:
     """The graph node a pytest cause names. Matches a quoted module name against Package
     nodes by canonical name (the same normalized-name match runtime_ingest._find_existing_node
     uses -- do not reinvent it)."""
-    from graph.naming import normalize_package_name
+    from graph.python.lanes.install.naming import normalize_package_name
 
     m = re.search(r"['\"]([\w.\-]+)['\"]", cause.detail or "")
     if not m:

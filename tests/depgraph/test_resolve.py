@@ -24,8 +24,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from graph.executor import CommandResult
-from graph.resolve import (
+from graph.contracts.executor import CommandResult
+from graph.python.lanes.install.resolve import (
     DEFAULT_TARGET_PLATFORM,
     UV_BIN,
     _diagnosis_to_graph,
@@ -42,7 +42,7 @@ from graph.schema import (
     NodeType,
     State,
 )
-from graph.target_env import TargetEnv
+from graph.python.read.target_env import TargetEnv
 
 # --------------------------------------------------------------------------- #
 # Canned uv.lock fixtures.
@@ -503,8 +503,8 @@ def test_native_risk_forked_lock_uses_target_python_version():
 # resolve (``resolve_lock._marker_env`` / ``TargetEnv``).
 # --------------------------------------------------------------------------- #
 def test_x86_gated_dep_kept_when_target_is_x86_even_on_arm_host():
-    from graph.resolve_lock import _marker_applies, _marker_env
-    from graph.target_env import TargetEnv
+    from graph.python.lanes.install.resolve_lock import _marker_applies, _marker_env
+    from graph.python.read.target_env import TargetEnv
 
     target = TargetEnv(
         python_full="3.11.0",
@@ -1389,7 +1389,7 @@ def test_resolve_closure_falls_back_to_pip_compile_when_no_lock(tmp_path):
 
 
 def test_compile_command_feeds_roots_via_heredoc_stdin():
-    from graph.resolve import _compile_command
+    from graph.python.lanes.install.resolve import _compile_command
 
     cmd = _compile_command(["opencv-python", "pillow"], "3.11")
     assert "<<'DEPGRAPH_REQS'" in cmd
@@ -1442,7 +1442,7 @@ def test_parse_uv_lock_virtual_root_is_skipped_but_editable_and_directory_become
     nodes carrying evidence of their real source, never installed by bare
     ``name==version`` (see ``emit._is_reciped`` / the ``data['uninstallable']``
     gate this reuses)."""
-    from graph.emit import _is_reciped
+    from graph.emit.emit import _is_reciped
 
     nodes, _edges = parse_uv_lock(LOCAL_SOURCES_LOCK)
     by_name = _node_by_name(nodes)
@@ -1862,7 +1862,7 @@ def test_resolve_closure_wall_clock_budget_stops_before_any_attempt(tmp_path, mo
     dropped."""
     import itertools
 
-    import graph.resolve as resolve_module
+    import graph.python.lanes.install.resolve as resolve_module
 
     monkeypatch.setenv("DEPGRAPH_RESOLVE_LADDER_BUDGET_S", "10")
     # deadline=10.0 computed from tick 1; every later tick (the loop's own
@@ -1932,7 +1932,7 @@ def test_resolve_closure_in_flight_timeout_uses_remaining_budget_and_surfaces_ex
     both the log and the graph."""
     import itertools
 
-    import graph.resolve as resolve_module
+    import graph.python.lanes.install.resolve as resolve_module
 
     # budget=300 (module default, no env override). tick 1 -> deadline=300.0.
     # tick 2 (the loop's own top-of-round check) -> now=50.0, so 250s remain --
@@ -1980,9 +1980,9 @@ def test_resolve_closure_budget_exhausted_node_is_never_emittable_or_certifiable
     carries no version and no check_command (the two independent belts that
     keep it out of ``emit.next_deterministic_wave()`` and out of reach of
     ``certify()``'s "any rc-0 check flips MISSING -> SATISFIED" rule)."""
-    from graph import emit
+    from graph.emit import emit
     from graph.schema import DepGraph
-    from graph.resolve import _budget_exhausted_node
+    from graph.python.lanes.install.resolve import _budget_exhausted_node
 
     node = _budget_exhausted_node(
         roots=[(None, "pkg-a")], current=[(None, "pkg-a")], budget_s=300.0,
@@ -2176,7 +2176,7 @@ def test_resolve_closure_stamps_exclude_newer(tmp_path):
 # Shell-injection hardening (review): quoting + name/version validation.
 # --------------------------------------------------------------------------- #
 def test_lock_command_quotes_caller_supplied_args():
-    from graph.resolve import _lock_command
+    from graph.python.lanes.install.resolve import _lock_command
 
     cmd = _lock_command("/tmp/wd", "3.11", "2024-01-01")
     assert "--python 3.11" in cmd
@@ -2191,7 +2191,7 @@ def test_lock_command_omits_unsupported_python_platform_flag():
     # cross-platform lock; platform targeting happens downstream at PARSE
     # time (`parse_uv_lock`/`native_risk_from_lock`), never via a `uv lock`
     # CLI flag. `--python` is still the correct/supported interpreter target.
-    from graph.resolve import _lock_command
+    from graph.python.lanes.install.resolve import _lock_command
 
     cmd = _lock_command("/tmp/wd", "3.11", None)
     assert "--python-platform" not in cmd
@@ -2210,8 +2210,8 @@ def test_lock_command_succeeds_against_real_uv(tmp_path):
     entirely without a real ``uv`` on PATH, and skipped gracefully on an
     apparent network failure rather than failing CI on flaky connectivity.
     """
-    from graph.executor import LocalSubprocessExecutor
-    from graph.resolve import _lock_command, _write_pyproject
+    from graph.contracts.executor import LocalSubprocessExecutor
+    from graph.python.lanes.install.resolve import _lock_command, _write_pyproject
 
     workdir = str(tmp_path)
     _write_pyproject(workdir, ["shellingham"], "3.11")
@@ -2233,7 +2233,7 @@ def test_lock_command_succeeds_against_real_uv(tmp_path):
 
 
 def test_write_pyproject_rejects_bad_python_version(tmp_path):
-    from graph.resolve import _write_pyproject
+    from graph.python.lanes.install.resolve import _write_pyproject
 
     import pytest
 
@@ -2242,7 +2242,7 @@ def test_write_pyproject_rejects_bad_python_version(tmp_path):
 
 
 def test_write_pyproject_includes_optional_dependencies_section_for_chosen_extras(tmp_path):
-    from graph.resolve import _write_pyproject
+    from graph.python.lanes.install.resolve import _write_pyproject
 
     _write_pyproject(str(tmp_path), ["flask", "pytest"], "3.11", extras=frozenset({"test"}))
     content = (tmp_path / "pyproject.toml").read_text()
@@ -2251,7 +2251,7 @@ def test_write_pyproject_includes_optional_dependencies_section_for_chosen_extra
 
 
 def test_write_pyproject_omits_optional_dependencies_section_when_no_extras(tmp_path):
-    from graph.resolve import _write_pyproject
+    from graph.python.lanes.install.resolve import _write_pyproject
 
     _write_pyproject(str(tmp_path), ["flask"], "3.11")
     content = (tmp_path / "pyproject.toml").read_text()
@@ -2259,7 +2259,7 @@ def test_write_pyproject_omits_optional_dependencies_section_when_no_extras(tmp_
 
 
 def test_write_pyproject_drops_unsafe_extras_group_name(tmp_path):
-    from graph.resolve import _write_pyproject
+    from graph.python.lanes.install.resolve import _write_pyproject
 
     # An injectable-looking group name must never reach the TOML table key.
     _write_pyproject(
@@ -2271,7 +2271,7 @@ def test_write_pyproject_drops_unsafe_extras_group_name(tmp_path):
 
 
 def test_compile_command_drops_injectable_dist_name():
-    from graph.resolve import _compile_command
+    from graph.python.lanes.install.resolve import _compile_command
 
     cmd = _compile_command(["flask", "evil\nDEPGRAPH_REQS\nrm -rf /"], "3.11")
     body = cmd.split("<<'DEPGRAPH_REQS'\n", 1)[1]
@@ -2280,7 +2280,7 @@ def test_compile_command_drops_injectable_dist_name():
 
 
 def test_safe_dist_names_keeps_version_specifiers():
-    from graph.resolve import _safe_dist_names
+    from graph.python.lanes.install.resolve import _safe_dist_names
 
     # Constrained requirement tokens are kept (needed for conflict detection) ...
     kept = _safe_dist_names(["urllib3<1.21", "numpy>=2,<3", "requests==2.32.3"])
@@ -2293,7 +2293,7 @@ def test_safe_dist_names_keeps_version_specifiers():
 
 
 def test_req_name_strips_specifier_for_matching():
-    from graph.resolve import _req_name
+    from graph.python.lanes.install.resolve import _req_name
 
     assert _req_name("urllib3<1.21") == "urllib3"
     assert _req_name("numpy>=2,<3") == "numpy"
@@ -2304,7 +2304,7 @@ def test_req_name_strips_specifier_for_matching():
 def test_link_imports_to_packages_reconciles_manifest_sourced_packages():
     """Regression: manifest-declared deps (root import_id=None) must still link
     their scanned Import node to the resolved Package (the orphaned-import bug)."""
-    from graph.resolve import link_imports_to_packages
+    from graph.python.lanes.install.resolve import link_imports_to_packages
     from graph.schema import (
         DepGraph,
         DiscoveredBy,
@@ -2349,8 +2349,8 @@ def test_link_imports_skips_unresolved_mapping(monkeypatch):
     """Guard (Task 3): an UNRESOLVED mapping must be skipped, not fed into
     ``_canon`` as ``None`` (previously: TypeError, since ``_canon`` runs
     ``re.sub`` on its argument)."""
-    import graph.resolve_link as resolve_link
-    from graph.resolve import link_imports_to_packages
+    import graph.python.lanes.install.resolve_link as resolve_link
+    from graph.python.lanes.install.resolve import link_imports_to_packages
     from graph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType
     from python_deps.import_mapping import unresolved_result
 
@@ -2374,8 +2374,8 @@ def test_link_imports_reconciles_unresolved_by_own_name(monkeypatch):
     """An UNRESOLVED import must still link to a Package that ALREADY EXISTS under the
     import's own canonical name — reconciliation against existing graph state, never
     fabrication. (Regression guard for the identity-fallback deletion.)"""
-    import graph.resolve_link as resolve_link
-    from graph.resolve import link_imports_to_packages
+    import graph.python.lanes.install.resolve_link as resolve_link
+    from graph.python.lanes.install.resolve import link_imports_to_packages
     from graph.schema import (
         DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType,
     )
@@ -2403,7 +2403,7 @@ def test_link_imports_reconciles_unresolved_by_own_name(monkeypatch):
 
 
 def test_resolved_package_node_keeps_pip_fix():
-    from graph.resolve import _package_node
+    from graph.python.lanes.install.resolve import _package_node
 
     n = _package_node("python-dateutil", "2.9.0.post0")
     assert n.fix_candidates == ("pip:python-dateutil",)
@@ -2414,7 +2414,7 @@ def test_unresolved_placeholder_has_no_confident_fix():
     # A resolver-MISSING placeholder (an identity-fallback root uv could not
     # resolve) must NOT prescribe ``pip:<name>`` -- that name is exactly what
     # failed to resolve, so the fix would fail (or install a squatter).
-    from graph.resolve import _missing_package_node
+    from graph.python.lanes.install.resolve import _missing_package_node
     from graph.schema import State
 
     n = _missing_package_node("dateutil", None, "WARNING: Package(s) not found: dateutil\n")
@@ -2425,7 +2425,7 @@ def test_unresolved_placeholder_has_no_confident_fix():
 
 
 def test_conflict_placeholder_has_no_confident_fix():
-    from graph.resolve import _conflict_package_node
+    from graph.python.lanes.install.resolve import _conflict_package_node
 
     n = _conflict_package_node("foo", "conflict evidence")
     assert n.chosen_fix is None
@@ -2692,7 +2692,7 @@ def test_find_workspace_member_path_mismatched_declared_name_never_falls_back_to
     DIFFERENT name must never match 'hogli' by basename -- a present-but-
     mismatched declared name is authoritative and is never overridden by
     directory basename."""
-    from graph.resolve import _find_workspace_member_path
+    from graph.python.lanes.install.resolve import _find_workspace_member_path
 
     member = tmp_path / "packages" / "hogli"
     member.mkdir(parents=True)
@@ -2708,7 +2708,7 @@ def test_find_workspace_member_path_ambiguous_multiple_matches_returns_none(tmp_
     ambiguous -- never "pick the first" (that would make the outcome
     silently depend on filesystem/glob order); the caller must degrade to a
     MISSING node instead."""
-    from graph.resolve import _find_workspace_member_path
+    from graph.python.lanes.install.resolve import _find_workspace_member_path
 
     a = tmp_path / "packages" / "a"
     b = tmp_path / "packages" / "b"
@@ -2725,7 +2725,7 @@ def test_find_workspace_member_path_basename_fallback_still_works_without_declar
     matches by directory basename -- the fallback path stays intact for the
     common case (an internal workspace member with no packaging metadata of
     its own)."""
-    from graph.resolve import _find_workspace_member_path
+    from graph.python.lanes.install.resolve import _find_workspace_member_path
 
     member = tmp_path / "tools" / "hogli"
     member.mkdir(parents=True)
@@ -2770,7 +2770,7 @@ def test_write_pyproject_byte_identical_when_no_uv_sources(tmp_path):
     synthetic pyproject as before this task -- every existing resolve test
     passing unmodified already proves this at the suite level; this pins it
     directly at the `_write_pyproject` call boundary."""
-    from graph.resolve import _write_pyproject
+    from graph.python.lanes.install.resolve import _write_pyproject
 
     dir_a = tmp_path / "a"
     dir_b = tmp_path / "b"

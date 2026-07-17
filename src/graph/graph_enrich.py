@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import re
 
-from graph.certify import certify
+from graph.core.certify import certify
 from graph.diagnose import RepoContext, make_diagnostic_classifier
-from graph.naming import normalize_package_name
+from graph.python.lanes.install.naming import normalize_package_name
 from graph.req_slice import _provider_from_command
 from graph.runtime_ingest import ingest_runtime_failures
 from graph.schema import DepGraph, NodeType

@@ -11,7 +11,7 @@ if str(_SRC) not in sys.path:
 from graph.diagnose import (
     Diagnosis, Locality, Mode, RepoContext, classify_locality, is_local_import,
 )
-from graph.scan import local_module_names
+from graph.python.read.scan import local_module_names
 
 
 def test_repo_context_defaults_are_empty():

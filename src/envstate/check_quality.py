@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 
 from graph.schema import NodeType
-from graph.check_quality import check_can_detect_absence  # re-export
+from graph.mutate.check_quality import check_can_detect_absence  # re-export
 
 __all__ = ["rewrite_syslib_check", "check_can_detect_absence"]
 

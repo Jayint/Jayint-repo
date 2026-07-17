@@ -21,7 +21,7 @@ if str(_SRC) not in sys.path:
 
 import pytest  # noqa: E402
 
-from graph.executor import CommandResult  # noqa: E402
+from graph.contracts.executor import CommandResult  # noqa: E402
 from graph.schema import (  # noqa: E402
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy,
 )
@@ -194,7 +194,7 @@ def _no_pypi_network(monkeypatch):
     """
     import urllib.request
 
-    from graph import coverage as _coverage
+    from graph.python.lanes.install import coverage as _coverage
 
     def _blind_fetch(_dist):  # no wheel read -> blind candidate, zero network
         return None

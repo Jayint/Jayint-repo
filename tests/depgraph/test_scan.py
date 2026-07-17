@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from graph.ids import TEST_NODE_ID, import_id
-from graph.scan import scan_to_nodes
+from graph.python.read.scan import scan_to_nodes
 from graph.schema import (
     DiscoveredBy,
     EdgeType,

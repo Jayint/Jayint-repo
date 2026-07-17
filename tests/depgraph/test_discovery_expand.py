@@ -18,7 +18,7 @@ from graph.schema import (
 class _Exec:
     """CommandResult fields are (command, returncode, stdout, stderr) — there is NO `rc`."""
     def run(self, command, **_kw):
-        from graph.executor import CommandResult
+        from graph.contracts.executor import CommandResult
         return CommandResult(command, 0, "", "")
 
 

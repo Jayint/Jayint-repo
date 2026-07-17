@@ -11,7 +11,7 @@ is just injecting a different ``ResolveSource``, never touching
 Built SEPARATE from ``graph`` (per plan) so the two designs
 can be A/B-evaluated; this module does not modify anything under
 ``depgraph/``. ``UvResolveSource`` is the one exception that reaches into
-``depgraph.resolve.resolve_closure`` (the real, tested uv-lock orchestrator)
+``depgraph.python.lanes.install.resolve.resolve_closure`` (the real, tested uv-lock orchestrator)
 purely as an ADAPTER -- it is the ONLY place in this module that shells out
 to a live ``uv`` binary, and it is deliberately NOT exercised by the unit
 tests in ``tests/pkg_layer/test_closure.py`` (those drive a fake
@@ -21,10 +21,10 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from graph.executor import Executor
-from graph.resolve import resolve_closure
+from graph.contracts.executor import Executor
+from graph.python.lanes.install.resolve import resolve_closure
 from graph.schema import NodeType
-from graph.target_env import TargetEnv
+from graph.python.read.target_env import TargetEnv
 from python_deps.pkg_layer.planes import ClosurePkg, Tier, _canon
 
 # ``resolve_closure`` returns real resolved Package nodes with this
@@ -79,7 +79,7 @@ def build_closure(
 
 
 class UvResolveSource:
-    """Adapts ``depgraph.resolve.resolve_closure`` (real ``uv.lock`` resolve)
+    """Adapts ``depgraph.python.lanes.install.resolve.resolve_closure`` (real ``uv.lock`` resolve)
     to the ``ResolveSource`` protocol.
 
     NOT exercised by unit tests: calling ``.resolve`` shells out to the host

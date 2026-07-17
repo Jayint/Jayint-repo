@@ -8,7 +8,7 @@ gate (``NATIVE_RISK_PACKAGES``), which the resolver does not supersede.
 
 from __future__ import annotations
 
-from graph.tables import (
+from graph.python.native.tables import (
     CLI_TOOL_TO_APT,
     NATIVE_RISK_PACKAGES,
 )

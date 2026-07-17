@@ -10,9 +10,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable
 
-from graph.certify import certify_all
-from graph.emit import EMIT_ATTEMPT_TAG, build_recipe, partition, topo_order
-from graph.executor import CommandResult
+from graph.core.certify import certify_all
+from graph.emit.emit import EMIT_ATTEMPT_TAG, build_recipe, partition, topo_order
+from graph.contracts.executor import CommandResult
 from graph.schema import Attempt
 from src.envstate.world_model import RecipePatch, RecipeStep
 
@@ -56,7 +56,7 @@ def certify_refresh(
     if graph is None or not graph.nodes or exec_readonly is None:
         return graph
     import os
-    from graph.certify import _SERVICE_LAYER_ORDER, _LAYER_ORDER
+    from graph.core.certify import _SERVICE_LAYER_ORDER, _LAYER_ORDER
     if allow_service_certify is None:
         allow_service_certify = os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION") == "1"
     order = _SERVICE_LAYER_ORDER if allow_service_certify else _LAYER_ORDER
@@ -76,7 +76,7 @@ def test_gate_soname_refresh(graph, exec_readonly, events, test_cmd):
     """
     if graph is None or exec_readonly is None:
         return graph
-    from graph.probe import test_gate_probe
+    from graph.python.native.probe import test_gate_probe
     executor = _ReadonlyExecAdapter(exec_readonly)
     new = graph
     for cmd, out in events:
@@ -214,7 +214,7 @@ def repair_failed_nodes(
 
     Returns ``(new_graph, steps_consumed, repaired_count)``.
     """
-    from graph.emit import failed_reciped_nodes
+    from graph.emit.emit import failed_reciped_nodes
     from src.envstate.world_model import Task
 
     steps = 0

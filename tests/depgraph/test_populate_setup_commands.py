@@ -1,4 +1,4 @@
-from graph.populate import (
+from graph.emit.populate import (
     _FAILED_NODES_LOG,
     populate_setup_commands,
 )
@@ -216,7 +216,7 @@ def test_non_installable_project_certificate_is_not_poisoned():
 
 def test_scratch_certified_project_is_not_poisoned():
     from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
-    from graph.populate import populate_setup_commands
+    from graph.emit.populate import populate_setup_commands
     # `installable=True` so this node DOES reach the capstone/poison call site
     # (a project with no build system is skipped by `_should_populate` and would
     # never be poisoned regardless, making the gate untested). `scratch_certified`

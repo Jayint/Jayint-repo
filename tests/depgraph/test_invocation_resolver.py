@@ -15,7 +15,7 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-from graph.invocation_resolver import (
+from graph.python.invocation_resolver import (
     SUPPORTED_MINORS,
     TestEnvPlan,
     resolve,
@@ -734,7 +734,7 @@ def test_testenvplan_carries_cwd_and_unambiguous_env(tmp_path):
     (tmp_path / "tox.ini").write_text(
         "[testenv]\nsetenv =\n    DJANGO_SETTINGS_MODULE=app.settings\n"
     )
-    from graph.invocation_resolver import resolve
+    from graph.python.invocation_resolver import resolve
     plan = resolve(str(tmp_path))
     assert plan.cwd == plan.rootdir            # default cwd = rootdir
     assert ("DJANGO_SETTINGS_MODULE", "app.settings") in plan.env
@@ -751,7 +751,7 @@ def test_env_and_pythonpath_scoped_to_config_dir(tmp_path):
         "    DJANGO_SETTINGS_MODULE=app.settings\n"
         "    PYTHONPATH=src\n"
     )
-    from graph.invocation_resolver import resolve
+    from graph.python.invocation_resolver import resolve
     plan = resolve(str(tmp_path))
     assert plan.rootdir == "sdk/python"
     assert ("DJANGO_SETTINGS_MODULE", "app.settings") in plan.env  # found in the subdir, not root

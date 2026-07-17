@@ -17,8 +17,8 @@ for _p in (_REPO_ROOT, _SRC):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from graph.executor import CommandResult  # noqa: E402
-from graph.patch import PatchProposal, ProviderSpec  # noqa: E402
+from graph.contracts.executor import CommandResult  # noqa: E402
+from graph.mutate.patch import PatchProposal, ProviderSpec  # noqa: E402
 from graph.schema import DepGraph, DiscoveredBy, Edge, Layer, Node, NodeType  # noqa: E402
 from src.eval.graph_repair_ablation import run  # noqa: E402
 from src.eval.graph_repair_ablation.oracle import PILOT_INJECTIONS  # noqa: E402

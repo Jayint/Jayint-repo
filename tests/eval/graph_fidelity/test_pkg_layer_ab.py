@@ -1,6 +1,6 @@
 """Unit tests for the pure pkg_layer root-selection A/B scorer (Task 7).
 
-NEW (pkg_layer.contract, contract-only) vs CURRENT (depgraph.roots, manifest
+NEW (pkg_layer.contract, contract-only) vs CURRENT (depgraph.python.lanes.install.roots, manifest
 + scan-gap-fill) — the divergence is "packages CURRENT has that NEW omits",
 adjudicated against gold labels exactly like Track A's generator/verifier
 split (``root_selection_ab.py``). All pure here — no repo checkout, no
@@ -57,7 +57,7 @@ def test_bare_name_strips_leading_whitespace_before_matching():
 # --- build_divergence -------------------------------------------------------
 
 def test_build_divergence_specifier_carrying_declared_root_not_divergent():
-    # depgraph.roots deliberately carries the version specifier on a
+    # depgraph.python.lanes.install.roots deliberately carries the version specifier on a
     # manifest-declared root (e.g. "numpy<2"); pkg_layer.contract always
     # returns bare names ("numpy"). A declared dep must NOT be misreported
     # as a root-selection divergence just because CURRENT's token shape

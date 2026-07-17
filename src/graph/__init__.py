@@ -8,15 +8,15 @@ Debian/Ubuntu provider mappings.
 
 from __future__ import annotations
 
-from graph.build import build_dep_graph
-from graph.certify import certify, certify_all
-from graph.executor import (
+from graph.core.build import build_dep_graph
+from graph.core.certify import certify, certify_all
+from graph.contracts.executor import (
     CommandResult,
     DockerExecutor,
     Executor,
     LocalSubprocessExecutor,
 )
-from graph.export import to_graphml
+from graph.emit.export import to_graphml
 from graph.schema import (
     Attempt,
     DepGraph,

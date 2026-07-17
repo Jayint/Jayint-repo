@@ -6,7 +6,7 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from graph.patch import PatchProposal, ProviderSpec
+from graph.mutate.patch import PatchProposal, ProviderSpec
 from src.envstate.repair_loop import run_structured_repair, RepairOutcome
 from src.envstate.repair_scope import RepairScope
 

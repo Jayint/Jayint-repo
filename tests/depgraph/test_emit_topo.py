@@ -1,4 +1,4 @@
-from graph.emit import topo_order
+from graph.emit.emit import topo_order
 from graph.schema import (
     DepGraph, Edge, EdgeType, Layer, Node, NodeType, State, DiscoveredBy,
 )

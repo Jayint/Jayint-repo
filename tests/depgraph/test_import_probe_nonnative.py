@@ -18,7 +18,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from graph.ids import import_id, package_id, syslib_id
-from graph.probe import import_probe
+from graph.python.native.probe import import_probe
 from graph.schema import (
     DepGraph,
     DiscoveredBy,

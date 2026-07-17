@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from graph.patch_gate import admit_proposal, compose_script
+from graph.mutate.patch_gate import admit_proposal, compose_script
 from src.envstate.repair_scope import build_repair_scope
 
 

@@ -1,10 +1,10 @@
-from graph import pep725
-from graph.pep725 import (
+from graph.python.native import pep725
+from graph.python.native.pep725 import (
     needs_from_pyproject,
     parse_depurl,
     parse_external_table,
 )
-from graph.os_resolver import capability_id
+from graph.python.native.os_resolver import capability_id
 
 # PEP 725 §Examples — cryptography 39.0 [external] table (verbatim DepURLs).
 CRYPTOGRAPHY = """
@@ -105,7 +105,7 @@ import io
 import tarfile
 import zipfile
 
-from graph.pep725 import (
+from graph.python.native.pep725 import (
     fetch_sdist_pyproject,
     pep725_external,
     read_sdist_archive,
@@ -206,7 +206,7 @@ def test_pep725_external_fetch_none_returns_empty(monkeypatch):
 def test_pep725_external_logs_present(monkeypatch, caplog):
     import logging as _log
     monkeypatch.setattr(pep725, "fetch_sdist_pyproject", lambda *a, **k: PILLOW_EXTERNAL)
-    with caplog.at_level(_log.INFO, logger="graph.pep725"):
+    with caplog.at_level(_log.INFO, logger="graph.python.native.pep725"):
         pep725_external("Pillow", "10.1.0", object())
     line = next(r.getMessage() for r in caplog.records if "pep725: pillow" in r.getMessage())
     assert "external=present" in line and "needs=2" in line
@@ -215,6 +215,6 @@ def test_pep725_external_logs_present(monkeypatch, caplog):
 def test_pep725_external_absent_no_info(monkeypatch, caplog):
     import logging as _log
     monkeypatch.setattr(pep725, "fetch_sdist_pyproject", lambda *a, **k: "[project]\nname = 'x'\n")
-    with caplog.at_level(_log.INFO, logger="graph.pep725"):
+    with caplog.at_level(_log.INFO, logger="graph.python.native.pep725"):
         pep725_external("x", None, object())
     assert not any("external=present" in r.getMessage() for r in caplog.records)

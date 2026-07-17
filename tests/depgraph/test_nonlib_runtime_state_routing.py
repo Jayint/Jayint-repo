@@ -7,8 +7,8 @@ Config/Service classifiers own them.
 """
 from __future__ import annotations
 
-from graph.failure_signatures import extract_needs
-from graph.probe import test_gate_probe
+from graph.python.native.failure_signatures import extract_needs
+from graph.python.native.probe import test_gate_probe
 from graph.runtime_classify import classify_observation
 from graph.schema import DepGraph, NodeType
 

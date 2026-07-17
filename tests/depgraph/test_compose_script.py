@@ -1,10 +1,10 @@
 # tests/depgraph/test_compose_script.py
 import re
 
-from graph.block import Block
-from graph.build_script import render_build_script
-from graph.patch_gate import compose_script
-from graph.script import render_setup_sh, parse_setup_sh
+from graph.mutate.block import Block
+from graph.emit.build_script import render_build_script
+from graph.mutate.patch_gate import compose_script
+from graph.emit.script import render_setup_sh, parse_setup_sh
 from graph.schema import (
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy,
 )

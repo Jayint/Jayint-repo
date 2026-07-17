@@ -1,4 +1,4 @@
-from graph import wheel_preflight
+from graph.python.native import wheel_preflight
 from graph.ids import package_id, syslib_id
 from graph.schema import (
     DepGraph,
@@ -8,7 +8,7 @@ from graph.schema import (
     NodeType,
     State,
 )
-from graph.target_env import TargetEnv
+from graph.python.read.target_env import TargetEnv
 
 
 def _target_env():
@@ -171,7 +171,7 @@ def test_wheel_preflight_logs_inspected_and_skipped(monkeypatch, caplog):
         _pkg("sdistpkg", "1.0", build_from_source=True),          # skipped_sdist
         _pkg("unknownpkg", "1.0", build_from_source=None),        # skipped_unknown
     )
-    with caplog.at_level(logging.INFO, logger="graph.wheel_preflight"):
+    with caplog.at_level(logging.INFO, logger="graph.python.native.wheel_preflight"):
         wheel_preflight.wheel_preflight_probe(g, object(), _target_env())
     line = next(r.getMessage() for r in caplog.records if "wheel_preflight: inspected=" in r.getMessage())
     assert "inspected=1" in line and "skipped_sdist=1" in line and "skipped_unknown=1" in line

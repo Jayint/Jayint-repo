@@ -247,7 +247,7 @@ def test_a_non_read_only_healthcheck_with_no_port_becomes_none():
 
 
 def test_the_tcp_check_itself_is_read_only():
-    from graph.patch_gate import is_read_only
+    from graph.mutate.patch_gate import is_read_only
     assert is_read_only(tcp_check(5432))
 
 

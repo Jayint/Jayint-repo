@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from graph.emit import _is_reciped
+from graph.emit.emit import _is_reciped
 from graph.schema import State
 from src.envstate.depgraph_live import certify_refresh
 

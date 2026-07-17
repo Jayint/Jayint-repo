@@ -329,7 +329,7 @@ def test_uv_sourced_dependency_scope_governed_entirely_by_true_kind_via_select_r
     # never activates) stays OUT, uv source or not. Scope is the ONLY thing
     # deciding membership; there is no separate uv-sources carve-out either
     # way.
-    from graph.roots import select_roots
+    from graph.python.lanes.install.roots import select_roots
     from graph.schema import DepGraph
 
     _write(

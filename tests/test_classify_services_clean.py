@@ -19,8 +19,8 @@ for _p in (str(_ROOT), str(_SRC)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from graph.build_script import render_build_script
-from graph.emit import _is_service_reciped
+from graph.emit.build_script import render_build_script
+from graph.emit.emit import _is_service_reciped
 from graph.schema import DepGraph, NodeType, State
 from graph.service_recipes import render_probe_poll
 
@@ -347,7 +347,7 @@ def test_incidental_and_secret_shaped_vars_are_never_baked(tmp_path):
 
 def test_conflicting_defaults_for_an_allowlisted_var_bakes_nothing(tmp_path):
     """AMBIGUOUS -> never pick a variant (same discipline as
-    `depgraph.repair.choose_provider`'s AMBIGUOUS branch). Two files disagreeing
+    `depgraph.python.lanes.install.repair.choose_provider`'s AMBIGUOUS branch). Two files disagreeing
     on DJANGO_SETTINGS_MODULE's default must bake NEITHER value -- not whichever
     file the walk happened to visit first -- through the real wiring end to end."""
     _write(tmp_path, "manage.py",

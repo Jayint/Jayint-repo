@@ -2,7 +2,7 @@
 import json
 from graph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy
 from graph.ids import package_id, project_id
-from graph.static_collect import (
+from graph.python.read.static_collect import (
     DeterministicHit, collect_static_evidence, compact_bundle_json,
 )
 

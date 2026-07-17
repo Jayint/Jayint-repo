@@ -6,7 +6,7 @@ match" line is an assertion.
 """
 from __future__ import annotations
 
-from graph.failure_signatures import extract_needs
+from graph.python.native.failure_signatures import extract_needs
 
 
 def _kn(needs):
@@ -258,14 +258,14 @@ def test_undefined_reference_is_not_a_linker_lib():
 
 # ── GLIBC / symbol-version mismatch (ABI, not an absent package) ────────────
 def test_glibc_version_mismatch_emits_no_soname():
-    from graph.failure_signatures import extract_needs
+    from graph.python.native.failure_signatures import extract_needs
     text = ("ImportError: /lib/x86_64-linux-gnu/libm.so.6: "
             "version `GLIBC_2.34' not found (required by foo.so)")
     assert extract_needs(text) == []
 
 
 def test_symbol_lookup_error_emits_nothing():
-    from graph.failure_signatures import extract_needs
+    from graph.python.native.failure_signatures import extract_needs
     assert extract_needs("symbol lookup error: /app/x.so: undefined symbol: foo") == []
 
 

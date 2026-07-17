@@ -1,11 +1,11 @@
 import os
 import textwrap
-from graph.config_scan import scan_env_reads
-from graph.config_scan import scan_framework_config_reads
-from graph.config_scan import parse_env_example, configured_vars
-from graph.config_scan import scan_env_defaults
-from graph.config_scan import _config_node
-from graph.config_scan import (
+from graph.python.config_scan import scan_env_reads
+from graph.python.config_scan import scan_framework_config_reads
+from graph.python.config_scan import parse_env_example, configured_vars
+from graph.python.config_scan import scan_env_defaults
+from graph.python.config_scan import _config_node
+from graph.python.config_scan import (
     authoritative_ambiguous_vars,
     scan_authoritative_config,
     scan_pyproject_pytest,
@@ -143,7 +143,7 @@ def test_scan_finds_bare_environ_setdefault(tmp_path):
 # ── FIX 3 — scan_env_defaults: deterministic walk + AMBIGUOUS -> drop, never pick a variant ──
 
 def test_scan_env_defaults_conflicting_values_across_files_drops_the_var(tmp_path):
-    """AMBIGUOUS -> never pick a variant (mirrors `depgraph.repair.choose_provider`'s
+    """AMBIGUOUS -> never pick a variant (mirrors `depgraph.python.lanes.install.repair.choose_provider`'s
     AMBIGUOUS branch). Two files disagreeing on a var's literal default must yield
     NEITHER value -- not whichever file the (previously undefined-order) walk
     happened to visit first."""

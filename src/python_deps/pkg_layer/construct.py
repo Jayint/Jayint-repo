@@ -49,7 +49,7 @@ def build_package_layer(
     dependency AND inside an EXCLUDED optional group would otherwise leak
     the excluded row back in, since its name still passes a membership
     check against the in-scope name set. Imports are never consulted for
-    this decision either (structurally ruling out the ``depgraph.roots``
+    this decision either (structurally ruling out the ``depgraph.python.lanes.install.roots``
     gap-fill bug).
     """
     contract = read_contract(repo_dir)

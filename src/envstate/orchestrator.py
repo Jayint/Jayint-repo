@@ -674,8 +674,8 @@ def run_v3(
         Returns ``(graph, evidence_bundle_or_None, failed_node_id_or_None)``.
         """
         nonlocal _last_replay_result
-        from graph.build_script import render_build_script
-        from graph.emit import _is_reciped
+        from graph.emit.build_script import render_build_script
+        from graph.emit.emit import _is_reciped
         from src.envstate.install_localizer import localize_install_failure, certify_reciped_only
         # Defense-in-depth: a repair proposal must not add a reciped node that can't be certified.
         _missing = [n.id for n in graph.nodes if _is_reciped(n) and not n.check_command]
@@ -728,7 +728,7 @@ def run_v3(
     from graph.diagnose import (
         Locality, Mode, RepoContext, classify_locality, diagnose_all,
     )
-    from graph import repo_modules as _repo_modules
+    from graph.python.read import repo_modules as _repo_modules
     from python_deps.failure_classifier import classify_dependency_failure
     from python_deps.import_mapping import normalize_package_name
     # PRECISE top-levels for the give-up decision; the COLLISION zone (broad-walk
@@ -887,7 +887,7 @@ def run_v3(
         from graph.schema import NodeType, State
         from src.envstate.world_model import Fact
         from src.envstate.depgraph_live import certify_refresh
-        from graph.emit import partition
+        from graph.emit.emit import partition
         graph = certify_refresh(current_map.dep_graph, exec_readonly, cycle)
         # Snapshot: was the graph already fully certified BEFORE this cycle's
         # fresh replay? (Same predicate as the provisional installability
@@ -1070,7 +1070,7 @@ def run_v3(
             # the reason; the main loop returns planner_giveup. done_flag is NEVER set.
             import logging
             from graph.runtime_ingest import diverged_node_ids
-            from graph.emit import partition
+            from graph.emit.emit import partition
             from graph.schedule import scheduler_frontier
             diverged = diverged_node_ids(pre_graph, found)
             # Match the real scheduler call (next_decision): the give-up
@@ -1261,7 +1261,7 @@ def run_v3(
                 # client. Do NOT silently downgrade to free-text mutation (that path
                 # no longer exists in run_v3) — give up honestly instead.
                 return _finish(TerminationReason.GIVEUP_CONFIG)
-            from graph.patch_gate import compose_script
+            from graph.mutate.patch_gate import compose_script
             from graph.evidence_log import EvidenceBundle
             _g = current_map.dep_graph
             _blocks = compose_script(_g, _manual_blocks) if _g is not None else ()

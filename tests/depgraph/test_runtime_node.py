@@ -1,6 +1,6 @@
 from conftest import FakeExecutor
-from graph.build import build_dep_graph
-from graph.executor import CommandResult
+from graph.core.build import build_dep_graph
+from graph.contracts.executor import CommandResult
 from graph.ids import runtime_id
 from graph.schema import NodeType, Layer
 

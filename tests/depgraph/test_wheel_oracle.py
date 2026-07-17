@@ -1,4 +1,4 @@
-from graph.wheel_oracle import (
+from graph.python.native.wheel_oracle import (
     _artifact_filename,
     _wheel_matches_platform,
     risk_from_packages,

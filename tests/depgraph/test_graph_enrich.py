@@ -153,7 +153,7 @@ class _FakeExec:
 
     def run(self, command, **_kw):
         self.seen.append(command)
-        from graph.executor import CommandResult
+        from graph.contracts.executor import CommandResult
         return CommandResult(command, self.returncode, "", "" if self.returncode == 0 else "boom")
 
 

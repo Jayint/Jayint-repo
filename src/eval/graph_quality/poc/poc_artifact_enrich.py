@@ -28,10 +28,10 @@ for p in (str(_ROOT), str(_ROOT / "src")):
         sys.path.insert(0, p)
 
 from graph.diagnose import RepoContext
-from graph.executor import DockerExecutor
+from graph.contracts.executor import DockerExecutor
 from graph.graph_enrich import enrich
 from graph.ids import TEST_NODE_ID, package_id
-from graph.ldd_probe import ldd_probe
+from graph.python.native.ldd_probe import ldd_probe
 from graph.schema import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )

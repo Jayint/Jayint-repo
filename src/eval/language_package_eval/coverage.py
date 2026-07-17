@@ -48,10 +48,10 @@ for _p in (_REPO_ROOT, _SRC):
         sys.path.insert(0, str(_p))
 
 from src.eval.language_package_eval.oracle import _TIER_KEYS, parse_oracle  # noqa: E402
-from graph.build import _project_name, build_dep_graph  # noqa: E402
-from graph.build_script import render_build_script  # noqa: E402
-from graph.emit import _apt_name  # noqa: E402
-from graph.executor import (  # noqa: E402
+from graph.core.build import _project_name, build_dep_graph  # noqa: E402
+from graph.emit.build_script import render_build_script  # noqa: E402
+from graph.emit.emit import _apt_name  # noqa: E402
+from graph.contracts.executor import (  # noqa: E402
     CommandResult, DockerExecutor, Executor, LocalSubprocessExecutor,
 )
 from graph.schema import DepGraph, NodeType  # noqa: E402

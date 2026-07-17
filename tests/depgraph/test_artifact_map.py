@@ -1,7 +1,7 @@
 import json
 
-from graph.artifact_map import resolve_artifact_map
-from graph.executor import CommandResult
+from graph.python.util.artifact_map import resolve_artifact_map
+from graph.contracts.executor import CommandResult
 
 
 class FakeExec:
@@ -115,7 +115,7 @@ def test_primary_command_gates_cat_on_pip_success_and_clears_stale_report():
     assert "rm -f /tmp/depgraph-artifact-report.json" in cmd
 
 
-from graph.target_env import TargetEnv
+from graph.python.read.target_env import TargetEnv
 
 
 def _target_env():
@@ -225,7 +225,7 @@ import logging
 
 def test_primary_logs_tier_and_classification_counts(caplog):
     ex = FakeExec({"pip install --dry-run": _res(stdout=_REPORT)})
-    with caplog.at_level(logging.INFO, logger="graph.artifact_map"):
+    with caplog.at_level(logging.INFO, logger="graph.python.util.artifact_map"):
         resolve_artifact_map(["requests==2.31.0", "psycopg2==2.9.9", "extra==1.0"], ex)
     line = next(r.getMessage() for r in caplog.records if "artifact_map: tier=" in r.getMessage())
     assert "tier=primary" in line

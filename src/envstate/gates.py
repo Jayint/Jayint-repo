@@ -17,7 +17,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from graph.emit import partition
+from graph.emit.emit import partition
 from graph.schema import DepGraph
 from src.envstate.constants import VERIFY_TEST_CMD
 

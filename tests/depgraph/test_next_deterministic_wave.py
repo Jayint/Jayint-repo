@@ -5,7 +5,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 from graph.schema import (  # noqa: E402
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy,
 )
-from graph.emit import next_deterministic_wave  # noqa: E402
+from graph.emit.emit import next_deterministic_wave  # noqa: E402
 
 
 def _pkg(nid, name, version, state=State.MISSING):

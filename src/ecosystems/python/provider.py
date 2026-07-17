@@ -12,13 +12,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from ecosystems.base import CertifyMode, ClosureMode
-from graph.build import (
+from graph.core.build import (
     _project_build_manifest,
     _python_native_obligations,
     _python_package_obligations,
 )
-from graph.executor import Executor
-from graph.repair import DistGuesser, RecordProvider
+from graph.contracts.executor import Executor
+from graph.python.lanes.install.repair import DistGuesser, RecordProvider
 from graph.schema import DepGraph
 from python_deps.evidence import collect_python_dependency_evidence
 
