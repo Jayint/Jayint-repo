@@ -1,10 +1,8 @@
 # tests/test_world_model_v2.py
 from src.envstate.world_model import (
-    initial_map, merge_map, map_to_dict, map_from_dict, derive_open_problems,
+    initial_map, merge_map, map_to_dict, map_from_dict,
     DependencyState, RecipeStep, RecipePatch, Fact,
 )
-from src.envstate.contracts.graph import ContractGraph
-from src.envstate.contracts.nodes import Node, Edge
 
 
 def _base():
@@ -25,12 +23,3 @@ def test_recipe_patch_types():
     rp = RecipePatch(steps=(RecipeStep("s1", "system_install", "apt-get install -y libgl1",
                                        ("contract:system_library:libGL.so.1",)),))
     assert rp.steps[0].command.startswith("apt-get")
-
-
-def test_derive_open_problems_from_active_blockers():
-    g = ContractGraph(nodes=(
-        Node("blocker:a", "Blocker", {"signature": "ImportError: libGL.so.1", "active": True,
-                                      "summary": "libGL missing", "layer": "system"}),
-        Node("blocker:gone", "Blocker", {"signature": "old", "active": False, "summary": "x", "layer": "deps"}),))
-    ops = derive_open_problems(g)
-    assert len(ops) == 1 and ops[0].layer == "system"

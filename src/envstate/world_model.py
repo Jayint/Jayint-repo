@@ -15,8 +15,6 @@ import json
 import re
 from typing import TYPE_CHECKING, Any
 
-from src.envstate.contracts.graph import ContractGraph
-
 if TYPE_CHECKING:
     # Imported only for type-checking to avoid a runtime import cycle
     # (python_deps depends on nothing here; this stays a string annotation).
@@ -86,7 +84,6 @@ class WorldModelMap:
     notes: tuple[str, ...] = ()          # durable cautions the maintainer wants kept
     env: dict[str, str] = dataclasses.field(default_factory=dict)   # scalar probe facts
     system_installed: tuple[Fact, ...] = ()   # apt names + pkg-config modules + tools present
-    contract_graph: ContractGraph = dataclasses.field(default_factory=ContractGraph.empty)
     dependency_state: DependencyState | None = None
     import_results: tuple[tuple[str, bool], ...] = ()   # (import_name, ok) from the sweep
     host_satisfied: frozenset[str] = dataclasses.field(default_factory=frozenset)
@@ -200,7 +197,6 @@ def initial_map(
         progress={layer: False for layer in _PROGRESS_LAYERS},
         done_flag=False,
         notes=(),
-        contract_graph=ContractGraph.empty(),
         dependency_state=None,
         import_results=(),
         host_satisfied=frozenset(),
@@ -222,7 +218,6 @@ def merge_map(
     build_system: str | None = None,
     language: str | None = None,
     system_installed: tuple[Fact, ...] | None = None,
-    contract_graph: ContractGraph | None = None,
     dependency_state: DependencyState | None = None,
     import_results: tuple[tuple[str, bool], ...] | None = None,
     host_satisfied: frozenset[str] | None = None,
@@ -247,7 +242,6 @@ def merge_map(
         build_system=build_system if build_system is not None else current.build_system,
         language=language if language is not None else current.language,
         system_installed=system_installed if system_installed is not None else current.system_installed,
-        contract_graph=contract_graph if contract_graph is not None else current.contract_graph,
         dependency_state=dependency_state if dependency_state is not None else current.dependency_state,
         import_results=import_results if import_results is not None else current.import_results,
         host_satisfied=host_satisfied if host_satisfied is not None else current.host_satisfied,
@@ -519,7 +513,6 @@ def map_to_dict(m: WorldModelMap) -> dict[str, Any]:
         "notes": list(m.notes),
         "env": dict(m.env),
         "system_installed": [_fact_to_dict(f) for f in m.system_installed],
-        "contract_graph": m.contract_graph.to_dict(),
         "dependency_state": _dependency_state_to_dict(m.dependency_state) if m.dependency_state is not None else None,
         "import_results": [list(pair) for pair in m.import_results],
         "host_satisfied": sorted(m.host_satisfied),
@@ -551,30 +544,8 @@ def map_from_dict(d: dict[str, Any]) -> WorldModelMap:
         notes=tuple(d.get("notes", [])),
         env=dict(d.get("env", {})),
         system_installed=tuple(_fact_from_dict(f) for f in d.get("system_installed", [])),
-        contract_graph=ContractGraph.from_dict(d.get("contract_graph", {})),
         dependency_state=_dependency_state_from_dict(raw_ds) if raw_ds is not None else None,
         import_results=tuple((str(pair[0]), bool(pair[1])) for pair in raw_ir),
         host_satisfied=frozenset(raw_hs),
         dep_advisory=str(d.get("dep_advisory", "")),
     )
-
-
-# ---------------------------------------------------------------------------
-# Derived views over the contract graph
-# ---------------------------------------------------------------------------
-
-def derive_open_problems(graph: ContractGraph) -> tuple[OpenProblem, ...]:
-    """Return OpenProblem entries derived from active Blockers in the graph.
-
-    Only Blockers with ``active=True`` (or missing ``active``, defaulting True)
-    are included.  ``layer`` defaults to ``"deps"`` when absent.
-    """
-    out: list[OpenProblem] = []
-    for b in graph.blockers():
-        if bool(b.data.get("active", True)):
-            out.append(OpenProblem(
-                signature=b.data.get("signature", ""),
-                interpretation=b.data.get("summary", ""),
-                layer=b.data.get("layer", "deps"),
-            ))
-    return tuple(out)

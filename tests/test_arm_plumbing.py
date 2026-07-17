@@ -81,19 +81,15 @@ class TestApplyArmEnv(unittest.TestCase):
                     "GRAPH_SCHEDULER", "RUNTIME_PIN", "SERVICE_PROVISION"):
             self.assertEqual(os.environ[f"DOCKERAGENT_ENABLE_{var}"], "1", var)
 
-    def test_v3_clears_contract_graph(self):
-        rrb._apply_arm_env("v3")
-        self.assertEqual(os.environ["DOCKERAGENT_ENABLE_CONTRACT_GRAPH"], "0")
-
     def test_v1_sets_only_v1(self):
         rrb._apply_arm_env("v1")
         self.assertEqual(os.environ["DOCKERAGENT_ENABLE_V1"], "1")
         for var in ("DEP_GRAPH", "DEP_EMIT", "RUNTIME_FEEDBACK",
-                    "GRAPH_SCHEDULER", "RUNTIME_PIN", "SERVICE_PROVISION", "CONTRACT_GRAPH"):
+                    "GRAPH_SCHEDULER", "RUNTIME_PIN", "SERVICE_PROVISION"):
             self.assertEqual(os.environ[f"DOCKERAGENT_ENABLE_{var}"], "0", var)
 
     def test_arm0_clears_all_flags(self):
         rrb._apply_arm_env("arm0")
         for var in ("V1", "DEP_GRAPH", "DEP_EMIT", "RUNTIME_FEEDBACK",
-                    "GRAPH_SCHEDULER", "RUNTIME_PIN", "SERVICE_PROVISION", "CONTRACT_GRAPH"):
+                    "GRAPH_SCHEDULER", "RUNTIME_PIN", "SERVICE_PROVISION"):
             self.assertEqual(os.environ[f"DOCKERAGENT_ENABLE_{var}"], "0", var)

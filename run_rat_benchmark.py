@@ -760,7 +760,6 @@ def _apply_arm_env(arm: str) -> None:
     is_v1 = arm in ("v1", "v3")
     is_v3 = arm == "v3"
     os.environ["DOCKERAGENT_ENABLE_V1"] = "1" if is_v1 else "0"
-    os.environ["DOCKERAGENT_ENABLE_CONTRACT_GRAPH"] = "0"
     os.environ["DOCKERAGENT_ENABLE_DEP_GRAPH"] = "1" if is_v3 else "0"
     os.environ["DOCKERAGENT_ENABLE_DEP_EMIT"] = "1" if is_v3 else "0"
     os.environ["DOCKERAGENT_ENABLE_RUNTIME_FEEDBACK"] = "1" if is_v3 else "0"
