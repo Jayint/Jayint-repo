@@ -108,7 +108,7 @@ The first sketch of this reorg had five load-bearing errors; the review traced r
 
 Each eviction was verified against real imports to confirm construction does not transitively depend on it:
 
-- **`runtime/` (~15 files):** the 8 `service_*` (service detection is driven from `envstate/classify_services_clean.py`, not construction), `advise`/`schedule`/`static_collect`/`req_slice`/`repoint`/`discovery_expand`/`evidence_log` (consumers are exclusively `envstate`), `DockerExecutor` (impl, not protocol), and `config_scan`'s generic env-evidence half.
+- **`runtime/` (~15 files):** the 8 `service_*` — a self-contained cluster (`service_construct` imports `service_evidence`/`parse`/`relevance`/`sources`) whose **two drivers are both execution-plane and also evicted here**: `envstate/classify_services_clean.py:42` (→ `service_construct.build_service_nodes`) and `advise.py:360` (→ `provider.service_obligations`, Phase 3, "live-only" — after the dep-graph is built). Core construction (`build.py` Phases A/B) references them only in comments; the sole graph-side coupling is `patch_gate` → `service_recipes`/`service_tables`, which is decoupled at the move (§4, §9). Then `advise`/`schedule`/`static_collect`/`req_slice`/`repoint`/`discovery_expand`/`evidence_log` (consumers are exclusively `envstate`), `DockerExecutor` (impl, not protocol), and `config_scan`'s generic env-evidence half.
 - **`repair_agent/` (~7 files):** `graph_context`, `diagnose`, `runtime_classify/ingest`, `graph_enrich`, and — only after the in-flight grounding work lands — `integrate`, `exec_trace`. All consume a finished graph + failure text; none is in `build_dep_graph`'s path.
 - **Deleted (~4):** `resolve_link` (retired), `script`/`translate_sanitize`/`config_tables` (test-only).
 
