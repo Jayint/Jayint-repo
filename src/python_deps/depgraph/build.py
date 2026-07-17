@@ -124,8 +124,11 @@ def _restamp(graph: DepGraph, node_ids: set[str], cycle: int) -> DepGraph:
     return new
 
 
-def _canon(name: str) -> str:
-    return re.sub(r"[-_.]+", "-", name).lower()
+# PEP-503 canonicalizer. Was a build-local def byte-identical to
+# import_mapping.normalize_package_name; aliased to that util-natured owner (not
+# duplicated) so the fixpoint/skeleton/pipeline split files import one shared
+# canonicalizer from util rather than a build-local copy.
+_canon = normalize_package_name
 
 
 def _project_name(repo_path: str) -> str:

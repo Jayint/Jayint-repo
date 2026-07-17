@@ -36,7 +36,7 @@ from python_deps.depgraph.config_scan import (
     authoritative_ambiguous_vars,
     scan_authoritative_config,
 )
-from python_deps.depgraph.roots import (
+from python_deps.depgraph.group_scope import (
     _DEV_GROUP_DENYLIST,
     _TEST_SCOPE_EXTRA_ALLOWLIST,
 )
