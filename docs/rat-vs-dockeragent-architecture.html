@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Architecture Teardown — RunAnyThing (RAT) vs DockerAgent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Hanken+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070a0f;
+    --bg-2:#0b1018;
+    --ink:#e7eef6;
+    --muted:#7d8ba0;
+    --faint:#465468;
+    --line:rgba(120,140,170,.14);
+    --rat:#2fd9c4;          /* RunAnyThing accent — teal */
+    --rat-dim:rgba(47,217,196,.13);
+    --da:#ffaf45;           /* DockerAgent accent — amber */
+    --da-dim:rgba(255,175,69,.12);
+    --shared:#9d8bff;       /* shared DNA — violet */
+    --mono:'JetBrains Mono',ui-monospace,monospace;
+    --disp:'Bricolage Grotesque',sans-serif;
+    --body:'Hanken Grotesk',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--body);
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+    position:relative;
+  }
+  /* blueprint grid + glow + grain */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:
+      linear-gradient(var(--line) 1px,transparent 1px),
+      linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:44px 44px;
+    mask-image:radial-gradient(ellipse 120% 90% at 50% 0%,#000 35%,transparent 80%);
+    opacity:.6;
+  }
+  body::after{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.04;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .glow{position:fixed;z-index:0;pointer-events:none;filter:blur(90px);opacity:.5}
+  .glow.g1{top:-180px;left:8%;width:520px;height:420px;background:radial-gradient(circle,rgba(47,217,196,.22),transparent 70%)}
+  .glow.g2{top:-160px;right:6%;width:520px;height:420px;background:radial-gradient(circle,rgba(255,175,69,.18),transparent 70%)}
+  .wrap{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:0 28px}
+
+  /* ---------- HERO ---------- */
+  header{padding:84px 0 30px;text-align:center}
+  .kicker{
+    font-family:var(--mono);font-size:12px;letter-spacing:.34em;text-transform:uppercase;
+    color:var(--muted);display:inline-flex;gap:12px;align-items:center;margin-bottom:26px;
+  }
+  .kicker .dot{width:6px;height:6px;border-radius:50%;background:var(--rat);box-shadow:0 0 10px var(--rat)}
+  h1{
+    font-family:var(--disp);font-weight:700;line-height:.98;letter-spacing:-.02em;
+    font-size:clamp(38px,6.6vw,82px);
+  }
+  h1 .v{color:var(--faint);font-weight:300;font-style:italic;display:block;font-size:.42em;letter-spacing:.04em;margin:14px 0}
+  h1 .rat-t{color:var(--rat)}
+  h1 .da-t{color:var(--da)}
+  .sub{max-width:680px;margin:26px auto 0;color:var(--muted);font-size:17px}
+  .sub code{font-family:var(--mono);font-size:.86em;color:var(--ink);background:rgba(255,255,255,.04);padding:1px 6px;border-radius:5px}
+  .legend{display:flex;gap:26px;justify-content:center;flex-wrap:wrap;margin-top:34px;font-family:var(--mono);font-size:12.5px;letter-spacing:.04em}
+  .legend span{display:inline-flex;align-items:center;gap:9px;color:var(--muted)}
+  .legend i{width:13px;height:13px;border-radius:3px;display:inline-block}
+  .swatch-rat{background:var(--rat);box-shadow:0 0 12px var(--rat-dim)}
+  .swatch-da{background:var(--da);box-shadow:0 0 12px var(--da-dim)}
+  .swatch-sh{background:var(--shared)}
+
+  /* ---------- SHARED DNA STRIP ---------- */
+  .dna{
+    margin:54px 0 8px;border:1px solid rgba(157,139,255,.28);border-radius:16px;
+    background:linear-gradient(180deg,rgba(157,139,255,.07),rgba(157,139,255,.02));
+    padding:22px 26px;position:relative;overflow:hidden;
+  }
+  .dna h3{font-family:var(--mono);font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--shared);margin-bottom:14px}
+  .dna ul{list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px 26px}
+  .dna li{font-size:14.5px;color:var(--ink);display:flex;gap:10px;align-items:flex-start}
+  .dna li::before{content:"≡";color:var(--shared);font-family:var(--mono);margin-top:1px}
+  .dna li b{font-weight:600}
+  .dna li small{color:var(--muted);font-family:var(--mono);font-size:11.5px}
+
+  /* ---------- COLUMNS ---------- */
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin:46px 0 20px;align-items:start}
+  .col-head{
+    display:flex;align-items:baseline;gap:14px;padding:0 4px 18px;border-bottom:1px solid var(--line);margin-bottom:26px;
+  }
+  .col-head .idx{font-family:var(--mono);font-size:12px;color:var(--faint)}
+  .col-head h2{font-family:var(--disp);font-size:30px;font-weight:700;letter-spacing:-.01em}
+  .col-head .tag{font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:auto;text-align:right;line-height:1.4}
+  .rat .col-head h2{color:var(--rat)} .da .col-head h2{color:var(--da)}
+
+  .pipe{display:flex;flex-direction:column;gap:0}
+  .stage{
+    position:relative;border-radius:13px;padding:16px 18px;
+    background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.008));
+    border:1px solid var(--line);
+    opacity:0;transform:translateY(18px);
+    transition:transform .6s cubic-bezier(.2,.7,.2,1),opacity .6s,border-color .3s,box-shadow .3s;
+  }
+  .stage.in{opacity:1;transform:none}
+  .rat .stage:hover{border-color:rgba(47,217,196,.45);box-shadow:0 0 0 1px rgba(47,217,196,.15),0 14px 40px -22px rgba(47,217,196,.5)}
+  .da .stage:hover{border-color:rgba(255,175,69,.45);box-shadow:0 0 0 1px rgba(255,175,69,.15),0 14px 40px -22px rgba(255,175,69,.5)}
+  .stage .top{display:flex;align-items:center;gap:11px;margin-bottom:7px}
+  .stage .num{
+    font-family:var(--mono);font-size:11px;font-weight:600;width:24px;height:24px;flex:none;
+    display:grid;place-items:center;border-radius:7px;color:var(--bg);
+  }
+  .rat .stage .num{background:var(--rat)} .da .stage .num{background:var(--da)}
+  .stage h4{font-family:var(--disp);font-size:17px;font-weight:600;letter-spacing:-.01em}
+  .stage .file{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:auto;text-align:right}
+  .stage p{font-size:13.5px;color:var(--muted);margin-left:35px}
+  .stage .tags{display:flex;flex-wrap:wrap;gap:6px;margin:9px 0 0 35px}
+  .chip{font-family:var(--mono);font-size:10.5px;letter-spacing:.02em;padding:2.5px 8px;border-radius:20px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+  .rat .chip.k{color:var(--rat);border-color:rgba(47,217,196,.3);background:var(--rat-dim)}
+  .da .chip.k{color:var(--da);border-color:rgba(255,175,69,.3);background:var(--da-dim)}
+
+  /* IO terminal pills */
+  .io{border-style:dashed;text-align:center;background:transparent}
+  .io h4{font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;font-weight:600}
+  .io p{margin:5px 0 0;text-align:center}
+  .rat .io h4{color:var(--rat)} .da .io h4{color:var(--da)}
+
+  /* connector */
+  .conn{height:30px;display:flex;justify-content:center;align-items:center;position:relative}
+  .conn::before{content:"";position:absolute;top:0;bottom:9px;width:2px;background:linear-gradient(var(--line),var(--line))}
+  .rat .conn::before{background:linear-gradient(rgba(47,217,196,.5),rgba(47,217,196,.2))}
+  .da .conn::before{background:linear-gradient(rgba(255,175,69,.5),rgba(255,175,69,.2))}
+  .conn::after{content:"";position:absolute;bottom:6px;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent}
+  .rat .conn::after{border-top:7px solid rgba(47,217,196,.55)} .da .conn::after{border-top:7px solid rgba(255,175,69,.55)}
+  .conn span{position:absolute;left:54%;font-family:var(--mono);font-size:10px;color:var(--faint);white-space:nowrap}
+
+  /* the ReAct loop block */
+  .loop{
+    border:1.5px dashed;border-radius:13px;padding:13px 13px 15px;position:relative;margin-top:2px;
+  }
+  .rat .loop{border-color:rgba(47,217,196,.4);background:rgba(47,217,196,.035)}
+  .da .loop{border-color:rgba(255,175,69,.4);background:rgba(255,175,69,.04)}
+  .loop .lbl{
+    position:absolute;top:-11px;left:14px;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
+    padding:1px 9px;border-radius:20px;background:var(--bg);text-transform:uppercase;
+  }
+  .rat .loop .lbl{color:var(--rat);border:1px solid rgba(47,217,196,.4)}
+  .da .loop .lbl{color:var(--da);border:1px solid rgba(255,175,69,.4)}
+  .loop .lbl::before{content:"↺ "}
+  .cycle{display:flex;flex-direction:column;gap:7px;margin-top:6px}
+  .step{
+    display:flex;gap:10px;align-items:flex-start;font-size:13px;padding:8px 11px;border-radius:9px;
+    background:rgba(255,255,255,.022);border:1px solid var(--line);
+  }
+  .step .s{font-family:var(--mono);font-size:10px;color:var(--bg);background:var(--muted);border-radius:5px;padding:1px 6px;flex:none;margin-top:1px}
+  .rat .step .s{background:var(--rat)} .da .step .s{background:var(--da)}
+  .step b{font-weight:600;color:var(--ink)}
+  .step em{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--faint);display:block;margin-top:1px}
+  .loop .feedback{font-family:var(--mono);font-size:10.5px;color:var(--muted);text-align:center;margin-top:9px;letter-spacing:.02em}
+  .loop .feedback span{color:inherit}
+  .rat .loop .feedback b{color:var(--rat)} .da .loop .feedback b{color:var(--da)}
+
+  /* side-attached module (memory) */
+  .aside{
+    margin:8px 0 0 35px;font-size:12px;color:var(--muted);border-left:2px solid var(--line);padding:3px 0 3px 12px;
+  }
+  .aside b{color:var(--ink);font-weight:600}
+  .aside .file{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+
+  /* LLM substrate bar */
+  .substrate{
+    margin-top:26px;border-radius:11px;padding:13px 16px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;
+    font-family:var(--mono);font-size:11.5px;border:1px dashed var(--line);
+  }
+  .substrate b{letter-spacing:.04em}
+  .rat .substrate{background:rgba(47,217,196,.04)} .rat .substrate b{color:var(--rat)}
+  .da .substrate{background:rgba(255,175,69,.04)} .da .substrate b{color:var(--da)}
+  .substrate small{color:var(--muted)}
+
+  /* ---------- COMPARISON TABLE ---------- */
+  section.cmp{margin:80px 0 30px}
+  .h-rule{display:flex;align-items:center;gap:18px;margin-bottom:30px}
+  .h-rule h3{font-family:var(--disp);font-size:clamp(24px,3.4vw,38px);font-weight:700;letter-spacing:-.01em;white-space:nowrap}
+  .h-rule::after{content:"";height:1px;flex:1;background:linear-gradient(90deg,var(--line),transparent)}
+  .h-rule .n{font-family:var(--mono);font-size:13px;color:var(--faint)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  thead th{
+    font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;text-align:left;
+    padding:14px 16px;color:var(--muted);border-bottom:1px solid var(--line);vertical-align:bottom;
+  }
+  thead th.c-rat{color:var(--rat)} thead th.c-da{color:var(--da)}
+  tbody td{padding:15px 16px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink)}
+  tbody tr:hover td{background:rgba(255,255,255,.018)}
+  td.axis{font-weight:600;color:var(--muted);font-family:var(--mono);font-size:12.5px;letter-spacing:.01em;width:18%}
+  td .mono,.dna code{font-family:var(--mono);font-size:12px;color:var(--ink);background:rgba(255,255,255,.04);padding:1px 5px;border-radius:4px}
+  td.col-rat{border-left:1px solid rgba(47,217,196,.18)}
+  td.col-da{border-left:1px solid rgba(255,175,69,.18)}
+
+  /* ---------- KEY DIFFERENCES ---------- */
+  .diffs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;margin:34px 0}
+  .diff{border:1px solid var(--line);border-radius:14px;padding:20px;background:linear-gradient(180deg,rgba(255,255,255,.022),transparent)}
+  .diff .ic{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);margin-bottom:12px}
+  .diff h4{font-family:var(--disp);font-size:18px;font-weight:600;margin-bottom:10px;letter-spacing:-.01em}
+  .diff p{font-size:13.5px;color:var(--muted)}
+  .diff p b.rat-t{color:var(--rat)} .diff p b.da-t{color:var(--da)}
+
+  footer{margin:70px 0 60px;padding-top:26px;border-top:1px solid var(--line);color:var(--faint);font-family:var(--mono);font-size:11.5px;line-height:1.9}
+  footer b{color:var(--muted)}
+
+  @media(max-width:920px){
+    .cols{grid-template-columns:1fr;gap:48px}
+    .dna ul{grid-template-columns:1fr 1fr}
+    td.axis{width:26%}
+  }
+  @media(max-width:560px){
+    .wrap{padding:0 16px}
+    .dna ul{grid-template-columns:1fr}
+    .stage .file{display:none}
+    table{font-size:12.5px}
+    thead th,tbody td{padding:11px 9px}
+  }
+  @media(prefers-reduced-motion:reduce){.stage{opacity:1;transform:none;transition:none}}
+</style>
+</head>
+<body>
+<div class="glow g1"></div><div class="glow g2"></div>
+
+<div class="wrap">
+  <header>
+    <div class="kicker"><span class="dot"></span>Code-grounded architecture teardown · 2026</div>
+    <h1>
+      <span class="rat-t">RunAnyThing</span>
+      <span class="v">— environment-construction agents, dissected &amp; compared —</span>
+      <span class="da-t">DockerAgent</span>
+    </h1>
+    <p class="sub">Both turn a bare repo into a working, tested environment. Both are <b>custom ReAct loops</b> over the raw <code>openai</code> SDK — no LangChain, no tool-calling. Here is exactly how each one is wired, end to end.</p>
+    <div class="legend">
+      <span><i class="swatch-rat"></i>RAT · RunAnyThing harness solver</span>
+      <span><i class="swatch-da"></i>DockerAgent · your solver</span>
+      <span><i class="swatch-sh"></i>shared DNA</span>
+    </div>
+  </header>
+
+  <!-- SHARED DNA -->
+  <div class="dna">
+    <h3>Shared DNA — same architectural class</h3>
+    <ul>
+      <li><div><b>Custom-built</b><br><small>no LangChain / LangGraph / AutoGen</small></div></li>
+      <li><div><b>ReAct, free-text</b><br><small>Thought → Action → Observation</small></div></li>
+      <li><div><b>Regex-parsed actions</b><br><small>no function / tool-calling</small></div></li>
+      <li><div><b>Raw <code>openai</code> SDK</b><br><small>chat.completions, text only</small></div></li>
+      <li><div><b>OpenRouter → Alibaba pin</b><br><small>extra_body provider order</small></div></li>
+      <li><div><b>One long-lived container</b><br><small>~one action per turn</small></div></li>
+    </ul>
+  </div>
+
+  <!-- TWO COLUMNS -->
+  <div class="cols">
+
+    <!-- ================= RAT ================= -->
+    <div class="col rat">
+      <div class="col-head">
+        <span class="idx">A /</span>
+        <h2>RunAnyThing (RAT)</h2>
+        <span class="tag">libkit + eval harness<br>Weave-traced</span>
+      </div>
+      <div class="pipe">
+
+        <div class="stage io"><h4>Input</h4><p><code style="font-family:var(--mono);font-size:12px">owner/repo</code> → <span class="mono" style="font-family:var(--mono)">RATModel.predict()</span></p></div>
+        <div class="conn"><span>full_name</span></div>
+
+        <div class="stage">
+          <div class="top"><span class="num">1</span><h4>SetupAgent</h4><span class="file">setupagent.py</span></div>
+          <p>Detects language (GitHub API → config files → <em>python</em> fallback), selects &amp; builds the base image / Dockerfile. <b>Not a ReAct loop</b> — deterministic environment selection.</p>
+          <div class="tags"><span class="chip k">language detect</span><span class="chip">4 langs: py·java·node·rust</span><span class="chip">base image</span></div>
+        </div>
+        <div class="conn"><span>base_image + language</span></div>
+
+        <div class="stage">
+          <div class="top"><span class="num">2</span><h4>Environment</h4><span class="file">environment.py</span></div>
+          <p>Spins up one Docker container, instantiates the matching <span class="mono" style="font-family:var(--mono)">LanguageConfig</span> (toolkit, test-runner tools, mirrors) shared with the agent.</p>
+          <div class="tags"><span class="chip">docker container</span><span class="chip">language_config</span></div>
+        </div>
+        <div class="conn"><span>container + config</span></div>
+
+        <!-- LOOP -->
+        <div class="loop">
+          <span class="lbl">CodeAgent.run · ReAct · max_turn 70</span>
+          <div class="stage" style="opacity:1;transform:none;border:none;background:none;padding:6px 2px 0">
+            <div class="top"><span class="num">3</span><h4>CodeAgent</h4><span class="file">codeagent.py</span></div>
+            <p style="margin-left:35px">Prompt = <span class="mono" style="font-family:var(--mono)">get_init_prompt()</span> → <b>Standard</b> (fixed numbered language pipeline) <span style="color:var(--faint)">|</span> <b>Automated</b> (self-authored <span class="mono" style="font-family:var(--mono)">/repo/plan.md</span>). Benchmark uses Standard.</p>
+          </div>
+          <div class="cycle">
+            <div class="step"><span class="s">T</span><div><b>Thought + Action</b> from one LLM call<em>### Thought … ### Action ```bash … ```</em></div></div>
+            <div class="step"><span class="s">A</span><div><b>Parse &amp; dispatch</b><em>regex extract → ToolDispatcher (tool DSL) OR raw bash in container</em></div></div>
+            <div class="step"><span class="s">O</span><div><b>Observation</b> = real terminal stdout + return code<em>+ "N turns left" + executed-command reflection</em></div></div>
+          </div>
+          <div class="feedback">↑ history re-sent each turn (char-trim ~150k) · ends on <b>STOP</b> sentinel or max_turn</div>
+        </div>
+        <div class="tags" style="margin:12px 0 0 0"><span class="chip k">edit-file</span><span class="chip k">run-pytest / -collect</span><span class="chip">change-python-version</span><span class="chip">retrieve_issue</span><span class="chip" style="color:#ff8d8d;border-color:rgba(255,141,141,.3)">tool-ablation → {stop}+tests</span></div>
+        <div class="conn"><span>configured container</span></div>
+
+        <div class="stage">
+          <div class="top"><span class="num">4</span><h4>Commit + Score</h4><span class="file">eval/models · scorers</span></div>
+          <p>Container committed to an image; harness runs <b>success</b>, <b>pytest-collect</b> &amp; <b>pytest-pass-rate</b> scorers. The run <em>is</em> the artifact — no recipe step.</p>
+          <div class="tags"><span class="chip">committed image</span><span class="chip">3 scorers</span></div>
+        </div>
+        <div class="conn"><span>result</span></div>
+        <div class="stage io"><h4>Output</h4><p>Configured &amp; tested <b>container image</b></p></div>
+      </div>
+
+      <div class="substrate">
+        <b>LLM ⛓</b><small>openai SDK · LLMChat.chat()</small><small>· default <span style="color:var(--rat)">deepseek-chat</span></small><small>· OpenRouter slug → Alibaba pin</small><small>· @weave.op tracing</small>
+      </div>
+    </div>
+
+    <!-- ================= DOCKERAGENT ================= -->
+    <div class="col da">
+      <div class="col-head">
+        <span class="idx">B /</span>
+        <h2>DockerAgent</h2>
+        <span class="tag">src/ + agent.py<br>recipe-synthesizing</span>
+      </div>
+      <div class="pipe">
+
+        <div class="stage io"><h4>Input</h4><p>repo URL → <span class="mono" style="font-family:var(--mono)">DockerAgent.run()</span><br><small style="font-family:var(--mono);font-size:11px;color:var(--faint)">via MultiDockerEvalAdapter inside RAT</small></p></div>
+        <div class="conn"><span>repo_url</span></div>
+
+        <div class="stage">
+          <div class="top"><span class="num">1</span><h4>ImageSelector</h4><span class="file">src/image_selector.py</span></div>
+          <p>LLM walks the repo, detects language &amp; picks the base image when <span class="mono" style="font-family:var(--mono)">base_image=auto</span>; may force <span class="mono" style="font-family:var(--mono)">linux/amd64</span>.</p>
+          <div class="tags"><span class="chip k">LLM image pick</span><span class="chip">15 langs · language_handlers</span></div>
+        </div>
+        <div class="conn"><span>base image</span></div>
+
+        <div class="stage">
+          <div class="top"><span class="num">2</span><h4>Sandbox</h4><span class="file">src/sandbox.py</span></div>
+          <p>One long-lived container; repo seeded via <span class="mono" style="font-family:var(--mono)">put_archive</span>. <b>commit/snapshot on success</b> + <b>rollback</b> to last-good image.</p>
+          <div class="tags"><span class="chip k">snapshot + rollback</span><span class="chip">exec_run per cmd</span></div>
+        </div>
+        <div class="conn"><span>live sandbox</span></div>
+
+        <!-- LOOP -->
+        <div class="loop">
+          <span class="lbl">DockerAgent.run · single-step ReAct · max_steps 30</span>
+          <div class="stage" style="opacity:1;transform:none;border:none;background:none;padding:6px 2px 0">
+            <div class="top"><span class="num">3</span><h4>Planner</h4><span class="file">src/planner.py</span></div>
+            <p style="margin-left:35px">Prompt enforces <b>“ONE Thought + ONE Action”</b>. Strips hallucinated future Observations; trims history.</p>
+          </div>
+          <div class="cycle">
+            <div class="step"><span class="s">T</span><div><b>Plan one step</b><em>Thought: … Action: …  (free text, regex-parsed)</em></div></div>
+            <div class="step"><span class="s">A</span><div><b>Dispatch</b> exactly one action<em>raw bash → Sandbox.execute · __RETRIEVE_MEMORY__ · __ROLLBACK__</em></div></div>
+            <div class="step"><span class="s">O</span><div><b>Record + compress</b> observation<em>ObservationCompressor: deterministic + LLM 2-tier squeeze</em></div></div>
+          </div>
+          <div class="feedback">↑ compressed observation fed back · ends on <b>Final Answer: Success + Verification Bundle</b></div>
+        </div>
+        <div class="aside"><b>LongTermMemoryManager</b> <span class="file">src/memory_manager.py</span><br>cross-run RAG (sentence-transformers): mid-run cosine top-k recall · end-of-run trajectory → typed memories</div>
+        <div class="conn"><span>verified trajectory</span></div>
+
+        <div class="stage">
+          <div class="top"><span class="num">4</span><h4>Synthesizer</h4><span class="file">src/synthesizer.py</span></div>
+          <p><b>Post-loop distiller.</b> LLM → JSON build recipe → ~2000 lines deterministic normalization → <span class="mono" style="font-family:var(--mono)">generate_dockerfile()</span>.</p>
+          <div class="tags"><span class="chip k">JSON recipe → Dockerfile</span><span class="chip">order-preserving</span></div>
+        </div>
+        <div class="conn"><span>candidate Dockerfile</span></div>
+
+        <div class="stage">
+          <div class="top"><span class="num">5</span><h4>Self-verify + repair</h4><span class="file">src/artifact_verify.py</span></div>
+          <p>Builds the recipe in a <b>fresh clean-room container</b>, runs the verified test command, applies deterministic + LLM repair.</p>
+          <div class="tags"><span class="chip k">clean-room build</span><span class="chip">recipe repair</span></div>
+        </div>
+        <div class="conn"><span>result</span></div>
+        <div class="stage io"><h4>Output</h4><p>A reproducible <b>Dockerfile</b> (the artifact)</p></div>
+      </div>
+
+      <div class="substrate">
+        <b>LLM ⛓</b><small>openai SDK · shared client</small><small>· default <span style="color:var(--da)">MiniMax-M2.7</span></small><small>· OPENROUTER→MINIMAX→OPENAI · Alibaba pin</small>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- COMPARISON TABLE -->
+  <section class="cmp">
+    <div class="h-rule"><span class="n">§</span><h3>Where they diverge</h3></div>
+    <table>
+      <thead>
+        <tr><th>Axis</th><th class="c-rat">RunAnyThing (RAT)</th><th class="c-da">DockerAgent</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="axis">Orchestration</td>
+          <td class="col-rat">SetupAgent (image/lang select) → <span class="mono">CodeAgent</span> single ReAct loop</td>
+          <td class="col-da">ImageSelector → Planner loop → <span class="mono">Synthesizer</span> (post-hoc) → self-verify</td></tr>
+        <tr><td class="axis">“Planning”</td>
+          <td class="col-rat">In-prompt: fixed numbered steps <span class="mono">(Standard)</span> or self-authored <span class="mono">plan.md</span> <span class="mono">(Automated)</span></td>
+          <td class="col-da">Single-step planner prompt — strictly one action per turn</td></tr>
+        <tr><td class="axis">Final artifact</td>
+          <td class="col-rat">Configured, committed <b>container image</b> (the run is the config)</td>
+          <td class="col-da"><b>Dockerfile</b> — a reproducible recipe, separate from the run</td></tr>
+        <tr><td class="axis">Action surface</td>
+          <td class="col-rat">Tool-DSL via <span class="mono">ToolDispatcher</span> + raw bash (```bash fence)</td>
+          <td class="col-da">Raw bash + sentinels <span class="mono">__RETRIEVE_MEMORY__ / __ROLLBACK__</span></td></tr>
+        <tr><td class="axis">Context mgmt</td>
+          <td class="col-rat">Full history re-sent, char-trim ~150k</td>
+          <td class="col-da">History trim + 2-tier <span class="mono">ObservationCompressor</span></td></tr>
+        <tr><td class="axis">Cross-run memory</td>
+          <td class="col-rat">None — per-run history only</td>
+          <td class="col-da"><span class="mono">LongTermMemoryManager</span> — sentence-transformers RAG</td></tr>
+        <tr><td class="axis">State / rollback</td>
+          <td class="col-rat">Session restart on timeout (filesystem persists)</td>
+          <td class="col-da">Image-snapshot commit + rollback to last success</td></tr>
+        <tr><td class="axis">Recipe synthesis</td>
+          <td class="col-rat">None</td>
+          <td class="col-da">Dedicated synthesizer → Dockerfile + clean-room verify</td></tr>
+        <tr><td class="axis">Languages</td>
+          <td class="col-rat">4 — python · java · node · rust</td>
+          <td class="col-da">15 — via image_selector / language_handlers</td></tr>
+        <tr><td class="axis">Loop budget</td>
+          <td class="col-rat"><span class="mono">max_turn = 70</span></td>
+          <td class="col-da"><span class="mono">max_steps = 30</span></td></tr>
+        <tr><td class="axis">Extra infra</td>
+          <td class="col-rat">Weave (W&amp;B) tracing · pluggable eval models + scorers</td>
+          <td class="col-da">Verification Bundle · recipe normalization rules</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- KEY DIFFERENCES -->
+  <div class="diffs">
+    <div class="diff"><div class="ic">◢ the core split</div><h4>Run-as-config vs recipe-as-output</h4><p><b class="rat-t">RAT</b> hands back the configured container — the trajectory <em>is</em> the environment. <b class="da-t">DockerAgent</b> treats the trajectory as evidence, then <b>synthesizes a separate Dockerfile</b> and re-validates it clean-room.</p></div>
+    <div class="diff"><div class="ic">◢ planning model</div><h4>Prompt-driven, both</h4><p>Neither has a standalone planner module. RAT’s “plan” lives in the system prompt (or a self-edited <span class="mono" style="font-size:11px">plan.md</span>); DockerAgent’s lives in a strict one-action planner prompt + a Verification Bundle.</p></div>
+    <div class="diff"><div class="ic">◢ what compounds</div><h4>Memory &amp; rollback</h4><p>DockerAgent adds two things RAT lacks: <b>cross-run RAG memory</b> and <b>image-snapshot rollback</b>. RAT keeps it leaner — history only, session-restart on timeout.</p></div>
+    <div class="diff"><div class="ic">◢ same foundation</div><h4>Custom ReAct, no framework</h4><p>Strip the orchestration and both are the <b>same primitive</b>: a hand-written ReAct loop over <span class="mono" style="font-size:11px">openai.chat.completions</span>, regex-parsed text actions, one Docker container. The differences are all in the wrapping.</p></div>
+  </div>
+
+  <footer>
+    <b>Sources (code-grounded):</b> RAT — <span style="color:var(--rat)">/tmp/runanything/src/libkit/{setupagent,codeagent,environment,llm,language_configs}.py</span> · eval/models/rat_model.py<br>
+    <b>DockerAgent —</b> <span style="color:var(--da)">/Users/john/rat-bench-integration/{agent.py, src/planner.py, src/sandbox.py, src/synthesizer.py, src/image_selector.py, src/observation_compressor.py, src/memory_manager.py, src/artifact_verify.py}</span><br>
+    <b>Note:</b> Standard mode is what the RAT benchmark actually runs (rat_model.py never sets <span class="mono">use_custom_plan</span>); tool-ablation ships enabled (<span class="mono">ENABLE_TOOL_ABLATION=True</span>, ESSENTIAL_TOOLS={stop}).
+  </footer>
+</div>
+
+<script>
+  // staggered reveal of pipeline stages
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach((e,i)=>{ if(e.isIntersecting){ const el=e.target;
+      const d = (parseInt(el.dataset.d||0))%6; el.style.transitionDelay=(d*60)+'ms';
+      el.classList.add('in'); io.unobserve(el);} });
+  },{threshold:.12, rootMargin:'0px 0px -8% 0px'});
+  document.querySelectorAll('.pipe > .stage, .pipe > .loop').forEach((el,i)=>{el.dataset.d=i;io.observe(el);});
+</script>
+</body>
+</html>

@@ -137,13 +137,18 @@ Please recommend a suitable base Docker image. Consider:
    - Native extensions (Rust crates with C bindings, Python packages with C extensions) may have ARM64 issues
    - TEST DEPENDENCIES with architecture-specific binaries WILL cause test failures on ARM64 hosts (Apple Silicon Macs)
    - If you see ANY such dependencies in the project (including test scope), you MUST add an <arch_note> tag
-   - Example: <arch_note>This project uses embedded-postgres which lacks ARM64 binaries. Consider using linux/amd64 platform.</arch_note>
+   - Also emit exactly one structured platform decision:
+     <platform>linux/amd64</platform> only when concrete evidence requires x86 emulation;
+     otherwise emit <platform>native</platform>.
+   - Example: <arch_note>This project uses embedded-postgres which lacks ARM64 binaries.</arch_note>
+     <platform>linux/amd64</platform>
 
 Select a base image from the following candidate list:
 {candidate_images}
 Wrap the image name in a block like <image>python:3.9</image> to indicate your choice.
 You MUST select an image from the candidate list above.
 If there are architecture compatibility concerns, wrap them in <arch_note>...</arch_note> tags.
+Always include either <platform>native</platform> or <platform>linux/amd64</platform>.
 """
 
 
@@ -248,6 +253,7 @@ class ImageSelector:
 
     def _write_summary_log(self, potential_files: List[str], relevant_files: List[str],
                            detected_language: str, selected_image: str,
+                           platform_override: Optional[str] = None,
                            detection_method: str = "unknown"):
         """Write summary.json with key results."""
         if not self._log_dir:
@@ -258,6 +264,7 @@ class ImageSelector:
             "detected_language": detected_language,
             "detection_method": detection_method,
             "selected_image": selected_image,
+            "platform_override": platform_override,
             "total_llm_calls": self._log_counter,
         }
         path = os.path.join(self._log_dir, "summary.json")
@@ -334,7 +341,14 @@ class ImageSelector:
         
         print(f"[ImageSelector] Selected base image: {selected_image}")
 
-        self._write_summary_log(potential_files, relevant_files, detected_language, selected_image, detection_method)
+        self._write_summary_log(
+            potential_files,
+            relevant_files,
+            detected_language,
+            selected_image,
+            platform_override=platform_override,
+            detection_method=detection_method,
+        )
         
         return selected_image, language_handler, docs, platform_override
     
@@ -346,7 +360,7 @@ class ImageSelector:
         SKIP_DIRS = {
             '__pycache__', 'node_modules', 'target', 'build', 'dist',
             '.git', '.venv', 'venv', '.mypy_cache', '.pytest_cache',
-            '.tox', '.eggs', '.idea', '.vscode',
+            '.tox', '.eggs', '.idea', '.vscode', 'logs',
         }
 
         for root, dirs, files in os.walk(repo_path):
@@ -547,14 +561,39 @@ class ImageSelector:
             if match:
                 selected_image = match.group(1).strip()
                 if selected_image in candidate_images:
-                    # Check for architecture note
+                    # Architecture notes are free-form explanation, not a
+                    # machine-readable decision.  In particular, a harmless
+                    # sentence such as "supports ARM64" must not force QEMU.
                     arch_match = re.search(r'<arch_note>(.*?)</arch_note>', content, re.DOTALL)
                     platform_override = None
                     if arch_match:
                         arch_note = arch_match.group(1).strip()
                         print(f"[ImageSelector] Architecture note: {arch_note}")
-                        # If ARM64 issues detected, suggest linux/amd64 platform
-                        if 'arm64' in arch_note.lower() or 'amd64' in arch_note.lower():
+                    platform_match = re.search(
+                        r'<platform>\s*(native|linux/amd64)\s*</platform>',
+                        content,
+                        re.IGNORECASE,
+                    )
+                    if platform_match and platform_match.group(1).lower() == "linux/amd64":
+                        platform_override = "linux/amd64"
+                        print(f"[ImageSelector] Suggesting platform override: {platform_override}")
+                    elif not platform_match and arch_match:
+                        # Backward-compatible fallback for models that omit the
+                        # structured tag: accept only an explicit incompatibility
+                        # claim, never the mere presence of "ARM64"/"amd64".
+                        lowered = arch_note.lower()
+                        incompatible = re.search(
+                            r"(?:lacks?|does not support|unsupported|incompatible|unavailable)"
+                            r".{0,80}(?:arm64|aarch64)|"
+                            r"(?:arm64|aarch64).{0,80}"
+                            r"(?:unsupported|incompatible|unavailable)",
+                            lowered,
+                        )
+                        explicit_amd64 = re.search(
+                            r"(?:requires?|must use|run on|use)\s+(?:the\s+)?linux/amd64",
+                            lowered,
+                        )
+                        if incompatible or explicit_amd64:
                             platform_override = "linux/amd64"
                             print(f"[ImageSelector] Suggesting platform override: {platform_override}")
                     return selected_image, platform_override

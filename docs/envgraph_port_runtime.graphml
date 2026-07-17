@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  EnvGraph-ported Dependency/Environment Graph — RUNTIME (after execution append) snapshot.
+
+  Same node ids as *_initial.graphml. The RUNTIME pass APPENDS execution evidence onto the
+  SAME nodes (it does not rebuild a separate graph):
+      installed / importable / build_ok        <- pip freeze, import sweep, build-log parse
+      present                                   <- system-tool / ldconfig probe
+  Each dependency node's status is then PROJECTED from its attribute vector, and the
+  deterministic diagnosis (our BlockerKind) is read off the static+runtime flags:
+
+      declared imported installed importable build_ok  => diagnosis
+        T        *         T          T         T       => satisfied
+        T        *         F          F     buildErr    => build_failure / missing_system_library
+        F        T         F          F         -        => module_not_found (undeclared)
+        T        T         T          F         T        => missing_system_library (installed, .so absent)
+
+  Blockers (LLM/host, runtime) violate the SystemLib/contract nodes; Attempts (host, rc-derived)
+  address them. This is where EnvGraph's STATIC graph cannot follow us: it has no installed/
+  importable/build_ok axis, so it cannot see these environment faults.
+
+  Trajectory captured here:
+    cycle 1: pip install -r requirements.txt   -> requests/numpy OK; psycopg2 wheel build fails
+    cycle 1: pip install opencv-python (cv2)   -> installs, but `import cv2` fails (libGL.so.1)
+    cycle 2 (proposed): apt install libpq-dev, libgl1  -> pending
+-->
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+  <key id="node_type" for="node" attr.name="type" attr.type="string"/>
+  <key id="label" for="node" attr.name="label" attr.type="string"/>
+  <key id="kind" for="node" attr.name="kind" attr.type="string"/>
+  <key id="layer" for="node" attr.name="layer" attr.type="string"/>
+  <key id="source" for="node" attr.name="source" attr.type="string"/>
+  <key id="status" for="node" attr.name="status" attr.type="string"/>
+  <key id="declared" for="node" attr.name="declared" attr.type="string"/>
+  <key id="imported" for="node" attr.name="imported" attr.type="string"/>
+  <key id="version_spec" for="node" attr.name="version_spec" attr.type="string"/>
+  <key id="syslib_hint" for="node" attr.name="syslib_hint" attr.type="string"/>
+  <key id="installed" for="node" attr.name="installed" attr.type="string"/>
+  <key id="importable" for="node" attr.name="importable" attr.type="string"/>
+  <key id="build_ok" for="node" attr.name="build_ok" attr.type="string"/>
+  <key id="present" for="node" attr.name="present" attr.type="string"/>
+  <key id="diagnosis" for="node" attr.name="diagnosis" attr.type="string"/>
+  <key id="outcome" for="node" attr.name="outcome" attr.type="string"/>
+  <key id="evidence_refs" for="node" attr.name="evidence_refs" attr.type="string"/>
+  <key id="summary" for="node" attr.name="summary" attr.type="string"/>
+  <key id="edge_type" for="edge" attr.name="type" attr.type="string"/>
+  <key id="edge_label" for="edge" attr.name="label" attr.type="string"/>
+
+  <graph id="envgraph_port_runtime" edgedefault="directed">
+
+    <!-- ===== Structural layer (unchanged from init) ===== -->
+    <node id="env:project"><data key="node_type">Project</data><data key="label">acme</data><data key="source">static</data><data key="status">violated</data><data key="summary">Setup not yet green (2 deps blocked).</data></node>
+    <node id="config:requirements.txt"><data key="node_type">Config</data><data key="label">requirements.txt</data><data key="kind">requirements</data><data key="source">static</data><data key="status">expected</data></node>
+    <node id="file:src/app.py"><data key="node_type">File</data><data key="label">src/app.py</data><data key="source">static</data><data key="status">expected</data></node>
+    <node id="file:src/vision.py"><data key="node_type">File</data><data key="label">src/vision.py</data><data key="source">static</data><data key="status">expected</data></node>
+
+    <!-- ===== requests: declared+imported -> installed+importable => SATISFIED ===== -->
+    <node id="pkg:requests">
+      <data key="node_type">ExternalPackage</data><data key="label">requests</data>
+      <data key="kind">python_import</data><data key="layer">deps</data><data key="source">runtime</data>
+      <data key="declared">true</data><data key="imported">true</data><data key="version_spec">&gt;=2.31</data>
+      <data key="installed">true</data><data key="importable">true</data><data key="build_ok">true</data>
+      <data key="status">satisfied</data><data key="diagnosis">none</data>
+      <data key="evidence_refs">cmd:pip_install#1, probe:import_sweep#1</data>
+      <data key="summary">Clean. Static hypothesis confirmed by runtime.</data>
+    </node>
+    <!-- ===== numpy: same => SATISFIED ===== -->
+    <node id="pkg:numpy">
+      <data key="node_type">ExternalPackage</data><data key="label">numpy</data>
+      <data key="kind">python_import</data><data key="layer">deps</data><data key="source">runtime</data>
+      <data key="declared">true</data><data key="imported">true</data><data key="version_spec"></data>
+      <data key="installed">true</data><data key="importable">true</data><data key="build_ok">true</data>
+      <data key="status">satisfied</data><data key="diagnosis">none</data>
+      <data key="evidence_refs">cmd:pip_install#1, probe:import_sweep#1</data>
+      <data key="summary">Clean.</data>
+    </node>
+    <!-- ===== psycopg2: declared, build fails (libpq missing) => BUILD_FAILURE / MISSING_SYSTEM_LIBRARY ===== -->
+    <node id="pkg:psycopg2">
+      <data key="node_type">ExternalPackage</data><data key="label">psycopg2</data>
+      <data key="kind">python_import</data><data key="layer">deps</data><data key="source">runtime</data>
+      <data key="declared">true</data><data key="imported">true</data><data key="version_spec"></data><data key="syslib_hint">libpq-dev</data>
+      <data key="installed">false</data><data key="importable">false</data><data key="build_ok">false</data>
+      <data key="status">violated</data>
+      <data key="diagnosis">build_failure -&gt; missing_system_library (libpq / pg_config)</data>
+      <data key="evidence_refs">cmd:pip_install#1 (stderr: fatal error: libpq-fe.h: No such file)</data>
+      <data key="summary">PRIOR confirmed by runtime: wheel build needs libpq-dev.</data>
+    </node>
+    <!-- ===== cv2: undeclared, then installed-but-not-importable => MISSING_SYSTEM_LIBRARY ===== -->
+    <node id="pkg:cv2">
+      <data key="node_type">ExternalPackage</data><data key="label">cv2</data>
+      <data key="kind">python_import</data><data key="layer">deps</data><data key="source">runtime</data>
+      <data key="declared">false</data><data key="imported">true</data><data key="version_spec"></data><data key="syslib_hint">libGL.so.1</data>
+      <data key="installed">true</data><data key="importable">false</data><data key="build_ok">true</data>
+      <data key="status">violated</data>
+      <data key="diagnosis">missing_system_library (installed via opencv-python, import fails on libGL.so.1)</data>
+      <data key="evidence_refs">cmd:pip_install_opencv#1, probe:import_sweep#1 (ImportError: libGL.so.1: cannot open shared object)</data>
+      <data key="summary">Static flagged undeclared; runtime resolved it past install to a system-lib fault.</data>
+    </node>
+
+    <!-- ===== System-library nodes: runtime probe says absent => VIOLATED ===== -->
+    <node id="syslib:libpq-dev">
+      <data key="node_type">SystemLib</data><data key="label">libpq-dev</data>
+      <data key="kind">system_library</data><data key="layer">system</data><data key="source">runtime</data>
+      <data key="present">false</data><data key="status">violated</data>
+      <data key="evidence_refs">probe:system_tools#1 (pg_config not found)</data>
+      <data key="summary">Absent -> blocks psycopg2 build.</data>
+    </node>
+    <node id="syslib:libGL.so.1">
+      <data key="node_type">SystemLib</data><data key="label">libGL.so.1</data>
+      <data key="kind">system_library</data><data key="layer">system</data><data key="source">runtime</data>
+      <data key="present">false</data><data key="status">violated</data>
+      <data key="evidence_refs">probe:ldconfig#1 (libGL.so.1 absent)</data>
+      <data key="summary">Absent -> blocks cv2 import.</data>
+    </node>
+
+    <!-- ===== Blocker nodes (runtime; violate the system-lib nodes) ===== -->
+    <node id="blocker:psycopg2-libpq">
+      <data key="node_type">Blocker</data><data key="label">psycopg2-build-needs-libpq</data>
+      <data key="kind">missing_system_library</data><data key="layer">system</data><data key="source">runtime</data><data key="status">active</data>
+      <data key="evidence_refs">attempt:pip-install-bulk</data>
+      <data key="summary">psycopg2 wheel build failed: libpq-fe.h not found.</data>
+    </node>
+    <node id="blocker:cv2-libgl">
+      <data key="node_type">Blocker</data><data key="label">cv2-import-needs-libGL</data>
+      <data key="kind">missing_system_library</data><data key="layer">system</data><data key="source">runtime</data><data key="status">active</data>
+      <data key="evidence_refs">attempt:pip-install-opencv</data>
+      <data key="summary">cv2 installs but import fails on libGL.so.1.</data>
+    </node>
+
+    <!-- ===== Attempt nodes (host, rc-derived outcomes) ===== -->
+    <node id="attempt:pip-install-bulk">
+      <data key="node_type">Attempt</data><data key="label">pip install -r requirements.txt</data>
+      <data key="kind">python_install</data><data key="layer">deps</data><data key="source">runtime</data>
+      <data key="outcome">ok_but_still_blocked</data>
+      <data key="evidence_refs">cmd:pip_install#1</data>
+      <data key="summary">requests/numpy OK; psycopg2 build failed.</data>
+    </node>
+    <node id="attempt:pip-install-opencv">
+      <data key="node_type">Attempt</data><data key="label">pip install opencv-python</data>
+      <data key="kind">python_install</data><data key="layer">deps</data><data key="source">runtime</data>
+      <data key="outcome">ok_but_still_blocked</data>
+      <data key="evidence_refs">cmd:pip_install_opencv#1</data>
+      <data key="summary">cv2 installed; import still fails (libGL).</data>
+    </node>
+    <node id="attempt:apt-libpq-dev">
+      <data key="node_type">Attempt</data><data key="label">apt-get install -y libpq-dev</data>
+      <data key="kind">system_install</data><data key="layer">system</data><data key="source">runtime</data>
+      <data key="outcome">pending</data>
+      <data key="summary">Proposed next repair (prior + diagnosis agree): install libpq-dev, then reinstall psycopg2.</data>
+    </node>
+    <node id="attempt:apt-libgl1">
+      <data key="node_type">Attempt</data><data key="label">apt-get install -y libgl1</data>
+      <data key="kind">system_install</data><data key="layer">system</data><data key="source">runtime</data>
+      <data key="outcome">pending</data>
+      <data key="summary">Proposed next repair: install libgl1, then re-run import cv2.</data>
+    </node>
+
+    <!-- ===== Structural edges (retained) ===== -->
+    <edge id="s1" source="env:project" target="config:requirements.txt"><data key="edge_type">project_contains</data><data key="edge_label">contains</data></edge>
+    <edge id="s2" source="env:project" target="file:src/app.py"><data key="edge_type">project_contains</data><data key="edge_label">contains</data></edge>
+    <edge id="s3" source="env:project" target="file:src/vision.py"><data key="edge_type">project_contains</data><data key="edge_label">contains</data></edge>
+    <edge id="d1" source="config:requirements.txt" target="pkg:requests"><data key="edge_type">declares</data><data key="edge_label">declares</data></edge>
+    <edge id="d2" source="config:requirements.txt" target="pkg:psycopg2"><data key="edge_type">declares</data><data key="edge_label">declares</data></edge>
+    <edge id="d3" source="config:requirements.txt" target="pkg:numpy"><data key="edge_type">declares</data><data key="edge_label">declares</data></edge>
+    <edge id="i1" source="file:src/app.py" target="pkg:requests"><data key="edge_type">file_imports</data><data key="edge_label">imports</data></edge>
+    <edge id="i2" source="file:src/app.py" target="pkg:psycopg2"><data key="edge_type">file_imports</data><data key="edge_label">imports</data></edge>
+    <edge id="i3" source="file:src/vision.py" target="pkg:cv2"><data key="edge_type">file_imports</data><data key="edge_label">imports (undeclared)</data></edge>
+    <edge id="i4" source="file:src/vision.py" target="pkg:numpy"><data key="edge_type">file_imports</data><data key="edge_label">imports</data></edge>
+
+    <!-- package depends_on system-lib (prior, now runtime-confirmed) -->
+    <edge id="p1" source="pkg:psycopg2" target="syslib:libpq-dev"><data key="edge_type">depends_on</data><data key="edge_label">needs</data></edge>
+    <edge id="p2" source="pkg:cv2" target="syslib:libGL.so.1"><data key="edge_type">depends_on</data><data key="edge_label">needs</data></edge>
+
+    <!-- blockers violate the system-lib contracts -->
+    <edge id="v1" source="blocker:psycopg2-libpq" target="syslib:libpq-dev"><data key="edge_type">violates</data><data key="edge_label">violates</data></edge>
+    <edge id="v2" source="blocker:cv2-libgl" target="syslib:libGL.so.1"><data key="edge_type">violates</data><data key="edge_label">violates</data></edge>
+
+    <!-- attempts address contracts / system-libs -->
+    <edge id="a1" source="attempt:pip-install-bulk" target="pkg:requests"><data key="edge_type">addresses</data><data key="edge_label">addresses</data></edge>
+    <edge id="a2" source="attempt:pip-install-bulk" target="pkg:numpy"><data key="edge_type">addresses</data><data key="edge_label">addresses</data></edge>
+    <edge id="a3" source="attempt:pip-install-bulk" target="pkg:psycopg2"><data key="edge_type">addresses</data><data key="edge_label">addresses</data></edge>
+    <edge id="a4" source="attempt:pip-install-opencv" target="pkg:cv2"><data key="edge_type">addresses</data><data key="edge_label">addresses</data></edge>
+    <edge id="a5" source="attempt:apt-libpq-dev" target="syslib:libpq-dev"><data key="edge_type">addresses</data><data key="edge_label">addresses</data></edge>
+    <edge id="a6" source="attempt:apt-libgl1" target="syslib:libGL.so.1"><data key="edge_type">addresses</data><data key="edge_label">addresses</data></edge>
+
+  </graph>
+</graphml>

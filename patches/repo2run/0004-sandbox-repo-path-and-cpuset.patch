@@ -1,0 +1,36 @@
+--- /tmp/Repo2Run_inspect/build_agent/utils/sandbox.py	2026-06-07 07:31:43.010569162 +0000
++++ /opt/rat-bench-integration/rat_run_repo2run/Repo2Run/build_agent/utils/sandbox.py	2026-06-07 08:12:31.114165999 +0000
+@@ -233,7 +233,6 @@
+                 privileged=True,
+                 mem_limit='30g',
+                 network_mode='bridge',
+-                cpuset_cpus='0-19',
+                 )
+ 
+             # 启动新的 shell 会话
+@@ -285,7 +284,7 @@
+             subprocess.run(cmd, check=True, shell=True)
+ 
+             # 把utils/repo中的内容复制到根目录/中
+-            cmd = f"docker cp {project_directory}/utils/repo/{self.full_name}/repo {self.container.name}:/"
++            cmd = f"docker cp {self.root_path}/utils/repo/{self.full_name}/repo {self.container.name}:/"
+             subprocess.run(cmd, check=True, shell=True)
+             return 1
+         except Exception as e:
+@@ -451,14 +450,14 @@
+                         current_file_path = os.path.abspath(__file__)
+                         current_directory = os.path.dirname(current_file_path)
+                         project_directory = os.path.dirname(current_directory)
+-                        result = subprocess.run(f'docker cp {self.sandbox.container.name}:{file_path} {project_directory}/utils/repo/{self.sandbox.full_name}/repo', shell=True, capture_output=True)
++                        result = subprocess.run(f'docker cp {self.sandbox.container.name}:{file_path} {self.sandbox.root_path}/utils/repo/{self.sandbox.full_name}/repo', shell=True, capture_output=True)
+                         if result.returncode != 0:
+                             msg = f'\nRunning `{command}`...\n'
+                             msg += f'The file {file_path} does not exist. Please ensure you have entered the correct absolute path, not a relative path! If you are unsure, you can use commands like `ls` to verify.'
+                             return msg, 1
+                         subprocess.run(f'sudo chown huruida:huruida {project_directory}/repo/{self.sandbox.full_name}/repo/{file_path.split("/")[-1]}', shell=True, capture_output=True)
+                         with OutputCollector() as collector:
+-                            waiting_list.addfile(f'{project_directory}/utils/repo/{self.sandbox.full_name}/repo/{file_path.split("/")[-1]}', conflict_list)
++                            waiting_list.addfile(f'{self.sandbox.root_path}/utils/repo/{self.sandbox.full_name}/repo/{file_path.split("/")[-1]}', conflict_list)
+                         result_message = f'Running `{command}`...\n' + collector.get_output() + '\n'
+                         return truncate_msg(result_message, command), 'unknown'
+                     elif match_waitinglist_clear(command):

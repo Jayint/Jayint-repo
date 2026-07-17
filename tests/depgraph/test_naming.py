@@ -1,0 +1,94 @@
+"""Tests for stage 2: import -> distribution name mapping (``naming.py``).
+
+Realizes section 4.2 / 10.2 of the design: import names are mapped to PyPI
+distribution names via the curated table, with declared manifest names taking
+precedence (the precedence ladder of 10.3).  Pure, no Executor needed.
+"""
+
+from __future__ import annotations
+
+from python_deps.depgraph.ids import TEST_NODE_ID, import_id
+from python_deps.depgraph.naming import package_roots
+from python_deps.depgraph.schema import (
+    DepGraph,
+    DiscoveredBy,
+    Layer,
+    Node,
+    NodeType,
+)
+
+
+def _import_node(name: str) -> Node:
+    return Node(
+        id=import_id(name),
+        type=NodeType.IMPORT,
+        name=name,
+        layer=Layer.NAMING,
+        discovered_by=DiscoveredBy.STATIC_SCAN,
+    )
+
+
+def _graph(*names: str) -> DepGraph:
+    graph = DepGraph()
+    for name in names:
+        graph = graph.with_node(_import_node(name))
+    return graph
+
+
+def test_curated_native_and_aliased_mappings():
+    graph = _graph("cv2", "PIL", "sklearn", "bs4", "fitz", "yaml")
+    roots = dict(package_roots(graph))
+    assert roots[import_id("cv2")] == "opencv-python"
+    assert roots[import_id("PIL")] == "Pillow"
+    assert roots[import_id("sklearn")] == "scikit-learn"
+    assert roots[import_id("bs4")] == "beautifulsoup4"
+    assert roots[import_id("fitz")] == "PyMuPDF"
+    assert roots[import_id("yaml")] == "PyYAML"
+
+
+def test_new_native_aliases_added_additively():
+    graph = _graph("psycopg2", "MySQLdb", "OpenSSL", "lxml", "pdfminer", "fpdf")
+    roots = dict(package_roots(graph))
+    assert roots[import_id("psycopg2")] == "psycopg2"
+    assert roots[import_id("MySQLdb")] == "mysqlclient"
+    assert roots[import_id("OpenSSL")] == "pyOpenSSL"
+    assert roots[import_id("lxml")] == "lxml"
+    assert roots[import_id("pdfminer")] == "pdfminer.six"
+    assert roots[import_id("fpdf")] == "fpdf2"
+
+
+def test_identity_fallback_for_unknown_import():
+    graph = _graph("requests")
+    assert package_roots(graph) == [(import_id("requests"), "requests")]
+
+
+def test_returns_one_pair_per_import_in_node_order():
+    graph = _graph("cv2", "requests")
+    assert package_roots(graph) == [
+        (import_id("cv2"), "opencv-python"),
+        (import_id("requests"), "requests"),
+    ]
+
+
+def test_declared_name_precedence_over_curated():
+    graph = _graph("yaml")
+    # No manifest: the curated table wins.
+    assert package_roots(graph) == [(import_id("yaml"), "PyYAML")]
+    # A declared distribution whose normalized name matches the import wins
+    # over the curated table, preserving the manifest's original form.
+    assert package_roots(graph, declared_names={"YAML"}) == [
+        (import_id("yaml"), "YAML")
+    ]
+
+
+def test_non_import_nodes_are_ignored():
+    graph = _graph("cv2").with_node(
+        Node(
+            id=TEST_NODE_ID,
+            type=NodeType.TEST,
+            name="repo_tests_pass",
+            layer=Layer.TESTS,
+            discovered_by=DiscoveredBy.GOAL,
+        )
+    )
+    assert package_roots(graph) == [(import_id("cv2"), "opencv-python")]

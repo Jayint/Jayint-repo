@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns">
+  <key id="d0" for="node" attr.name="label" attr.type="string"/>
+  <key id="d1" for="node" attr.name="type" attr.type="string"/>
+  <key id="d2" for="node" attr.name="layer" attr.type="string"/>
+  <key id="d3" for="node" attr.name="state" attr.type="string"/>
+  <key id="d4" for="node" attr.name="discovered_by" attr.type="string"/>
+  <key id="d5" for="node" attr.name="check" attr.type="string"/>
+  <key id="d6" for="node" attr.name="fix" attr.type="string"/>
+  <key id="d7" for="node" attr.name="evidence" attr.type="string"/>
+  <key id="d8" for="node" attr.name="build_from_source" attr.type="string"/>
+  <key id="e0" for="edge" attr.name="relation" attr.type="string"/>
+  <key id="e1" for="edge" attr.name="marker" attr.type="string"/>
+  <key id="e2" for="edge" attr.name="constraint" attr.type="string"/>
+  <graph edgedefault="directed">
+    <node id="pkg:urllib3">
+      <data key="d0">urllib3</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show urllib3</data>
+      <data key="d6">pip:urllib3</data>
+      <data key="d7">==2.32.3 depends on urllib3&gt;=1.21.1,&lt;3 and your project depends on requests==2.32.3, we can conclude that your project depends on urllib3&gt;=1.21.1,&lt;3. And because your project depends</data>
+    </node>
+    <node id="pkg:requests">
+      <data key="d0">requests</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show requests</data>
+      <data key="d6">pip:requests</data>
+      <data key="d7">==2.32.3 depends on urllib3&gt;=1.21.1,&lt;3 and your project depends on requests==2.32.3, we can conclude that your project depends on urllib3&gt;=1.21.1,&lt;3. And because your project depends</data>
+    </node>
+    <node id="import:requests">
+      <data key="d0">requests</data>
+      <data key="d1">Import</data>
+      <data key="d2">naming</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">static_scan</data>
+      <data key="d5">python -c "import requests"</data>
+    </node>
+    <node id="test:repo_tests_pass">
+      <data key="d0">repo_tests_pass</data>
+      <data key="d1">Test</data>
+      <data key="d2">tests</data>
+      <data key="d3">missing</data>
+      <data key="d4">goal</data>
+      <data key="d5">python -m pytest -q</data>
+      <data key="d7">/usr/local/bin/python: No module named pytest
+</data>
+    </node>
+    <edge source="test:repo_tests_pass" target="import:requests"><data key="e0">requires</data></edge>
+    <edge source="pkg:requests" target="pkg:urllib3"><data key="e0">conflicts_with</data><data key="e2">urllib3: &gt;=1.21.1 vs &lt;1.21</data></edge>
+  </graph>
+</graphml>

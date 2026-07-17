@@ -123,12 +123,12 @@ class SandboxRuntimeReplayTests(unittest.TestCase):
         self.assertEqual(len(sandbox.container.calls), 2)
         self.assertEqual(
             sandbox.container.calls[0]["command"],
-            ["/bin/bash", "-c", "service postgresql start"],
+            ["/bin/bash", "-c", "/bin/bash -o pipefail -lc 'service postgresql start'"],
         )
         self.assertEqual(sandbox.container.calls[0]["workdir"], "/app")
         self.assertEqual(
             sandbox.container.calls[1]["command"],
-            ["/bin/bash", "-c", "service rabbitmq-server start"],
+            ["/bin/bash", "-c", "/bin/bash -o pipefail -lc 'service rabbitmq-server start'"],
         )
         self.assertEqual(
             sandbox.runtime_replay_commands,
@@ -150,6 +150,56 @@ class SandboxRuntimeReplayTests(unittest.TestCase):
         self.assertIs(sandbox.container, original_container)
         self.assertFalse(original_container.stopped)
         self.assertFalse(original_container.removed)
+
+    def test_failed_mutating_command_adds_prefix_rerun_or_rollback_guidance(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=1, output=b"pytorch3d not found")],
+            status="running",
+        )
+
+        success, output = sandbox.execute("pip3 install pytorch3d")
+
+        self.assertFalse(success)
+        self.assertIn("FAILED SETUP MUTATION", output)
+        self.assertIn("partially installed packages", output)
+        self.assertIn("rerun that prefix/sub-step as its own separate Action", output)
+        self.assertIn("Action: __ROLLBACK__", output)
+        self.assertIn("pytorch3d not found", output)
+
+    def test_transient_pip_install_failure_is_retried_before_reporting(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[
+                SimpleNamespace(
+                    exit_code=1,
+                    output=b"pip._vendor.urllib3.exceptions.ReadTimeoutError: timed out",
+                ),
+                SimpleNamespace(exit_code=0, output=b"Successfully installed robustbench"),
+            ],
+            status="running",
+        )
+        sandbox.last_success_image = None
+
+        success, output = sandbox.execute("python -m pip install robustbench")
+
+        self.assertTrue(success)
+        self.assertIn("Transient pip install failure on attempt 1", output)
+        self.assertIn("Successfully installed robustbench", output)
+        self.assertEqual(len(sandbox.container.calls), 2)
+
+    def test_failed_readonly_command_does_not_add_mutation_guidance(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=1, output=b"missing file")],
+            status="running",
+        )
+
+        success, output = sandbox.execute("cat /app/missing-file")
+
+        self.assertFalse(success)
+        self.assertNotIn("FAILED SETUP MUTATION", output)
+        self.assertEqual(output, "missing file")
 
     def test_explicit_rollback_restores_last_success_snapshot(self):
         sandbox = self._make_sandbox()
@@ -219,7 +269,8 @@ class SandboxRuntimeReplayTests(unittest.TestCase):
         )
 
         self.assertIn("TEST FAILURE DETECTED", prefix)
-        self.assertIn("zero errors", prefix)
+        self.assertIn("Repo2Run-style pytest collection", prefix)
+        self.assertIn("collection/import/config errors", prefix)
 
     def test_zero_failed_summary_does_not_add_no_excuses_failure_prefix(self):
         sandbox = self._make_sandbox()
@@ -297,9 +348,107 @@ class SandboxRuntimeReplayTests(unittest.TestCase):
         )
 
         self.assertFalse(success)
-        self.assertIn("INVALID TEST COMMAND", output)
+        self.assertIn("COMMAND REJECTED BEFORE EXECUTION", output)
         self.assertIn("was NOT executed", output)
         self.assertEqual(sandbox.container.calls, [])
+
+    def test_setup_output_filter_is_rejected_before_execution(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=0, output=b"installed")],
+            status="running",
+        )
+
+        success, output = sandbox.execute("pip3 install pybullet 2>&1 | tail -20")
+
+        self.assertFalse(success)
+        self.assertIn("COMMAND REJECTED BEFORE EXECUTION", output)
+        self.assertIn("must not pipe output through `head`, `tail`, or `grep`", output)
+        self.assertEqual(sandbox.container.calls, [])
+
+    def test_readonly_output_filter_is_allowed(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=0, output=b"setup.py\n")],
+            status="running",
+        )
+
+        success, output = sandbox.execute("find /app -name setup.py 2>/dev/null | head -20")
+
+        self.assertTrue(success)
+        self.assertEqual(output, "setup.py\n")
+        self.assertEqual(len(sandbox.container.calls), 1)
+
+    def test_compound_setup_mutations_are_rejected_before_execution(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=0, output=b"installed")],
+            status="running",
+        )
+
+        success, output = sandbox.execute("pip3 install pybullet && pip3 install pytorch3d")
+
+        self.assertFalse(success)
+        self.assertIn("multiple independent setup mutations", output)
+        self.assertIn("environment was not changed", output)
+        self.assertEqual(sandbox.container.calls, [])
+
+    def test_mutation_plus_probe_is_rejected_before_execution(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=0, output=b"ok")],
+            status="running",
+        )
+
+        success, output = sandbox.execute("pip3 install pybullet && python -c 'import pybullet'")
+
+        self.assertFalse(success)
+        self.assertIn("setup mutation with a verification, probe, or read-only check", output)
+        self.assertEqual(sandbox.container.calls, [])
+
+    def test_navigation_then_single_setup_mutation_is_allowed(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=0, output=b"installed")],
+            status="running",
+        )
+        sandbox.last_success_image = None
+
+        success, output = sandbox.execute("cd /app && pip3 install -e .")
+
+        self.assertTrue(success)
+        self.assertEqual(output, "installed")
+        self.assertEqual(len(sandbox.container.calls), 1)
+
+    def test_apt_update_install_chain_is_allowed(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=0, output=b"installed cmake")],
+            status="running",
+        )
+        sandbox.last_success_image = None
+
+        success, output = sandbox.execute("apt-get update && apt-get install -y cmake")
+
+        self.assertTrue(success)
+        self.assertEqual(output, "installed cmake")
+        self.assertEqual(len(sandbox.container.calls), 1)
+
+    def test_command_wrapper_uses_pipefail_without_timeout(self):
+        sandbox = self._make_sandbox()
+        sandbox.command_timeout_seconds = None
+
+        wrapped = sandbox._wrap_command_with_timeout("pip3 install missing-package | tail -20")
+
+        self.assertIn("/bin/bash -o pipefail -lc", wrapped)
+
+    def test_command_wrapper_uses_pipefail_with_timeout(self):
+        sandbox = self._make_sandbox()
+        sandbox.command_timeout_seconds = 42
+
+        wrapped = sandbox._wrap_command_with_timeout("pip3 install missing-package | tail -20")
+
+        self.assertIn("timeout --foreground --kill-after=30s 42s /bin/bash -o pipefail -lc", wrapped)
 
 
 class SandboxAptBootstrapTests(unittest.TestCase):
@@ -363,6 +512,261 @@ class SandboxAptBootstrapTests(unittest.TestCase):
 
         self.assertIs(sandbox.client, fake_client)
         mock_from_env.assert_called_once_with(timeout=600)
+
+    def test_extra_hosts_added_when_arm_on(self):
+        import os
+        orig = os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION")
+        os.environ["DOCKERAGENT_ENABLE_SERVICE_PROVISION"] = "1"
+        try:
+            captured = {}
+            fake_container = FakeContainer()
+
+            class _Containers:
+                def run(self, image, **kwargs):
+                    captured.update(kwargs)
+                    return fake_container
+
+            class _Client:
+                containers = _Containers()
+
+            import src.sandbox as sb
+            s = sb.Sandbox.__new__(sb.Sandbox)
+            s.client = _Client()
+            s.current_image = "python:3.11-slim"
+            s.platform = None
+            s.workdir = "/app"
+            s.volumes = {}
+            s.seed_dir = None
+            s._bootstrap_apt_if_supported = lambda: None
+            s._register_snapshot = lambda *a: None
+            s._setup_initial_container()
+            self.assertEqual(captured.get("extra_hosts"), {"postgres": "127.0.0.1"})
+        finally:
+            if orig is None:
+                os.environ.pop("DOCKERAGENT_ENABLE_SERVICE_PROVISION", None)
+            else:
+                os.environ["DOCKERAGENT_ENABLE_SERVICE_PROVISION"] = orig
+
+    def test_container_environment_is_forwarded_to_initial_container(self):
+        captured = {}
+        fake_container = FakeContainer()
+
+        class _Containers:
+            def run(self, image, **kwargs):
+                captured.update(kwargs)
+                return fake_container
+
+        class _Client:
+            containers = _Containers()
+
+        s = Sandbox.__new__(Sandbox)
+        s.client = _Client()
+        s.current_image = "python:3.12-slim"
+        s.platform = None
+        s.workdir = "/app"
+        s.volumes = {}
+        s.seed_dir = None
+        s.environment = {"PYTEST_ADDOPTS": "--import-mode=importlib"}
+        s._bootstrap_apt_if_supported = lambda: None
+        s._register_snapshot = lambda *a: None
+        s._setup_initial_container()
+
+        self.assertEqual(
+            captured.get("environment"),
+            {"PYTEST_ADDOPTS": "--import-mode=importlib"},
+        )
+
+
+class SandboxNamedCheckpointTests(unittest.TestCase):
+    def test_daemon_native_platform_normalizes_architecture(self):
+        sandbox = Sandbox.__new__(Sandbox)
+        sandbox.client = SimpleNamespace(
+            info=lambda: {"OSType": "linux", "Architecture": "aarch64"}
+        )
+        self.assertEqual(sandbox._daemon_native_platform(), "linux/arm64")
+
+        sandbox.client = SimpleNamespace(
+            info=lambda: {"OSType": "linux", "Architecture": "x86_64"}
+        )
+        self.assertEqual(sandbox._daemon_native_platform(), "linux/amd64")
+
+    def test_daemon_native_platform_degrades_when_info_unavailable(self):
+        sandbox = Sandbox.__new__(Sandbox)
+        sandbox.client = SimpleNamespace(
+            info=lambda: (_ for _ in ()).throw(RuntimeError("offline"))
+        )
+        self.assertIsNone(sandbox._daemon_native_platform())
+
+    def test_local_platform_image_skips_registry_pull(self):
+        image = SimpleNamespace(attrs={"Os": "linux", "Architecture": "amd64"})
+        images = SimpleNamespace(get=lambda _tag: image)
+        sandbox = Sandbox.__new__(Sandbox)
+        sandbox.client = SimpleNamespace(images=images)
+        sandbox.current_image = "python:3.11-slim"
+        sandbox.platform = "linux/amd64"
+
+        self.assertTrue(sandbox._local_image_matches_platform())
+
+    def test_local_platform_image_detects_arch_mismatch(self):
+        image = SimpleNamespace(attrs={"Os": "linux", "Architecture": "arm64"})
+        images = SimpleNamespace(get=lambda _tag: image)
+        sandbox = Sandbox.__new__(Sandbox)
+        sandbox.client = SimpleNamespace(images=images)
+        sandbox.current_image = "python:3.11-slim"
+        sandbox.platform = "linux/amd64"
+
+        self.assertFalse(sandbox._local_image_matches_platform())
+
+    def test_platform_image_ref_pins_reused_image_id(self):
+        calls = []
+        image = SimpleNamespace(
+            id="sha256:native", attrs={"Os": "linux", "Architecture": "arm64"}
+        )
+        sandbox = Sandbox.__new__(Sandbox)
+        sandbox.client = SimpleNamespace(images=SimpleNamespace(
+            get=lambda tag: calls.append(tag) or image
+        ))
+        sandbox.current_image = "python:3.11-slim"
+        sandbox.platform = "linux/arm64"
+        self.assertEqual(sandbox._resolved_platform_image_ref(), "sha256:native")
+        self.assertEqual(calls, ["python:3.11-slim"])
+
+    def test_platform_image_ref_uses_pulled_image_id_on_mismatch(self):
+        old = SimpleNamespace(
+            id="sha256:old", attrs={"Os": "linux", "Architecture": "amd64"}
+        )
+        pulled = SimpleNamespace(
+            id="sha256:pulled", attrs={"Os": "linux", "Architecture": "arm64"}
+        )
+        images = SimpleNamespace(
+            get=lambda _tag: old,
+            pull=lambda _tag, platform: pulled,
+        )
+        sandbox = Sandbox.__new__(Sandbox)
+        sandbox.client = SimpleNamespace(images=images)
+        sandbox.current_image = "python:3.11-slim"
+        sandbox.platform = "linux/arm64"
+        self.assertEqual(sandbox._resolved_platform_image_ref(), "sha256:pulled")
+
+    def test_platform_image_ref_rejects_wrong_arch_fallback_after_pull_failure(self):
+        old = SimpleNamespace(
+            id="sha256:old", attrs={"Os": "linux", "Architecture": "amd64"}
+        )
+        images = SimpleNamespace(
+            get=lambda _tag: old,
+            pull=lambda _tag, platform: (_ for _ in ()).throw(RuntimeError("offline")),
+        )
+        sandbox = Sandbox.__new__(Sandbox)
+        sandbox.client = SimpleNamespace(images=images)
+        sandbox.current_image = "python:3.11-slim"
+        sandbox.platform = "linux/arm64"
+
+        with self.assertRaisesRegex(RuntimeError, "does not match linux/arm64"):
+            sandbox._resolved_platform_image_ref()
+
+    def test_stable_local_alias_is_derived_from_image_id_and_platform(self):
+        tagged = []
+        image = SimpleNamespace(
+            id="sha256:1234567890abcdefcafebabe",
+            tag=lambda repository, tag: tagged.append((repository, tag)) or True,
+        )
+        sandbox = Sandbox.__new__(Sandbox)
+        sandbox.client = SimpleNamespace(images=SimpleNamespace(get=lambda _ref: image))
+        sandbox.platform = "linux/arm64"
+
+        alias = sandbox._stable_local_image_alias("sha256:1234567890abcdefcafebabe")
+
+        self.assertEqual(alias, "jayint-v3-base:1234567890abcdef-linux-arm64")
+        self.assertEqual(
+            tagged, [("jayint-v3-base", "1234567890abcdef-linux-arm64")]
+        )
+
+    def test_rolling_snapshot_cleanup_cannot_delete_named_checkpoint(self):
+        removed = []
+
+        class _Images:
+            def get(self, image_id):
+                return SimpleNamespace(id=image_id)
+
+            def remove(self, image_id, force=False):
+                removed.append((image_id, force))
+
+        sandbox = Sandbox.__new__(Sandbox)
+        sandbox.client = SimpleNamespace(images=_Images())
+        sandbox.snapshot_image_ids = {"checkpoint-image"}
+        sandbox.named_checkpoints = {"exec-1": "checkpoint-image"}
+
+        sandbox._remove_snapshot_image("checkpoint-image")
+        self.assertEqual(removed, [])
+        self.assertIn("checkpoint-image", sandbox.snapshot_image_ids)
+
+        sandbox._remove_snapshot_image("checkpoint-image", force_named=True)
+        self.assertEqual(removed, [("checkpoint-image", True)])
+        self.assertNotIn("checkpoint-image", sandbox.snapshot_image_ids)
+
+    def test_restore_named_checkpoint_does_not_replay_runtime_services(self):
+        sandbox = Sandbox.__new__(Sandbox)
+        sandbox.named_checkpoints = {"base": "base-image", "exec-1": "checkpoint-image"}
+        calls = []
+        sandbox._replace_container_from_image = (
+            lambda image, *, replay_runtime: calls.append((image, replay_runtime))
+        )
+
+        sandbox.restore_checkpoint("exec-1")
+
+        self.assertEqual(calls, [("checkpoint-image", False)])
+        self.assertEqual(sandbox.current_image, "checkpoint-image")
+        self.assertEqual(sandbox.last_success_image, "checkpoint-image")
+
+    def test_create_checkpoint_does_not_rotate_last_success_snapshot(self):
+        sandbox = Sandbox.__new__(Sandbox)
+        sandbox.container = SimpleNamespace(
+            commit=lambda: SimpleNamespace(id="new-checkpoint-image")
+        )
+        sandbox.snapshot_image_ids = set()
+        sandbox.named_checkpoints = {"base": "base-image"}
+        sandbox.last_success_image = "rolling-image"
+
+        name = sandbox.create_checkpoint("exec-1")
+
+        self.assertEqual(name, "exec-1")
+        self.assertEqual(sandbox.named_checkpoints["exec-1"], "new-checkpoint-image")
+        self.assertEqual(sandbox.last_success_image, "rolling-image")
+        self.assertIn("new-checkpoint-image", sandbox.snapshot_image_ids)
+
+    def test_no_extra_hosts_off_arm(self):
+        import os
+        orig = os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION")
+        os.environ.pop("DOCKERAGENT_ENABLE_SERVICE_PROVISION", None)
+        try:
+            captured = {}
+            fake_container = FakeContainer()
+
+            class _Containers:
+                def run(self, image, **kwargs):
+                    captured.update(kwargs)
+                    return fake_container
+
+            class _Client:
+                containers = _Containers()
+
+            import src.sandbox as sb
+            s = sb.Sandbox.__new__(sb.Sandbox)
+            s.client = _Client()
+            s.current_image = "python:3.11-slim"
+            s.platform = None
+            s.workdir = "/app"
+            s.volumes = {}
+            s.seed_dir = None
+            s._bootstrap_apt_if_supported = lambda: None
+            s._register_snapshot = lambda *a: None
+            s._setup_initial_container()
+            self.assertNotIn("extra_hosts", captured)
+        finally:
+            if orig is None:
+                os.environ.pop("DOCKERAGENT_ENABLE_SERVICE_PROVISION", None)
+            else:
+                os.environ["DOCKERAGENT_ENABLE_SERVICE_PROVISION"] = orig
 
 
 if __name__ == "__main__":

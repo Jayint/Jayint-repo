@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EnvState v1 — Maintainer Architecture</title>
+<style>
+  :root{
+    --host:#1b7f4b;   --host-bg:#e8f6ee;   --host-br:#9bd6b4;
+    --llm:#2b5fb3;    --llm-bg:#e8f0fb;    --llm-br:#a9c4ed;
+    --struct:#a9711a; --struct-bg:#fbf2e1; --struct-br:#e8cf9a;
+    --static:#5a5f6a; --static-bg:#eef0f3; --static-br:#c7ccd4;
+    --plan:#0f7d83;   --plan-bg:#e2f5f5;   --plan-br:#9bd6d8;
+    --build:#a83a2a;  --build-bg:#fbeae6;  --build-br:#eab3a6;
+    --ink:#1c2230;    --muted:#5b6470;     --line:#cdd3dc;
+    --bg:#f7f8fa;     --card:#ffffff;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:32px 20px 80px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.5;
+  }
+  .wrap{max-width:1080px;margin:0 auto}
+  h1{font-size:26px;margin:0 0 4px}
+  h2{font-size:19px;margin:46px 0 6px;padding-top:14px;border-top:2px solid var(--line)}
+  h3{font-size:15px;margin:22px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  p{margin:8px 0;max-width:80ch}
+  .lead{font-size:15px;color:var(--muted)}
+  code,.mono{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:12.5px}
+  code{background:#eceff3;padding:1px 5px;border-radius:4px}
+  .badge{display:inline-block;font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+    font-size:11px;color:var(--muted);background:#eef0f3;border:1px solid var(--line);
+    border-radius:5px;padding:1px 6px;margin-left:6px;white-space:nowrap}
+
+  /* boxes */
+  .box{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--static-br);
+    border-radius:9px;padding:12px 14px;margin:0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .box .t{font-weight:700;font-size:14px;margin-bottom:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .box .d{font-size:13px;color:var(--muted)}
+  .box ul{margin:6px 0 0;padding-left:18px;font-size:13px}
+  .box li{margin:2px 0}
+
+  .host  {border-left-color:var(--host);   background:var(--host-bg)}
+  .llm   {border-left-color:var(--llm);    background:var(--llm-bg)}
+  .struct{border-left-color:var(--struct); background:var(--struct-bg)}
+  .static{border-left-color:var(--static); background:var(--static-bg)}
+  .plan  {border-left-color:var(--plan);   background:var(--plan-bg)}
+  .build {border-left-color:var(--build);  background:var(--build-bg)}
+
+  .tag{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+    padding:1px 7px;border-radius:20px;color:#fff}
+  .tag.host{background:var(--host)} .tag.llm{background:var(--llm)}
+  .tag.struct{background:var(--struct)} .tag.static{background:var(--static)}
+  .tag.plan{background:var(--plan)} .tag.build{background:var(--build)}
+
+  /* flow */
+  .flow{display:flex;flex-direction:column;gap:0;align-items:stretch;max-width:760px}
+  .flow .box{margin:0}
+  .arrow{align-self:center;color:var(--muted);font-size:13px;text-align:center;
+    padding:5px 0;line-height:1.2;font-weight:600}
+  .arrow small{display:block;font-weight:400;font-size:11px;color:#8a929e}
+  .arrow .lbl{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:11px;
+    background:#eef0f3;border:1px solid var(--line);border-radius:5px;padding:0 6px;color:var(--muted)}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:680px){.two{grid-template-columns:1fr}}
+
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 4px}
+  .legend .item{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted)}
+  .sw{width:14px;height:14px;border-radius:4px;border:1px solid rgba(0,0,0,.15)}
+
+  pre{background:#1f2430;color:#e6e9ef;border-radius:9px;padding:14px 16px;overflow:auto;
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.55;margin:10px 0}
+  pre .c{color:#7f8aa3} pre .k{color:#7fd1b9} pre .v{color:#e8c07d} pre .a{color:#8ab4f8}
+
+  .note{background:#fff8e6;border:1px solid #e8cf9a;border-radius:8px;padding:10px 13px;
+    font-size:13px;margin:10px 0;color:#6b5418}
+  .note b{color:#8a5a00}
+  .arr-back{font-size:12px;color:var(--plan);font-weight:600;text-align:center;padding:6px;
+    border:1px dashed var(--plan-br);border-radius:8px;background:var(--plan-bg);max-width:760px}
+  .center{display:flex;justify-content:center}
+  .cap{font-size:12.5px;color:var(--muted);margin:4px 0 14px}
+  .seq{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .pivot{border:2px dashed var(--llm-br);background:#f4f8ff;border-radius:9px;padding:12px 14px;
+    text-align:center;font-size:13px;max-width:760px;margin:0 auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>EnvState v1 — The Maintainer</h1>
+  <p class="lead">What it maintains, and how <code>auto_resolve</code> + error/stdout parsing work.
+     Boxes are color-coded by <b>who writes</b>. Every claim is anchored to <code>file:line</code>.</p>
+
+  <div class="legend">
+    <span class="item"><span class="sw" style="background:var(--host-bg);border-color:var(--host)"></span> Host — deterministic (facts)</span>
+    <span class="item"><span class="sw" style="background:var(--llm-bg);border-color:var(--llm)"></span> LLM Maintainer (interpretation)</span>
+    <span class="item"><span class="sw" style="background:var(--struct-bg);border-color:var(--struct)"></span> Structural (done_flag)</span>
+    <span class="item"><span class="sw" style="background:var(--static-bg);border-color:var(--static)"></span> Set once (cycle 0)</span>
+    <span class="item"><span class="sw" style="background:var(--plan-bg);border-color:var(--plan)"></span> Planner</span>
+    <span class="item"><span class="sw" style="background:var(--build-bg);border-color:var(--build)"></span> BuildAgent</span>
+  </div>
+
+  <div class="note">
+    <b>One idea to hold onto:</b> the “Maintainer” is <b>two writers</b>, not one agent. A
+    <b>deterministic host half</b> (<code>apply_deterministic</code> + <code>_auto_resolve_*</code>) <b>owns the facts</b> and
+    certifies what is true; an <b>LLM half</b> (<code>Maintainer.update</code>) <b>owns the interpretation</b> — it reads
+    failures and writes <code>open_problems</code>/<code>notes</code>. The LLM proposes; the host certifies.
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>1 · Where the Maintainer sits — the v1 cycle</h2>
+  <p class="cap"><span class="mono">orchestrator.py:run_v1</span> — Planner → BuildAgent → host fold → Maintainer, up to 12 cycles.
+     The host fold runs <i>before</i> the LLM every cycle, so facts are certified before interpretation.</p>
+
+  <div class="flow">
+    <div class="box host">
+      <div class="t"><span class="tag host">host</span> cycle 0 — seed facts <span class="badge">orchestrator.py:64‑65</span></div>
+      <div class="d"><code>apply_deterministic(map, probe(), manifest)</code> — probe the container &amp; parse manifests before the loop starts.</div>
+    </div>
+    <div class="arrow">▼</div>
+
+    <div class="box plan">
+      <div class="t"><span class="tag plan">planner</span> PLANNER.decide(map) <span class="badge">orchestrator.py:69</span></div>
+      <div class="d">Reads the world model → emits <code>task</code> / <code>done</code> / <code>giveup</code>.</div>
+    </div>
+    <div class="arrow"><span class="lbl">Task { goal, done_when, layer }</span><br>▼</div>
+
+    <div class="box build">
+      <div class="t"><span class="tag build">buildagent</span> BUILDAGENT.run(task) <span class="badge">orchestrator.py:85</span></div>
+      <div class="d">Executes shell actions in the sandbox to satisfy the task.</div>
+    </div>
+    <div class="arrow"><span class="lbl">TaskReport { commands:[{cmd, rc, output}], learning }</span><br>▼</div>
+
+    <!-- the maintainer step = two writers -->
+    <div class="box" style="border-left-color:#888;background:#fbfbfd">
+      <div class="t">THE MAINTAINER STEP — two writers, in order</div>
+      <div style="display:flex;flex-direction:column;gap:0;margin-top:8px">
+        <div class="box host">
+          <div class="t"><span class="tag host">host</span> 2b · deterministic fold <span class="badge">orchestrator.py:93‑94</span></div>
+          <ul>
+            <li>re‑probe the container (read‑only, off the ledger)</li>
+            <li><b>REPLACE</b> installed / env / required / build_system / language</li>
+            <li><b>AUTO‑RESOLVE</b> open_problems (see §4)</li>
+            <li>recompute <code>progress[]</code> (monotonic)</li>
+          </ul>
+        </div>
+        <div class="arrow">▼</div>
+        <div class="box llm">
+          <div class="t"><span class="tag llm">llm</span> 3 · Maintainer.update <span class="badge">orchestrator.py:97</span></div>
+          <ul>
+            <li>interpret this cycle’s failures → append <code>open_problems</code></li>
+            <li>append <code>notes</code>; drop LLM‑<code>resolved</code> signatures</li>
+            <li>set <code>done_flag</code> (structural)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow"><span class="lbl">new immutable WorldModelMap</span><br>▼</div>
+    <div class="box struct">
+      <div class="t"><span class="tag struct">structural</span> stop the instant <code>map.done_flag</code> is True <span class="badge">orchestrator.py:104</span></div>
+      <div class="d">Does <b>not</b> wait for the next planner call — terminates immediately.</div>
+    </div>
+  </div>
+  <div style="height:8px"></div>
+  <div class="center"><div class="arr-back">↑ otherwise loop back to PLANNER with the updated map (next cycle)</div></div>
+
+  <!-- ============================================================ -->
+  <h2>2 · What it maintains — <code>WorldModelMap</code> ownership</h2>
+  <p class="cap">One shared frozen dataclass <span class="badge">world_model.py:41‑56</span>. 13 fields, and
+     <b>each field has exactly one writer</b>. That split is the whole design.</p>
+
+  <div class="grid">
+    <div class="box static">
+      <div class="t"><span class="tag static">set once</span> Cycle‑0 constants</div>
+      <div class="d">Written by <code>initial_map</code>, never mutated.</div>
+      <ul>
+        <li><code>base_image</code></li>
+        <li><code>workdir</code></li>
+        <li><code>repo_layout</code></li>
+      </ul>
+    </div>
+
+    <div class="box host">
+      <div class="t"><span class="tag host">host</span> Authoritative facts</div>
+      <div class="d"><code>apply_deterministic</code> <span class="badge">world_model.py:269‑311</span> from probe + manifest. <b>Never touched by the LLM.</b></div>
+      <ul>
+        <li><code>installed</code> · <code>required</code></li>
+        <li><code>env</code> · <code>system_installed</code></li>
+        <li><code>build_system</code> · <code>language</code></li>
+        <li><code>progress[]</code> — <code>_derive_progress</code>, monotonic</li>
+      </ul>
+    </div>
+
+    <div class="box llm">
+      <div class="t"><span class="tag llm">llm</span> Interpretation</div>
+      <div class="d"><code>Maintainer.update</code> <span class="badge">maintainer.py:207‑303</span> — the only fields the model writes.</div>
+      <ul>
+        <li><code>open_problems</code></li>
+        <li><code>notes</code></li>
+      </ul>
+    </div>
+
+    <div class="box struct">
+      <div class="t"><span class="tag struct">structural</span> Done gate</div>
+      <div class="d">Not the LLM’s judgement call.</div>
+      <ul>
+        <li><code>done_flag</code> — True once a <code>--collect-only</code> command exits 0 <span class="badge">maintainer.py:81‑86</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>Subtle point (verified):</b> the LLM’s output contract is <code>open_problems</code> / <code>resolved</code> / <code>notes</code>,
+    but <code>resolved</code> is <b>not a stored field</b>. It’s a list of signatures the model says are now fixed; the parser
+    uses it to <i>delete</i> entries from <code>open_problems</code> <span class="badge">maintainer.py:163‑165</span>, then discards it.
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>3 · The LLM Maintainer’s function — <code>maintainer.update</code></h2>
+  <p class="cap">One LLM call per cycle. Facts go in as <b>read‑only inputs</b>; only interpretation comes out.</p>
+
+  <div class="flow">
+    <div class="box llm">
+      <div class="t"><span class="tag llm">input</span> user payload to the model <span class="badge">maintainer.py:226‑268</span></div>
+      <ul>
+        <li><b>current_map</b>: installed, required, <code>missing</code> (= required − installed, computed on the fly <span class="badge">L222</span>),
+            env, <code>system_tools</code> (filtered to <code>detail∈{tool,pkgconfig}</code> <span class="badge">L223</span>), os_release, build_tools, open_problems, done_flag, notes</li>
+        <li><b>task_report</b>: task_goal, status, commands [{cmd, rc, output}], learning</li>
+      </ul>
+      <div class="d" style="margin-top:6px">system prompt: <i>“facts are ALREADY filled in by the host — do NOT report them”</i> <span class="badge">maintainer.py:42‑75</span></div>
+    </div>
+    <div class="arrow"><span class="lbl">```json reply```</span><br>▼</div>
+
+    <div class="box">
+      <div class="t">model returns one JSON object</div>
+<pre><span class="c">// maintainer.py:64-72</span>
+{
+  <span class="k">"open_problems"</span>: [{ <span class="k">signature</span>, <span class="k">interpretation</span>, <span class="k">layer</span> }],
+  <span class="k">"resolved"</span>:      [ <span class="v">"&lt;signature now fixed&gt;"</span> ],
+  <span class="k">"notes"</span>:         [ <span class="v">"..."</span> ]
+}</pre>
+    </div>
+    <div class="arrow">▼ <span class="lbl">parse_v1_maintainer_reply — maintainer.py:131‑180</span></div>
+
+    <div class="box llm">
+      <div class="t">fold into a NEW frozen map</div>
+      <ul>
+        <li><b>open_problems</b>: append new, <b>dedup by signature</b> <span class="badge">L156‑160</span></li>
+        <li><b>resolved</b>: drop those signatures <span class="badge">L163‑165</span></li>
+        <li><b>notes</b>: append, never replace <span class="badge">L168‑171</span></li>
+        <li><b>done_flag</b>: monotonic OR collect‑only‑passed <span class="badge">L173</span></li>
+        <li><b>progress.tests</b>: synced to done_flag <span class="badge">L179</span></li>
+      </ul>
+      <div class="d" style="margin-top:6px">Empty/garbage reply ⇒ only the structural done_flag rule applies; map otherwise unchanged.</div>
+    </div>
+  </div>
+  <div class="note">
+    The model’s whole job is one task it’s good at: <b>“given this output + these known facts, what failed and at which
+    layer?”</b> It tags each failure <code>layer ∈ {base, system, runtime, deps, build, tests}</code> (default <code>deps</code>
+    <span class="badge">maintainer.py:104</span>). That layer label is what makes <code>auto_resolve</code> possible.
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>4 · <code>auto_resolve</code> — the host un‑saying what the LLM said</h2>
+  <p class="cap">Inside <code>apply_deterministic</code> <span class="badge">world_model.py:297‑298</span>: two sequential passes that
+     <b>drop</b> problems the latest probe proves fixed. Pass 2 runs on pass 1’s output. Both are conservative — unknown shapes are kept.</p>
+
+  <div class="flow" style="max-width:820px">
+    <div class="box host">
+      <div class="t"><span class="tag host">pass 1</span> pip / deps — <code>_auto_resolve_problems</code> <span class="badge">world_model.py:198‑218</span></div>
+<pre><span class="c"># names from the `installed` facts</span>
+names = [f.name.lower() <span class="a">for</span> f <span class="a">in</span> installed]   <span class="c"># {"flask","psycopg2"}</span>
+<span class="a">for</span> p <span class="a">in</span> open_problems:
+    <span class="a">if</span> <span class="a">any</span>(name <span class="a">in</span> p.signature.lower() <span class="a">for</span> name <span class="a">in</span> names):  <span class="c"># SUBSTRING</span>
+        drop p   <span class="c"># resolved</span></pre>
+      <div class="d"><code>"ModuleNotFoundError: flask"</code> + <code>flask∈installed</code> ⇒ <b>DROPPED</b>.</div>
+    </div>
+
+    <div class="arrow"><span class="lbl">remaining problems</span><br>▼</div>
+
+    <div class="box host">
+      <div class="t"><span class="tag host">pass 2</span> system layer — <code>_auto_resolve_system_problems</code> <span class="badge">world_model.py:239‑266</span></div>
+<pre><span class="c"># only problems with layer == "system"</span>
+present = {names <span class="a">in</span> system_installed}            <span class="c"># {"pg_config","libpq"}</span>
+present |= {strip "lib" prefix}   <span class="c"># libpq → pq   (L254)</span>
+present |= {add   "lib" prefix}   <span class="c"># pq → libpq   (L255)</span>
+<span class="a">for</span> p <span class="a">in</span> system_problems:
+    art = _system_artifact(p.signature)   <span class="c"># regex, see §5</span>
+    <span class="a">if</span> art <span class="a">in</span> present:  drop p</pre>
+      <div class="d"><code>"pg_config: command not found"</code> + <code>pg_config∈system_installed</code> ⇒ <b>DROPPED</b>.</div>
+    </div>
+  </div>
+
+  <div class="two" style="margin-top:14px">
+    <div class="note"><b>Why two passes?</b> A pip miss is checked against <code>pip list</code> facts; a system miss
+      (<code>pg_config not found</code>, <code>cannot find -lpq</code>) is checked against <code>dpkg</code>/<code>pkg-config</code>/PATH facts.
+      Different sources → different matching → two functions.</div>
+    <div class="note"><b>Watch‑outs:</b> pass 1 is a <i>substring</i> match (conservative, but <code>psycopg2</code> vs <code>psycopg2‑binary</code>
+      falls through to the LLM’s own <code>resolved</code>). Pass 2 matches the <i>artifact</i> (<code>pg_config</code>), not the apt
+      package (<code>libpq‑dev</code>); <span class="badge">L263</span> uses <code>art.replace("lib","")</code> — a global replace, not prefix‑strip.</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>5 · Error / stdout parsing — two directions meeting at the signature</h2>
+  <p class="cap">There’s no single “parser”. Raw output flows two ways; they meet at the <code>signature</code> string.
+     (<code>diagnostics.py</code> is <b>not</b> a parser — it only logs LLM exchanges.)</p>
+
+  <div class="two">
+    <div class="box host">
+      <div class="t"><span class="tag host">direction A</span> probe output → FACTS</div>
+      <div class="d">Deterministic, every cycle.</div>
+      <div class="flow" style="margin-top:8px">
+        <div class="box static" style="background:#fff">
+          <div class="t" style="font-size:13px">read‑only commands <span class="badge">extractor.py:15‑34</span></div>
+          <div class="d"><code>pip list --format=freeze</code> · <code>dpkg -l</code> · <code>pkg-config --list-all</code> · <code>command -v gcc make pg_config…</code></div>
+        </div>
+        <div class="arrow">▼ <span class="lbl">rc==0 &amp; non‑empty only — extractor.py:56</span></div>
+        <div class="box static" style="background:#fff">
+          <div class="t" style="font-size:13px"><code>probe_env()</code> → EnvSnapshot <span class="badge">snapshot.py:52‑75</span></div>
+          <ul>
+            <li><code>_parse_installed</code> → <code>installed</code> = (Fact"flask","3.0.0", …)</li>
+            <li>dpkg/pkgcfg/tools → <code>system_installed</code></li>
+            <li>scalars → <code>env</code> (bulky lists stripped)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="note" style="margin-top:8px;background:#fff;border-color:var(--host-br);color:var(--host)">
+        empty <code>env</code> ⇒ probe failed ⇒ <code>apply_deterministic</code> <b>keeps prior facts</b> (graceful degrade).</div>
+    </div>
+
+    <div class="box llm">
+      <div class="t"><span class="tag llm">direction B</span> failure output → SIGNATURE</div>
+      <div class="d">LLM interprets, then host regex re‑extracts.</div>
+      <div class="flow" style="margin-top:8px">
+        <div class="box" style="background:#fff">
+          <div class="t" style="font-size:13px">raw <code>TaskReport.commands[*].output</code></div>
+          <div class="d mono">“Building wheel… pg_config: command not found”</div>
+        </div>
+        <div class="arrow">▼ <span class="lbl">LLM interprets arbitrary errors</span></div>
+        <div class="box llm" style="background:#fff">
+          <div class="t" style="font-size:13px">OpenProblem</div>
+<pre><span class="k">signature</span>      = <span class="v">"pg_config: command not found"</span>  <span class="c">← KEY</span>
+<span class="k">interpretation</span> = <span class="v">"psycopg2 build needs libpq"</span>
+<span class="k">layer</span>          = <span class="v">"system"</span></pre>
+        </div>
+        <div class="arrow">▼ <span class="lbl">_system_artifact() — world_model.py:222‑236</span></div>
+        <div class="box host" style="background:#fff">
+          <div class="t" style="font-size:13px">4 regexes extract the artifact token</div>
+<pre><span class="c"># signature → artifact</span>
+…(command not found| : not found)   → pg_config
+no package '([^']+)' found          → libpq
+cannot find -l(\S+)                 → pq
+fatal error:\s*([\w./+-]+)\.h       → libpq-fe</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="height:14px"></div>
+  <div class="pivot">
+    <b>The pivot:</b> the <code>signature</code> is written by the LLM in human‑readable error form, and read back by the host
+    regexes into a normalized artifact token — so the deterministic side (§4) can match it against probe Facts and auto‑resolve it.
+    It is simultaneously a <b>stable dedup key</b> and a <b>regex‑parseable handle</b>.
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>6 · The whole thing, as one loop</h2>
+  <div class="flow" style="max-width:760px">
+    <div class="box llm"><div class="t"><span class="tag llm">llm</span> observes failure → writes <code>OpenProblem(signature, layer)</code></div></div>
+    <div class="arrow">▼</div>
+    <div class="box plan"><div class="t"><span class="tag plan">planner</span> turns the open problem into a task</div></div>
+    <div class="arrow">▼</div>
+    <div class="box build"><div class="t"><span class="tag build">buildagent</span> acts — installs the missing thing</div></div>
+    <div class="arrow">▼</div>
+    <div class="box host"><div class="t"><span class="tag host">host</span> re‑probe → <code>auto_resolve</code>: signature ∈ facts? → drop problem → <code>progress[]</code> ratchets up</div></div>
+    <div class="arrow">▼</div>
+    <div class="box struct"><div class="t"><span class="tag struct">structural</span> <code>pytest --collect-only</code> exits 0 → <code>done_flag</code> → loop stops</div></div>
+  </div>
+  <p style="margin-top:14px;font-size:15px"><b>The Maintainer is the bookkeeper of that loop:</b>
+     the LLM says what broke, the host proves what’s fixed, and the map stays honest.</p>
+
+  <p style="margin-top:30px;color:var(--muted);font-size:12px">
+    Sources: <span class="mono">src/envstate/{maintainer,world_model,orchestrator,snapshot,extractor}.py</span>.
+    Generated for branch <span class="mono">john-planner-v1</span>.</p>
+
+</div>
+</body>
+</html>

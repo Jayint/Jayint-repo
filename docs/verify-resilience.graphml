@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns">
+  <key id="d0" for="node" attr.name="label" attr.type="string"/>
+  <key id="d1" for="node" attr.name="type" attr.type="string"/>
+  <key id="d2" for="node" attr.name="layer" attr.type="string"/>
+  <key id="d3" for="node" attr.name="state" attr.type="string"/>
+  <key id="d4" for="node" attr.name="discovered_by" attr.type="string"/>
+  <key id="d5" for="node" attr.name="check" attr.type="string"/>
+  <key id="d6" for="node" attr.name="fix" attr.type="string"/>
+  <key id="d7" for="node" attr.name="evidence" attr.type="string"/>
+  <key id="d8" for="node" attr.name="build_from_source" attr.type="string"/>
+  <key id="e0" for="edge" attr.name="relation" attr.type="string"/>
+  <key id="e1" for="edge" attr.name="marker" attr.type="string"/>
+  <key id="e2" for="edge" attr.name="constraint" attr.type="string"/>
+  <graph edgedefault="directed">
+    <node id="pkg:this-package-surely-does-not-exist-zzz999">
+      <data key="d0">this-package-surely-does-not-exist-zzz999</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">missing</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show this-package-surely-does-not-exist-zzz999</data>
+      <data key="d6">pip:this-package-surely-does-not-exist-zzz999</data>
+      <data key="d7">WARNING: Package(s) not found: this-package-surely-does-not-exist-zzz999
+</data>
+    </node>
+    <node id="pkg:idna==3.18">
+      <data key="d0">idna==3.18</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show idna</data>
+      <data key="d6">pip:idna</data>
+      <data key="d8">false</data>
+    </node>
+    <node id="pkg:certifi==2026.6.17">
+      <data key="d0">certifi==2026.6.17</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show certifi</data>
+      <data key="d6">pip:certifi</data>
+      <data key="d8">false</data>
+    </node>
+    <node id="pkg:colorama==0.4.6">
+      <data key="d0">colorama==0.4.6</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show colorama</data>
+      <data key="d6">pip:colorama</data>
+      <data key="d8">false</data>
+    </node>
+    <node id="pkg:charset-normalizer==3.4.7">
+      <data key="d0">charset-normalizer==3.4.7</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show charset-normalizer</data>
+      <data key="d6">pip:charset-normalizer</data>
+      <data key="d8">false</data>
+    </node>
+    <node id="pkg:requests==2.34.2">
+      <data key="d0">requests==2.34.2</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show requests</data>
+      <data key="d6">pip:requests</data>
+      <data key="d8">false</data>
+    </node>
+    <node id="pkg:click==8.4.1">
+      <data key="d0">click==8.4.1</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show click</data>
+      <data key="d6">pip:click</data>
+      <data key="d8">false</data>
+    </node>
+    <node id="pkg:urllib3==2.7.0">
+      <data key="d0">urllib3==2.7.0</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show urllib3</data>
+      <data key="d6">pip:urllib3</data>
+      <data key="d8">false</data>
+    </node>
+    <node id="import:click">
+      <data key="d0">click</data>
+      <data key="d1">Import</data>
+      <data key="d2">naming</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">static_scan</data>
+      <data key="d5">python -c "import click"</data>
+    </node>
+    <node id="import:requests">
+      <data key="d0">requests</data>
+      <data key="d1">Import</data>
+      <data key="d2">naming</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">static_scan</data>
+      <data key="d5">python -c "import requests"</data>
+    </node>
+    <node id="test:repo_tests_pass">
+      <data key="d0">repo_tests_pass</data>
+      <data key="d1">Test</data>
+      <data key="d2">tests</data>
+      <data key="d3">missing</data>
+      <data key="d4">goal</data>
+      <data key="d5">python -m pytest -q</data>
+      <data key="d7">/usr/local/bin/python: No module named pytest
+</data>
+    </node>
+    <edge source="test:repo_tests_pass" target="import:click"><data key="e0">requires</data></edge>
+    <edge source="test:repo_tests_pass" target="import:requests"><data key="e0">requires</data></edge>
+    <edge source="pkg:click==8.4.1" target="pkg:colorama==0.4.6"><data key="e0">requires</data><data key="e1">sys_platform == 'win32'</data></edge>
+    <edge source="pkg:requests==2.34.2" target="pkg:certifi==2026.6.17"><data key="e0">requires</data></edge>
+    <edge source="pkg:requests==2.34.2" target="pkg:charset-normalizer==3.4.7"><data key="e0">requires</data></edge>
+    <edge source="pkg:requests==2.34.2" target="pkg:idna==3.18"><data key="e0">requires</data></edge>
+    <edge source="pkg:requests==2.34.2" target="pkg:urllib3==2.7.0"><data key="e0">requires</data></edge>
+  </graph>
+</graphml>

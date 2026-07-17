@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dependency Diagnosis Graph — lifecycle &amp; usage</title>
+<script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+<style>
+  :root{
+    --bg:#f6f7f9;--ink:#172033;--muted:#5d6878;--panel:#fff;--border:#d9dee7;
+    --unknown:#b7791f;--unknown-bg:#fef7df;
+    --proven:#15803d;--proven-bg:#e7f6f4;
+    --refuted:#c62828;--refuted-bg:#fff0e8;
+    --neutral:#5d6878;--neutral-bg:#eef1f5;
+    --info:#3b5bdb;--info-bg:#eef3ff;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;--body:system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--body)}
+  header{padding:14px 22px;border-bottom:1px solid var(--border);background:var(--panel)}
+  h1{margin:0 0 3px;font-size:18px}
+  .sub{margin:0;color:var(--muted);font-size:12.5px}
+  .controls{display:flex;gap:8px;align-items:center;margin-top:11px;flex-wrap:wrap}
+  select,button{font:600 13px var(--body);padding:6px 12px;border:1px solid var(--border);background:#fff;border-radius:7px;cursor:pointer;color:var(--ink)}
+  button:disabled{opacity:.4;cursor:default}
+  .step-ind{font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:4px}
+  main{display:grid;grid-template-columns:1fr 350px;height:calc(100vh - 150px)}
+  #cy{width:100%;height:100%;background:linear-gradient(#eef1f5 1px,transparent 1px),linear-gradient(90deg,#eef1f5 1px,transparent 1px);background-size:26px 26px;background-color:#fbfcfe}
+  aside{border-left:1px solid var(--border);background:var(--panel);overflow:auto}
+  .narr{padding:13px 15px;border-bottom:1px solid var(--border)}
+  .narr .obs{font-size:13px;margin:0 0 9px}
+  .narr .act{font-size:12.5px;background:var(--info-bg);border:1px solid #cdd9fb;border-radius:7px;padding:8px 10px;color:#1f3aa6}
+  .narr .act b{color:#152a78}
+  .pan{padding:13px 15px}
+  .pan h2{font-size:12px;margin:0 0 8px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+  table{border-collapse:collapse;width:100%;font-size:12px}
+  td{padding:3px 6px;border-bottom:1px solid #eef1f5;vertical-align:top}
+  td.k{color:var(--muted);width:104px;font-family:var(--mono)}
+  td.v{font-family:var(--mono);word-break:break-word}
+  .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-weight:600;font-size:11px}
+  .hint{color:var(--muted);font-size:12.5px}
+  .legend{padding:9px 22px;background:var(--panel);border-top:1px solid var(--border);display:flex;gap:13px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);align-items:center}
+  .legend b{color:var(--ink)}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block;border:1px solid rgba(0,0,0,.25);vertical-align:-1px}
+  .ln{display:inline-block;width:22px;height:0;border-top-width:3px;vertical-align:middle}
+  code{font-family:var(--mono);background:#eef1f5;padding:1px 4px;border-radius:4px}
+  .usage{font-size:12px;color:var(--ink);line-height:1.5}
+  .usage code{font-size:11px}
+  .usage .rule{background:#fff8e6;border:1px solid #f0e0a8;border-radius:6px;padding:8px 10px;margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Dependency Diagnosis Graph — lifecycle &amp; how the agent uses it</h1>
+  <p class="sub">Failure / Need / Provider / Attempt · 8 edges · three-valued <code>Need.state</code> the host certifies. Pick a scenario and step through cold-start → runtime-append → repair.</p>
+  <div class="controls">
+    <label class="hint">Scenario</label>
+    <select id="scenario" onchange="loadScenario()"></select>
+    <button id="prev" onclick="step(-1)">◀ Prev</button>
+    <button id="next" onclick="step(1)">Next ▶</button>
+    <span class="step-ind" id="ind"></span>
+    <button onclick="relayout()">↻ Re-layout</button>
+  </div>
+</header>
+
+<main>
+  <div id="cy"></div>
+  <aside>
+    <div class="narr">
+      <p class="obs" id="obs"></p>
+      <div class="act" id="act"></div>
+    </div>
+    <div class="pan" id="inspector"><span class="hint">Click a node to inspect its fields.</span></div>
+    <div class="pan" style="border-top:1px solid var(--border)">
+      <h2>How the agent uses it</h2>
+      <div class="usage">
+        A pure loop over 4 calls:<br>
+        <code>g = diagnose(static_evidence)</code> — cold start<br>
+        <code>g = ingest(g, cmd, output)</code> — append runtime evidence<br>
+        <code>a = next_action(g)</code> — pick the move<br>
+        <code>is_ready(g)</code> — honest done-gate
+        <div class="rule">
+          <b>Acting rule:</b> act on the <b>deepest unproven Need</b> reachable via <code>depends_on</code>; pick its highest-<code>trust</code>, non-exhausted/ineffective Provider; prefer a <code>retracts</code> provider (voids a whole subtree). If the frontier is a <code>conflicts_with</code>, the action is <b>relax a pin</b>, not install.
+        </div>
+        <div class="rule" style="background:#e7f6f4;border-color:#bfe6dd">
+          <b>Honesty invariants:</b> a Need is <b>proven only by its own <code>check_command</code></b> (host-run) — never because a Provider installed, never via <code>--collect-only</code>. A failed Attempt marks its Provider <code>exhausted</code>/<code>ineffective</code> → never re-picked (anti-loop).
+        </div>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<div class="legend">
+  <b>Nodes:</b>
+  <span>◆ Failure</span><span>◯ Need</span><span>▱ Provider</span><span>⬠ Attempt</span>
+  &nbsp;<b>Need.state:</b>
+  <span><i class="dot" style="background:var(--unknown-bg);border-color:var(--unknown)"></i>unknown</span>
+  <span><i class="dot" style="background:var(--proven-bg);border-color:var(--proven)"></i>proven</span>
+  <span><i class="dot" style="background:var(--refuted-bg);border-color:var(--refuted)"></i>refuted</span>
+  &nbsp;<b>Edges:</b>
+  <span><i class="ln" style="border-top:3px solid #111"></i> depends_on</span>
+  <span><i class="ln" style="border-top:3px dashed #c2410c"></i> conflicts_with</span>
+  <span><i class="ln" style="border-top:3px dashed #7c3aed"></i> retracts</span>
+  <span><i class="ln" style="border-top:3px solid #0f766e"></i> addresses/used</span>
+</div>
+
+<script>
+const FIELDS=["type","layer","kind","state","status","trust","check_command","specifier","pin_direction","retracts_targets","outcome","manager","spec","solver_status","note"];
+function N(id,label,type,extra){return {data:Object.assign({id,label,type},extra||{})};}
+function E(s,t,label){return {data:{id:s+"|"+label+"|"+t,source:s,target:t,label}};}
+
+// ---------- SCENARIOS ----------
+const SCENARIOS = {
+
+"cv2": { title:"cv2 → libGL.so.1 (naming → system; install≠proven; provider-swap)", steps:[
+  { obs:"<b>Cold start.</b> Static scan saw <code>import cv2</code> → one naming-layer Need (state=unknown — nothing is proven yet). Curated map attaches two candidate providers; the headless one carries a <i>latent</i> retracts. The whole system layer is invisible at cold start.",
+    act:"<b>next_action:</b> deepest unproven Need = <code>python_import:cv2</code>; pick highest-trust provider → <code>pip install opencv-python</code>.",
+    nodes:[
+      N("need:cv2","python_import:cv2","Need",{layer:"naming",state:"unknown",check_command:"python -c 'import cv2'",trust:"—"}),
+      N("prov:opencv","pip:opencv-python","Provider",{manager:"pip",status:"candidate",trust:"high"}),
+      N("prov:headless","pip:opencv-python-headless","Provider",{manager:"pip",status:"candidate",trust:"medium",retracts_targets:"system_library:libGL.so.1 (latent)"}),
+    ],
+    edges:[ E("need:cv2","prov:opencv","provided_by"), E("need:cv2","prov:headless","provided_by") ] },
+
+  { obs:"<b>Append #1.</b> <code>pip install opencv-python</code> returned rc 0, but <code>import cv2</code> failed: <code>libGL.so.1: cannot open</code>. A SYSTEM-layer Need is minted and wired with the cross-layer <b>depends_on</b>. Attempt A1 is <b>failed</b> — install ≠ proven — yet opencv-python is NOT exhausted (the wheel was fine, the .so was not). The headless <b>retracts</b> edge activates.",
+    act:"<b>next_action:</b> deepest unproven Need is now <code>system_library:libGL.so.1</code>. Options: <code>apt install libgl1</code>, OR swap to <code>opencv-python-headless</code> (retracts the whole system subtree).",
+    nodes:[
+      N("need:cv2","python_import:cv2","Need",{layer:"naming",state:"unknown",check_command:"python -c 'import cv2'"}),
+      N("need:libgl","system_library:libGL.so.1","Need",{layer:"system",state:"unknown",check_command:"ldconfig -p | grep libGL.so.1"}),
+      N("fail:libgl","native_library_missing: libGL.so.1","Failure",{state:"active"}),
+      N("att:a1","pip install opencv-python","Attempt",{outcome:"failed",note:"install rc0 but check failed"}),
+      N("prov:opencv","pip:opencv-python","Provider",{manager:"pip",status:"candidate",trust:"high"}),
+      N("prov:headless","pip:opencv-python-headless","Provider",{manager:"pip",status:"candidate",trust:"medium",retracts_targets:"system_library:libGL.so.1"}),
+      N("prov:apt","apt:libgl1","Provider",{manager:"apt",status:"candidate",trust:"high"}),
+    ],
+    edges:[
+      E("fail:libgl","need:libgl","indicates"),
+      E("need:cv2","need:libgl","depends_on"),
+      E("need:cv2","prov:opencv","provided_by"), E("need:cv2","prov:headless","provided_by"),
+      E("need:libgl","prov:apt","provided_by"),
+      E("att:a1","prov:opencv","used"), E("att:a1","need:cv2","addresses"), E("att:a1","fail:libgl","outcome:failed"),
+      E("prov:headless","need:libgl","retracts"),
+    ] },
+
+  { obs:"<b>Append #2 (apt path).</b> <code>apt install libgl1</code> → <code>ldconfig</code> rc0 PROVES libGL (host-certified), then <code>import cv2</code> rc0 PROVES cv2. Both Needs green; Failure retired. A1 stays in the audit trail so the agent won't re-diagnose cv2 as a pip problem. (Alternate path: installing <code>opencv-python-headless</code> would <b>retract</b> the libGL Need entirely and trim the apt sibling.)",
+    act:"<b>is_ready:</b> every Need on the chain is proven by its own check → this chain is done. A pip Attempt on a system-layer Need is type-rejected, so the reinstall-the-wheel loop is impossible.",
+    nodes:[
+      N("need:cv2","python_import:cv2","Need",{layer:"naming",state:"proven",check_command:"python -c 'import cv2' → rc0"}),
+      N("need:libgl","system_library:libGL.so.1","Need",{layer:"system",state:"proven",check_command:"ldconfig … → rc0"}),
+      N("fail:libgl","native_library_missing: libGL.so.1","Failure",{state:"resolved"}),
+      N("att:a1","pip install opencv-python","Attempt",{outcome:"failed"}),
+      N("att:a2","apt-get install -y libgl1","Attempt",{outcome:"resolved"}),
+      N("prov:opencv","pip:opencv-python","Provider",{manager:"pip",status:"selected",trust:"high"}),
+      N("prov:apt","apt:libgl1","Provider",{manager:"apt",status:"selected",trust:"high"}),
+    ],
+    edges:[
+      E("fail:libgl","need:libgl","indicates"),
+      E("need:cv2","need:libgl","depends_on"),
+      E("need:cv2","prov:opencv","provided_by"), E("need:libgl","prov:apt","provided_by"),
+      E("att:a1","prov:opencv","used"), E("att:a1","need:cv2","addresses"),
+      E("att:a2","prov:apt","used"), E("att:a2","need:libgl","addresses"), E("att:a2","fail:libgl","outcome:resolved"),
+    ] },
+]},
+
+"psycopg2": { title:"psycopg2 → libpq-dev → gcc (build-time, multi-hop, cross-manager)", steps:[
+  { obs:"<b>Cold start.</b> <code>declared_dependencies</code> has <code>psycopg2</code> → a pip Need. The curated swap table attaches a latent <code>psycopg2-binary</code> provider whose retracts target the toolchain subtree.",
+    act:"<b>next_action:</b> install <code>pip install psycopg2</code> and probe.",
+    nodes:[
+      N("need:psy","pip_dist:psycopg2","Need",{layer:"pip",state:"unknown",check_command:"python -c 'import psycopg2'"}),
+      N("prov:psy","pip:psycopg2","Provider",{manager:"pip",status:"candidate",trust:"high"}),
+      N("prov:psybin","pip:psycopg2-binary","Provider",{manager:"pip",status:"candidate",trust:"medium",retracts_targets:"toolchain:gcc, system_library:libpq-dev"}),
+    ],
+    edges:[ E("need:psy","prov:psy","provided_by"), E("need:psy","prov:psybin","provided_by") ] },
+
+  { obs:"<b>Append #1.</b> <code>pip install psycopg2</code> → <code>pg_config not found … Building wheel for psycopg2 … error</code>. (Requires the new <code>build_failure</code> classifier row — without it this falls to not_dependency_related and nothing materializes.) Two system Needs are minted and a <b>3-hop depends_on chain</b> appears. The binary provider's retracts edges activate.",
+    act:"<b>next_action:</b> walk to the DEEPEST unproven Need = <code>toolchain:gcc</code>. Either <code>apt build-essential libpq-dev</code>, OR pick <code>psycopg2-binary</code> to retract the whole subtree in one move.",
+    nodes:[
+      N("need:psy","pip_dist:psycopg2","Need",{layer:"pip",state:"unknown"}),
+      N("need:libpq","system_library:libpq-dev","Need",{layer:"system",state:"unknown",check_command:"pg_config --version"}),
+      N("need:gcc","toolchain:gcc","Need",{layer:"system",state:"unknown",check_command:"which gcc"}),
+      N("fail:build","build_failure: psycopg2","Failure",{state:"active"}),
+      N("att:b1","pip install psycopg2","Attempt",{outcome:"failed"}),
+      N("prov:psy","pip:psycopg2","Provider",{manager:"pip",status:"candidate"}),
+      N("prov:psybin","pip:psycopg2-binary","Provider",{manager:"pip",status:"candidate",retracts_targets:"toolchain:gcc, system_library:libpq-dev"}),
+      N("prov:apt","apt:libpq-dev + build-essential","Provider",{manager:"apt",status:"candidate",trust:"high"}),
+    ],
+    edges:[
+      E("fail:build","need:libpq","indicates"),
+      E("need:psy","need:libpq","depends_on"), E("need:libpq","need:gcc","depends_on"),
+      E("need:psy","prov:psy","provided_by"), E("need:psy","prov:psybin","provided_by"),
+      E("need:libpq","prov:apt","provided_by"), E("need:gcc","prov:apt","provided_by"),
+      E("att:b1","prov:psy","used"), E("att:b1","need:psy","addresses"), E("att:b1","fail:build","outcome:failed"),
+      E("prov:psybin","need:gcc","retracts"), E("prov:psybin","need:libpq","retracts"),
+    ] },
+
+  { obs:"<b>Append #2 (apt path).</b> <code>apt build-essential libpq-dev</code> proves gcc + libpq-dev (host checks), then re-<code>pip install psycopg2</code> proves psycopg2. Chain converges bottom-up. The classic infinite <code>pip install psycopg2</code> retry is structurally impossible — the graph said the root cause was one layer down.",
+    act:"<b>is_ready:</b> all chain Needs proven by their own checks → done.",
+    nodes:[
+      N("need:psy","pip_dist:psycopg2","Need",{layer:"pip",state:"proven"}),
+      N("need:libpq","system_library:libpq-dev","Need",{layer:"system",state:"proven"}),
+      N("need:gcc","toolchain:gcc","Need",{layer:"system",state:"proven"}),
+      N("fail:build","build_failure: psycopg2","Failure",{state:"resolved"}),
+      N("att:b1","pip install psycopg2","Attempt",{outcome:"failed"}),
+      N("att:b2","apt build-essential libpq-dev","Attempt",{outcome:"resolved"}),
+      N("att:b3","pip install psycopg2 (retry)","Attempt",{outcome:"resolved"}),
+      N("prov:apt","apt:libpq-dev + build-essential","Provider",{manager:"apt",status:"selected"}),
+      N("prov:psy","pip:psycopg2","Provider",{manager:"pip",status:"selected"}),
+    ],
+    edges:[
+      E("need:psy","need:libpq","depends_on"), E("need:libpq","need:gcc","depends_on"),
+      E("need:libpq","prov:apt","provided_by"), E("need:gcc","prov:apt","provided_by"), E("need:psy","prov:psy","provided_by"),
+      E("att:b2","prov:apt","used"), E("att:b2","need:gcc","addresses"),
+      E("att:b3","prov:psy","used"), E("att:b3","need:psy","addresses"), E("att:b3","fail:build","outcome:resolved"),
+    ] },
+]},
+
+"numpy": { title:"numpy<2 vs numpy≥2 (unsat version conflict — need-vs-need)", steps:[
+  { obs:"<b>Conflict surfaces.</b> <code>scipy 1.11 requires numpy≥1.25</code> but the repo pins <code>numpy==1.21</code>. The Z3 Attempt returns <b>unsat</b>; the unsat core seeds a <b>conflicts_with</b> edge between the two version-range Needs. Both are individually satisfiable — this is mutual exclusion, NOT a missing provider.",
+    act:"<b>next_action:</b> the frontier is a conflict → <b>relax a soft pin</b> (the repo's <code>==1.21</code>), not install a package. Re-solve.",
+    nodes:[
+      N("need:n121","version_range:numpy ==1.21","Need",{layer:"pip",state:"refuted",specifier:"==1.21",note:"declared (soft)"}),
+      N("need:n125","version_range:numpy >=1.25","Need",{layer:"pip",state:"refuted",specifier:">=1.25",pin_direction:"floor",note:"required by scipy (hard)"}),
+      N("fail:conf","dependency_conflict: numpy","Failure",{state:"active"}),
+      N("att:z3","z3_solve","Attempt",{solver_status:"unsat",note:"unsat_core → conflicts_with"}),
+    ],
+    edges:[
+      E("fail:conf","need:n125","indicates"),
+      E("need:n121","need:n125","conflicts_with"), E("need:n125","need:n121","conflicts_with"),
+      E("att:z3","need:n125","addresses"), E("att:z3","fail:conf","outcome:failed"),
+    ] },
+
+  { obs:"<b>Relaxed → sat.</b> Dropping the soft <code>==1.21</code> pin lets Z3 return <b>sat_soft_relaxed</b>; a concrete numpy provider is selected. The <b>conflicts_with edge is retired</b> — it was a witness, not a durable fact. Install, then <code>pip check</code> rc0 proves closure consistency. (If both pins were HARD with no relaxable pin and the repo can't be edited, the root reaches a terminal <b>IMPOSSIBLE</b> state — the agent gives up honestly instead of looping.)",
+    act:"<b>is_ready:</b> closure consistent + the real <code>pytest -q</code> root check passes (never collect-only).",
+    nodes:[
+      N("need:nclosure","pip_closure_consistent","Need",{layer:"solver_conflict",state:"proven",check_command:"python -m pip check → rc0"}),
+      N("need:n125","version_range:numpy >=1.25","Need",{layer:"pip",state:"proven",specifier:">=1.25"}),
+      N("fail:conf","dependency_conflict: numpy","Failure",{state:"resolved"}),
+      N("att:z3b","z3_solve (relaxed)","Attempt",{solver_status:"sat_soft_relaxed",note:"relaxed soft ==1.21"}),
+      N("prov:numpy","pip:numpy==1.26.4","Provider",{manager:"pip",status:"selected",trust:"high"}),
+      N("att:inst","pip install numpy==1.26.4","Attempt",{outcome:"resolved"}),
+    ],
+    edges:[
+      E("need:nclosure","need:n125","depends_on"),
+      E("need:n125","prov:numpy","provided_by"),
+      E("att:z3b","need:nclosure","addresses"),
+      E("att:inst","prov:numpy","used"), E("att:inst","need:n125","addresses"), E("att:inst","fail:conf","outcome:resolved"),
+    ] },
+]},
+};
+
+const STYLE=[
+  {selector:'node',style:{'label':'data(label)','font-size':10,'text-valign':'center','text-halign':'center','text-wrap':'wrap','text-max-width':108,'width':'label','height':'label','padding':'9px','border-width':2,'color':'#172033','shape':'round-rectangle'}},
+  {selector:'node[type="Failure"]',style:{'shape':'diamond','width':40,'height':40}},
+  {selector:'node[type="Need"]',style:{'shape':'ellipse'}},
+  {selector:'node[type="Provider"]',style:{'shape':'round-tag'}},
+  {selector:'node[type="Attempt"]',style:{'shape':'round-pentagon'}},
+  // Need.state
+  {selector:'node[state="unknown"]',style:{'background-color':'#fef7df','border-color':'#b7791f'}},
+  {selector:'node[state="proven"]',style:{'background-color':'#e7f6f4','border-color':'#15803d'}},
+  {selector:'node[state="refuted"]',style:{'background-color':'#fff0e8','border-color':'#c62828'}},
+  // Failure
+  {selector:'node[type="Failure"][state="active"]',style:{'background-color':'#fff0e8','border-color':'#c62828'}},
+  {selector:'node[type="Failure"][state="resolved"]',style:{'background-color':'#eef1f5','border-color':'#5d6878'}},
+  // Provider
+  {selector:'node[type="Provider"][status="candidate"]',style:{'background-color':'#eef3ff','border-color':'#3b5bdb'}},
+  {selector:'node[type="Provider"][status="selected"]',style:{'background-color':'#e7f6f4','border-color':'#15803d'}},
+  {selector:'node[type="Provider"][status="exhausted"]',style:{'background-color':'#eef1f5','border-color':'#5d6878'}},
+  {selector:'node[type="Provider"][status="ineffective"]',style:{'background-color':'#eef1f5','border-color':'#5d6878'}},
+  // Attempt
+  {selector:'node[type="Attempt"][outcome="resolved"]',style:{'background-color':'#e7f6f4','border-color':'#15803d'}},
+  {selector:'node[type="Attempt"][outcome="failed"]',style:{'background-color':'#fff0e8','border-color':'#c62828'}},
+  {selector:'node[type="Attempt"]',style:{'background-color':'#eef3ff','border-color':'#3b5bdb'}},
+  {selector:'node:selected',style:{'border-width':4,'border-color':'#111'}},
+  // edges
+  {selector:'edge',style:{'label':'data(label)','font-size':9,'color':'#5d6878','curve-style':'bezier','width':1.5,'line-color':'#9aa6b6','target-arrow-color':'#9aa6b6','target-arrow-shape':'triangle','text-rotation':'autorotate','text-background-color':'#fbfcfe','text-background-opacity':1,'text-background-padding':2}},
+  {selector:'edge[label="depends_on"]',style:{'line-color':'#111','target-arrow-color':'#111','width':3}},
+  {selector:'edge[label="conflicts_with"]',style:{'line-color':'#c2410c','target-arrow-color':'#c2410c','line-style':'dashed','width':2.5,'target-arrow-shape':'none'}},
+  {selector:'edge[label="retracts"]',style:{'line-color':'#7c3aed','target-arrow-color':'#7c3aed','line-style':'dashed','width':2.5}},
+  {selector:'edge[label="provided_by"]',style:{'line-color':'#3b5bdb','target-arrow-color':'#3b5bdb'}},
+  {selector:'edge[label="addresses"]',style:{'line-color':'#0f766e','target-arrow-color':'#0f766e'}},
+  {selector:'edge[label="used"]',style:{'line-color':'#0f766e','target-arrow-color':'#0f766e','line-style':'dotted'}},
+  {selector:'edge[label="indicates"]',style:{'line-color':'#9aa6b6','target-arrow-color':'#9aa6b6'}},
+  {selector:'edge[label="outcome:resolved"]',style:{'line-color':'#15803d','target-arrow-color':'#15803d','width':2}},
+  {selector:'edge[label="outcome:failed"]',style:{'line-color':'#c62828','target-arrow-color':'#c62828','width':2}},
+];
+
+let cy, curKey, curStep=0;
+function loadScenario(){ curKey=document.getElementById('scenario').value; curStep=0; render(); }
+function step(d){ const s=SCENARIOS[curKey].steps; curStep=Math.max(0,Math.min(s.length-1,curStep+d)); render(); }
+function layoutOpts(){return {name:'cose',animate:true,padding:25,nodeRepulsion:11000,idealEdgeLength:95,nodeOverlap:24};}
+function relayout(){ if(cy) cy.layout(layoutOpts()).run(); }
+
+function render(){
+  const sc=SCENARIOS[curKey]; const st=sc.steps[curStep];
+  if(cy) cy.destroy();
+  cy=cytoscape({container:document.getElementById('cy'),elements:[...st.nodes,...st.edges],style:STYLE,layout:layoutOpts()});
+  cy.on('tap','node',e=>inspect(e.target.data()));
+  cy.on('tap',e=>{if(e.target===cy)document.getElementById('inspector').innerHTML='<span class="hint">Click a node to inspect its fields.</span>';});
+  document.getElementById('obs').innerHTML=st.obs;
+  document.getElementById('act').innerHTML=st.act;
+  document.getElementById('ind').textContent=`step ${curStep+1} / ${sc.steps.length}`;
+  document.getElementById('prev').disabled=curStep===0;
+  document.getElementById('next').disabled=curStep===sc.steps.length-1;
+  document.getElementById('inspector').innerHTML='<span class="hint">Click a node to inspect its fields.</span>';
+}
+function inspect(d){
+  const cmap={unknown:'--unknown',proven:'--proven',refuted:'--refuted'};
+  let badge=d.state||d.status||d.outcome||d.type;
+  let rows=`<h2>${d.type}</h2><div style="margin-bottom:8px"><b style="font-size:14px">${d.label}</b> <span class="pill" style="background:var(--neutral-bg);color:var(--ink)">${badge}</span></div><table>`;
+  for(const k of FIELDS){ if(d[k]===undefined||d[k]===''||k==='type')continue; rows+=`<tr><td class="k">${k}</td><td class="v">${d[k]}</td></tr>`; }
+  rows+='</table>';
+  document.getElementById('inspector').innerHTML=rows;
+}
+
+(function init(){
+  const sel=document.getElementById('scenario');
+  for(const k in SCENARIOS){ const o=document.createElement('option'); o.value=k; o.textContent=SCENARIOS[k].title; sel.appendChild(o); }
+  if(window.cytoscape){ curKey=Object.keys(SCENARIOS)[0]; render(); }
+  else document.getElementById('cy').innerHTML='<p style="padding:20px;color:#c62828">cytoscape failed to load from CDN (offline?).</p>';
+})();
+</script>
+</body>
+</html>

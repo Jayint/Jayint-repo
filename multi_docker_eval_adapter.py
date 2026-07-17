@@ -30,6 +30,7 @@ import argparse
 import base64
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -664,6 +665,15 @@ RUN git clone {repo_url} /testbed
         if not text:
             return text
         return self._AGENT_ROOT_WORKDIR_PATTERN.sub("/testbed", text)
+
+    def _agent_authored_dockerfile(self, agent, dockerfile_path) -> bool:
+        """True only when the agent actually authored the Dockerfile this run.
+
+        A failed configuration run writes no Dockerfile; the path may still exist as
+        the repo's OWN clone-leftover Dockerfile. Scoring that would launder a failed
+        run into a success, so we require configuration_success.
+        """
+        return bool(dockerfile_path.exists()) and bool(getattr(agent, "configuration_success", False))
         
     def process_single_instance(self, instance: Dict[str, Any], 
                                base_image: str = "auto",
@@ -761,6 +771,26 @@ RUN git clone {repo_url} /testbed
         try:
             # 1. 运行 DockerAgent 进行环境配置
             print("[Step 1/4] Running DockerAgent for environment configuration...")
+            # Honour DOCKERAGENT_REPAIR_MODE set by run_rat_benchmark.py.
+            # selfverify / both → enable the agent's own post-synthesis repair.
+            # runner / off      → disable it (runner loop is authoritative, or baseline mode).
+            _repair_mode_env = os.environ.get("DOCKERAGENT_REPAIR_MODE", "selfverify")
+            _enable_agent_repair = _repair_mode_env in ("selfverify", "both")
+            # Honour DOCKERAGENT_ENABLE_V1 set by run_rat_benchmark.py --arm v1.
+            # When on, DockerAgent.run() dispatches the v1 three-role loop
+            # (Planner/BuildAgent/Maintainer) instead of the legacy ReAct loop.
+            _enable_v1 = os.environ.get("DOCKERAGENT_ENABLE_V1", "").lower() in ("1", "true", "yes", "on")
+            _enable_contract_graph = os.environ.get("DOCKERAGENT_ENABLE_CONTRACT_GRAPH", "").lower() in ("1", "true", "yes", "on")
+            # arm v3 (graph-scheduled) feature flags — each enables one layer of the dep-graph pipeline.
+            # dep_graph: advisory overlay; dep_emit: certify+escalate; runtime_feedback: failure classification;
+            # graph_scheduler: graph drives DECIDE/EXECUTE/CERTIFY loop (the v3 default).
+            _enable_dep_graph = os.environ.get("DOCKERAGENT_ENABLE_DEP_GRAPH", "").lower() in ("1", "true", "yes", "on")
+            _enable_dep_emit = os.environ.get("DOCKERAGENT_ENABLE_DEP_EMIT", "").lower() in ("1", "true", "yes", "on")
+            _enable_runtime_feedback = os.environ.get("DOCKERAGENT_ENABLE_RUNTIME_FEEDBACK", "").lower() in ("1", "true", "yes", "on")
+            _enable_graph_scheduler = os.environ.get("DOCKERAGENT_ENABLE_GRAPH_SCHEDULER", "").lower() in ("1", "true", "yes", "on")
+            _enable_runtime_pin = os.environ.get("DOCKERAGENT_ENABLE_RUNTIME_PIN", "").lower() in ("1", "true", "yes", "on")
+            _enable_det_maint = os.environ.get("DOCKERAGENT_DETERMINISTIC_MAINTAINER", "").lower() in ("1", "true", "yes", "on")
+
             agent = DockerAgent(
                 repo_url=repo_url,
                 base_image=base_image or "auto",
@@ -775,6 +805,15 @@ RUN git clone {repo_url} /testbed
                 enable_long_term_memory=enable_long_term_memory,
                 memory_path=memory_path,
                 memory_embedding_model=memory_embedding_model,
+                enable_post_synthesis_repair=_enable_agent_repair,
+                enable_v1=_enable_v1,
+                enable_contract_graph=_enable_contract_graph,
+                enable_dep_graph=_enable_dep_graph,
+                enable_dep_emit=_enable_dep_emit,
+                enable_runtime_feedback=_enable_runtime_feedback,
+                enable_graph_scheduler=_enable_graph_scheduler,
+                enable_runtime_pin=_enable_runtime_pin,
+                enable_deterministic_maintainer=_enable_det_maint,
             )
             
             # base_commit 已在 DockerAgent.__init__ 中完成 checkout
@@ -792,12 +831,12 @@ RUN git clone {repo_url} /testbed
             # 2. 提取 Dockerfile（复用 Agent 的配置指令）
             print("\n[Step 2/4] Extracting Dockerfile...")
             dockerfile_path = Path(workplace) / "Dockerfile"
-            if dockerfile_path.exists():
+            if self._agent_authored_dockerfile(agent, dockerfile_path):
                 original_dockerfile = dockerfile_path.read_text()
                 base_image_line, agent_run_instructions = self._extract_agent_dockerfile_instructions(
                     original_dockerfile
                 )
-                
+
                 if not base_image_line:
                     print("✗ No FROM Dockerfile: missing FROM instruction")
                     result["logs"]["error"] = "Invalid Dockerfile: missing FROM instruction"
@@ -806,7 +845,7 @@ RUN git clone {repo_url} /testbed
                         self._prepare_agent_run_instruction_for_eval(instr, index + 1)
                         for index, instr in enumerate(agent_run_instructions)
                     ]
-                    
+
                     dockerfile_content = self._build_eval_dockerfile(
                         base_image_line=base_image_line,
                         repo_url=repo_url,
@@ -816,8 +855,13 @@ RUN git clone {repo_url} /testbed
                     result["dockerfile"] = dockerfile_content
                     print(f"✓ Dockerfile generated with {len(agent_run_instructions)} agent instructions")
             else:
-                print("✗ Dockerfile not found")
-                result["logs"]["error"] = "Dockerfile generation failed"
+                if dockerfile_path.exists():
+                    print("✗ Agent did not author a Dockerfile (configuration_success=False); "
+                          "skipping eval to avoid scoring the repo's own Dockerfile")
+                    result["logs"]["error"] = "Agent configuration failed; not evaluating repo-owned Dockerfile"
+                else:
+                    print("✗ Dockerfile not found")
+                    result["logs"]["error"] = "Dockerfile generation failed"
                 result["logs"]["skip_evaluation"] = True
             
             # 3. 生成测试脚本 & 将 test_patch 注入镜像
@@ -923,6 +967,8 @@ RUN git clone {repo_url} /testbed
                 None,
             )
             result["logs"]["verification_source"] = getattr(agent, "verification_source", None)
+            result["logs"]["in_build_pass_rate"] = getattr(agent, "in_build_pass_rate", None)
+            result["logs"]["in_build_passed_ge1"] = bool(getattr(agent, "in_build_passed_ge1", False))
             result["logs"]["memory_stats"] = getattr(agent, "memory_stats", None)
             if dockerfile_with_patch:
                 result["dockerfile"] = dockerfile_with_patch
@@ -966,6 +1012,7 @@ RUN git clone {repo_url} /testbed
             self._save_result(instance_id, result)
             
         finally:
+            self._persist_run_summary_to_output(workplace, instance_id)
             # 保留临时目录供查看（如需清理，取消下面注释）
             print(f"\n[Workplace Preserved] {workplace}")
             print(f"To inspect: ls -la {workplace}")
@@ -3255,6 +3302,20 @@ exit 1
         with open(output_file, "w") as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
         print(f"\nResult saved to: {output_file}")
+
+    def _persist_run_summary_to_output(self, workplace: str, instance_id: str) -> None:
+        """Copy the agent-written agent_run_summary.json into the durable output
+        dir so per-phase token/step accounting survives the next run, which
+        rmtree's the workplace. Best-effort: never raises into finalize."""
+        try:
+            src = Path(workplace) / "agent_run_summary.json"
+            if not src.exists():
+                return
+            dst = self.output_dir / f"{instance_id}.run_summary.json"
+            shutil.copyfile(src, dst)
+            print(f"[DockerAgent] Run summary persisted to: {dst}")
+        except Exception as e:
+            print(f"  Warning: Failed to persist agent_run_summary.json: {e}")
     
     def process_dataset(self, dataset_path: str, 
                        base_image: str = "auto",
