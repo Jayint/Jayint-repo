@@ -1144,7 +1144,7 @@ def build_dep_graph(
     ``uv_sources_enabled`` (V3_UV_SOURCES, default OFF) -- see
     :func:`_python_package_obligations`'s docstring for the full false-green
     rationale for why this defaults OFF and what turning it on actually
-    means. Threaded straight through the ``ecosystems`` provider seam
+    means. Threaded straight through the ``EcosystemProvider`` seam
     (``EcosystemProvider.package_obligations`` accepts-and-ignores it for any
     non-Python provider); this function never reads the environment itself.
 
@@ -1152,15 +1152,15 @@ def build_dep_graph(
     guesser the Phase-A repair fixpoint calls on a pipreqs map MISS, fed each
     unresolved Import's used-symbols. ``None`` keeps repair purely deterministic
     (byte-identical to the pre-guesser behavior). It is threaded end-to-end through
-    the ``ecosystems`` provider seam (``EcosystemProvider.package_obligations`` ->
+    the ``EcosystemProvider`` seam (``EcosystemProvider.package_obligations`` ->
     ``PythonProvider.package_obligations`` -> :func:`_python_package_obligations` ->
     :func:`_phase_a_fixpoint`), so a live guesser passed here actually reaches the
     fixpoint; non-Python providers accept-and-ignore it.
     """
     # Function-local import breaks the build<->provider cycle: by the time this
-    # runs, build.py is fully loaded, so ecosystems.python.provider (which imports
+    # runs, build.py is fully loaded, so graph.python.provider (which imports
     # build helpers) resolves cleanly.
-    from ecosystems.registry import PROVIDERS, select_provider
+    from graph.contracts.registry import PROVIDERS, select_provider
 
     # default=PROVIDERS[0] (the PythonProvider) preserves "build_dep_graph never
     # rejects a repo": if NO provider clears the detect threshold (degenerate /

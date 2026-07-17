@@ -1,7 +1,7 @@
 import pytest
 
-from ecosystems.base import CertifyMode
-from ecosystems.registry import select_provider
+from graph.contracts.provider import CertifyMode
+from graph.contracts.registry import select_provider
 
 
 class _Stub:

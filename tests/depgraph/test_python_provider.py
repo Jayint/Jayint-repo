@@ -1,8 +1,8 @@
 import pytest
 
-from ecosystems.base import CertifyMode, ClosureMode
-from ecosystems.python import provider as provmod
-from ecosystems.python.provider import PythonProvider
+from graph.contracts.provider import CertifyMode, ClosureMode
+from graph.python import provider as provmod
+from graph.python.provider import PythonProvider
 
 
 def test_name_and_certify_mode():
@@ -192,7 +192,7 @@ def test_degenerate_repo_still_dispatches_to_python(tmp_path):
     must also still pass — its stdlib-import repo has a *.py so it clears the
     threshold directly; this test covers the truly-degenerate case the `default`
     seam guards, which oracle (a) does not otherwise exercise."""
-    from ecosystems.registry import PROVIDERS, select_provider
+    from graph.contracts.registry import PROVIDERS, select_provider
 
     (tmp_path / "README.md").write_text("no python here\n")
     picked = select_provider(str(tmp_path), PROVIDERS, default=PROVIDERS[0])

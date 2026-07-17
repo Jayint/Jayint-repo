@@ -12,7 +12,7 @@ Pure-logic slice (container-free): ``lockfile`` (parse) + ``platform_filter``
 (recall/precision). The Docker ORACLE (agent-configured ``npm ci`` + disk walk)
 is a later slice. When the Node EcosystemProvider lands (seam Slice 3),
 ``run_ours_node`` swaps its inline parse for ``NodeProvider.package_obligations``
-and ``platform_filter`` promotes into ``ecosystems/node/``.
+and ``platform_filter`` promotes into ``graph/node/``.
 
 Design: docs/superpowers/specs/2026-07-04-node-package-fidelity-eval-design.md
 """

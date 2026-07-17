@@ -355,7 +355,7 @@ def build_advisory_for_repo(
                 llm_dist_guesser=llm_dist_guesser,
             )
         if classify is not None:
-            from ecosystems.registry import PROVIDERS, select_provider   # defensive: mirrors build.py's provider-import style
+            from graph.contracts.registry import PROVIDERS, select_provider   # defensive: mirrors build.py's provider-import style
             provider = select_provider(repo_path, PROVIDERS, default=PROVIDERS[0])
             graph = provider.service_obligations(graph, repo_path, classify)   # Phase 3
         return render_dep_graph_advisory(graph), graph

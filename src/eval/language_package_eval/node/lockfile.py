@@ -24,7 +24,7 @@ every member is seeded as a root. Non-workspace locks have no link entries, so
 this path is inert and their parse is byte-for-byte unchanged.
 
 This is eval-local; when the Node EcosystemProvider lands, its
-``ecosystems/node/lockfile.py`` becomes the source of truth and callers switch.
+``graph/node/lockfile.py`` becomes the source of truth and callers switch.
 """
 from __future__ import annotations
 

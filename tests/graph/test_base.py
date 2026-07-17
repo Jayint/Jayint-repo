@@ -1,4 +1,4 @@
-from ecosystems.base import CertifyMode, ClosureMode, EcosystemProvider
+from graph.contracts.provider import CertifyMode, ClosureMode, EcosystemProvider
 
 
 def test_closure_mode_values():

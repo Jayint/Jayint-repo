@@ -1,8 +1,8 @@
 """Phase-3 seam: provider.service_obligations wraps the injected service classifier."""
 from __future__ import annotations
 
-from ecosystems.python.provider import PythonProvider
-from ecosystems.registry import PROVIDERS
+from graph.python.provider import PythonProvider
+from graph.contracts.registry import PROVIDERS
 from graph.schema import DepGraph
 
 

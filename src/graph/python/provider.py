@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ecosystems.base import CertifyMode, ClosureMode
+from graph.contracts.provider import CertifyMode, ClosureMode
 from graph.core.build import (
     _project_build_manifest,
     _python_native_obligations,
