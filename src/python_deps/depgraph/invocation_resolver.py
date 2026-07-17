@@ -128,7 +128,12 @@ def resolve(repo_path: str | Path) -> TestEnvPlan:
 
     project_dirs, is_monorepo = _find_project_dirs(root)
     config = _discover_pytest_config(root, project_dirs)
-    pythonpath = config["pythonpath"]
+    # One canonical reader drives both halves: env-vars and PYTHONPATH are sourced
+    # from the SAME dir the path-config was found in (the rootdir), never the repo
+    # root, so a feast-style nested ``sdk/python/tox.ini setenv`` is not missed.
+    config_dir = _project_path(root, config["rootdir"])
+    pythonpath = _merge_pythonpath(config["pythonpath"], config_dir, root, project_dirs)
+    env = _authoritative_env(config_dir)
 
     ambiguous = (
         (not is_monorepo)
@@ -145,18 +150,6 @@ def resolve(repo_path: str | Path) -> TestEnvPlan:
         flags.append("interpreter_undiscoverable")
 
     rootdir = config["rootdir"]
-    # Unambiguous authoritative env-vars the canonical collect invocation carries.
-    # TODO(stage-b): config_scan's env readers search the repo ROOT only, while
-    # _discover_pytest_config searches ["."] + project_dirs; a nested e.g.
-    # sdk/python/tox.ini setenv is missed. Reconciling the two readers' search
-    # scope is Stage B; Stage A surfaces only unambiguous root-level vars.
-    repo_root = str(root)
-    ambiguous_vars = authoritative_ambiguous_vars(repo_root)
-    env = tuple(sorted(
-        (k, v)
-        for k, v in scan_authoritative_config(repo_root).items()
-        if k not in ambiguous_vars
-    ))
     # cwd defaults to the discovered rootdir (absolute materialization is the
     # cure-runner's job in Stage B; here it mirrors rootdir).
     cwd = rootdir
@@ -638,6 +631,45 @@ def _import_mode_from(addopts: str, section: dict) -> str:
             return value.strip()
     match = _IMPORT_MODE_RE.search(addopts or "")
     return match.group(1) if match else "prepend"
+
+
+# --- canonical env + PYTHONPATH assembly (scoped to the rootdir) ------------ #
+
+
+def _authoritative_env(config_dir: Path) -> tuple[tuple[str, str], ...]:
+    """Unambiguous authoritative env-vars, read from the SAME dir the pytest
+    config was found in (rootdir) -- not the repo root, so a feast-style
+    ``sdk/python/tox.ini setenv`` is not missed. Ambiguous vars are dropped."""
+    ambiguous = authoritative_ambiguous_vars(str(config_dir))
+    return tuple(
+        sorted(
+            (k, v)
+            for k, v in scan_authoritative_config(str(config_dir)).items()
+            if k not in ambiguous
+        )
+    )
+
+
+def _merge_pythonpath(
+    ini_pythonpath: tuple[str, ...],
+    config_dir: Path,
+    root: Path,
+    project_dirs: tuple[str, ...],
+) -> tuple[str, ...]:
+    """Union of: the pytest ``pythonpath`` ini option; tox ``setenv PYTHONPATH``
+    entries; and the src-layout root (``<project>/src``) when present. Order-
+    preserving, de-duplicated. Editable-install roots are added by the cure
+    runner, not here."""
+    out: list[str] = list(ini_pythonpath)
+    for var, value in _authoritative_env(config_dir):
+        if var == "PYTHONPATH":
+            out.extend(p for p in value.split(os.pathsep) if p)
+    for rel in ["."] + [d for d in project_dirs if d != "."]:
+        src = _project_path(root, rel) / "src"
+        if src.is_dir():
+            out.append("src" if rel == "." else f"{rel}/src")
+    seen: set[str] = set()
+    return tuple(p for p in out if not (p in seen or seen.add(p)))
 
 
 # --- small filesystem/parsing helpers --------------------------------------- #

@@ -738,3 +738,21 @@ def test_testenvplan_carries_cwd_and_unambiguous_env(tmp_path):
     plan = resolve(str(tmp_path))
     assert plan.cwd == plan.rootdir            # default cwd = rootdir
     assert ("DJANGO_SETTINGS_MODULE", "app.settings") in plan.env
+
+
+def test_env_and_pythonpath_scoped_to_config_dir(tmp_path):
+    # feast-style: the authoritative config lives in a subdir, not the repo root.
+    sdk = tmp_path / "sdk" / "python"
+    sdk.mkdir(parents=True)
+    (sdk / "pyproject.toml").write_text("[build-system]\nrequires=['setuptools']\n")
+    (sdk / "tox.ini").write_text(
+        "[pytest]\n"
+        "[testenv]\nsetenv =\n"
+        "    DJANGO_SETTINGS_MODULE=app.settings\n"
+        "    PYTHONPATH=src\n"
+    )
+    from python_deps.depgraph.invocation_resolver import resolve
+    plan = resolve(str(tmp_path))
+    assert plan.rootdir == "sdk/python"
+    assert ("DJANGO_SETTINGS_MODULE", "app.settings") in plan.env  # found in the subdir, not root
+    assert "src" in plan.pythonpath                                 # tox setenv PYTHONPATH sourced
