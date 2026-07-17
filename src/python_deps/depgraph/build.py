@@ -757,6 +757,7 @@ def _python_package_obligations(
     record_provider: RecordProvider | None = None,
     uv_sources_enabled: bool = False,
     llm_dist_guesser: DistGuesser | None = None,
+    shadow_config_lane: bool = False,
 ) -> tuple[DepGraph, list, object, str | None]:
     """Python PHASE 1 — VERBATIM move of build_dep_graph body lines 488-608.
 
@@ -1016,6 +1017,13 @@ def _python_package_obligations(
     # change needed (build_script.py's layer-then-capstone walk already renders
     # Layer.TOOLCHAIN before the Project capstone, edge-independently).
     graph = project_native_obligations(graph, repo_path, host_executor, container_executor)
+    if shadow_config_lane and repo_path is not None:
+        from python_deps.depgraph.shadow import run_shadow_config_lane, _write_shadow_record
+        record = run_shadow_config_lane(
+            graph, repo_path, container_executor,
+            declared=frozenset(declared_package_names),
+        )
+        _write_shadow_record(record)   # graph intentionally NOT rebound
     resolver_ids = {
         n.id
         for n in graph.nodes
@@ -1078,6 +1086,7 @@ def build_dep_graph(
     record_provider: RecordProvider | None = None,
     uv_sources_enabled: bool = False,
     llm_dist_guesser: DistGuesser | None = None,
+    shadow_config_lane: bool = False,
 ) -> DepGraph:
     """Build a host-certified dependency graph for ``repo_path``.
 
