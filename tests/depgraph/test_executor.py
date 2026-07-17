@@ -202,3 +202,27 @@ def test_run_command_mount_is_the_only_difference(tmp_path):
     mounted._name = bare._name  # neutralise the random per-instance container name
     fragment = f"-v {tmp_path.resolve()}:/workspace/repo "
     assert mounted._run_command().replace(fragment, "") == bare._run_command()
+
+
+def test_empty_mount_repo_normalises_to_none():
+    """A falsy mount_repo ("") coerces to None so the off-switch is unambiguous.
+
+    Mounting Path("").resolve() (= cwd) on an empty string would be a footgun;
+    normalising "" to None makes `if self.mount_repo` exactly equivalent to
+    `if self.mount_repo is not None`.
+    """
+    assert DockerExecutor("python:3.11-slim", mount_repo="").mount_repo is None
+
+
+def test_empty_mount_repo_run_command_identical_to_default():
+    """`mount_repo=""` yields the SAME docker run command as the default (no mount).
+
+    Pin the container names equal so the only possible difference would be a
+    repo mount fragment; there must be none -- byte-identical to the off state.
+    """
+    empty = DockerExecutor("python:3.11-slim", mount_repo="")
+    default = DockerExecutor("python:3.11-slim")
+    empty._name = default._name  # neutralise the random per-instance container name
+    cmd = empty._run_command()
+    assert "/workspace/repo" not in cmd  # no repo mount when mount_repo is falsy
+    assert cmd == default._run_command()

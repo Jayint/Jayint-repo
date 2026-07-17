@@ -100,7 +100,11 @@ class DockerExecutor:
         self.platform = platform
         self.bootstrap_uv = bootstrap_uv
         self.cache_volumes = cache_volumes
-        self.mount_repo = mount_repo
+        # Coerce a falsy mount_repo ("" and None alike) to None so the off-switch
+        # is unambiguous: `if self.mount_repo` in _run_command is then exactly
+        # equivalent to `if self.mount_repo is not None`. Mounting Path("") (= cwd)
+        # on an empty string would be a footgun, so empty means "no mount".
+        self.mount_repo = mount_repo or None
         self.repo_mount_dir = repo_mount_dir
         self.container_id: str | None = None
         self._name = f"depgraph-probe-{uuid.uuid4().hex[:12]}"
