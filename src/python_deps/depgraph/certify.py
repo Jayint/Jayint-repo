@@ -21,27 +21,13 @@ from dataclasses import replace
 
 from python_deps.depgraph.executor import Executor
 from python_deps.depgraph.schema import DepGraph, Layer, NodeType, State
-
-# Execution layer priority (design section 6). Runtime joins the walk first: the
-# interpreter minor is the platform floor every later layer assumes.
-#
-# Public: also consumed by build_script.py so the rendered artifact's section
-# order never contradicts the order certify actually walks the graph in.
-EXECUTION_LAYER_ORDER: tuple[Layer, ...] = (
-    Layer.RUNTIME,
-    Layer.INTERPRETER,
-    Layer.SYSTEM,
-    Layer.TOOLCHAIN,
-    Layer.PIP,
-    Layer.NAMING,
-    Layer.CONFIG,
-    Layer.TESTS,
+# Layer-order constants now live in schema.py (the model waist); re-exported here
+# so existing `from ...certify import EXECUTION_LAYER_ORDER` consumers keep working.
+from python_deps.depgraph.schema import (  # noqa: F401
+    EXECUTION_LAYER_ORDER,
+    _LAYER_ORDER,
+    _SERVICE_LAYER_ORDER,
 )
-_LAYER_ORDER = EXECUTION_LAYER_ORDER  # backwards-compat alias
-
-# Services join the walk LAST (after the server binary/SystemLib is installed);
-# only used on the live in-image path (arm v3). Never used off-arm.
-_SERVICE_LAYER_ORDER: tuple[Layer, ...] = _LAYER_ORDER + (Layer.SERVICES,)
 
 
 def certify(

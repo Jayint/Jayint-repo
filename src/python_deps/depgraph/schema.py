@@ -69,6 +69,29 @@ class Layer(enum.Enum):
     SERVICES = "services"
 
 
+# Execution layer priority (design section 6). Runtime joins the walk first: the
+# interpreter minor is the platform floor every later layer assumes. This is the
+# model "waist" — certify walks in this order, build_script renders sections in
+# it, and patch_gate/react_repair slot manual blocks by it. Kept here (not in
+# certify) so emit/mutate/cross-plane consumers import it downward, not from a
+# stage module.
+EXECUTION_LAYER_ORDER: tuple["Layer", ...] = (
+    Layer.RUNTIME,
+    Layer.INTERPRETER,
+    Layer.SYSTEM,
+    Layer.TOOLCHAIN,
+    Layer.PIP,
+    Layer.NAMING,
+    Layer.CONFIG,
+    Layer.TESTS,
+)
+_LAYER_ORDER = EXECUTION_LAYER_ORDER  # backwards-compat alias
+
+# Services join the walk LAST (after the server binary/SystemLib is installed);
+# only used on the live in-image path (arm v3). Never used off-arm.
+_SERVICE_LAYER_ORDER: tuple["Layer", ...] = _LAYER_ORDER + (Layer.SERVICES,)
+
+
 class Strength(enum.Enum):
     """Blocking semantics. SOFT = hint/candidate (does not block dependents or
     gates); HARD = required obligation. The populator sets HARD on reciped tiers;
