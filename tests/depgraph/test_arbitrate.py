@@ -45,3 +45,20 @@ def test_exception_aware_verdict(tmp_path):
     assert "items" in arb.resolves_local
     assert "azure" in arb.fallthrough
     assert "broke" in arb.resolves_local          # present-but-broken is LOCAL, never fallthrough
+
+
+def test_name_mismatch_module_not_found_is_not_a_fallthrough(tmp_path):
+    # pandas IS present locally, but its own transitive import (numpy) is missing —
+    # the classic "local module present, its dependency absent" case. The
+    # ModuleNotFoundError names a DIFFERENT module than the one probed, so the
+    # top-level-name discriminator must treat pandas as present-but-broken (local),
+    # never a fallthrough. A regression that broadened the probe to "any
+    # ModuleNotFoundError -> fallthrough" would install pandas from PyPI over the
+    # broken local module — the false-green this guards against.
+    ex = _FakeExec([
+        ("import pandas", 1, "ModuleNotFoundError: No module named 'numpy'"),
+    ])
+    arb = arbitrate(ex, _plan(tmp_path), CureResult(True, "isolated", True, ""),
+                    frozenset({"pandas"}))
+    assert "pandas" not in arb.fallthrough        # different module missing → NOT external
+    assert "pandas" in arb.resolves_local         # treated as present-but-broken/local
