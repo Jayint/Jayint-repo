@@ -1,0 +1,18 @@
+HISTORY — chronological; each attempt is a card: think → action → observe (observe = real stdout/stderr).
+    think:   is a prebuilt binary wheel available?
+- explored `pip show psycopg2-binary` →
+        psycopg2-binary is NOT declared; setup.py links against libpq.
+- v1 · insert@4 +apt-get install -y libpq-dev
+    think:   add the -dev headers
+    observe:
+      BUILD FAILED at `pip install psycopg2` (line 5):
+          src/psycopg2/_psycopg.c:36:10: fatal error: libpq-fe.h: No such file or directory
+- v2 · insert@4 +apt-get install -y libpq-dev
+    think:   try the runtime lib
+    observe: (output unchanged from v1)
+- v3 · insert@4 +apt-get install -y libpq-dev
+    think:   reinstall the -dev headers
+    observe: (output unchanged from v2)
+- v4 · replace@5 +pip install psycopg2-binary
+    think:   swap to the binary wheel to skip the source link
+    observe: (current run — full output above under LAST RUN OBSERVATION)

@@ -188,8 +188,82 @@ def repair_scope_cases() -> dict:
     }
 
 
-# History-render scenarios (T2): one rich transcript exercised through every render branch.
+# --------------------------------------------------------------------------------------
+# T2: history render — one rich transcript exercised through every render branch.
+# --------------------------------------------------------------------------------------
 def history_transcript() -> History:
-    """explore → edit → run → gate: enough steps to exercise grouping, the do-not-retry
-    ledger, and message-list elision, with short observations so caps never fire."""
-    return test_failure_history()
+    """explore → edit → run → gate. Six steps chosen to light up every distinctive branch of
+    the four render modules with SHORT observations (so the size caps never fire):
+      * an explore card (full-stdout path),
+      * three edits against the SAME libpq blocker with byte-identical output — the do-not-retry
+        ledger accumulates to the STUCK threshold (grouped) and the observation-dedup
+        ("output unchanged from vN") fires,
+      * a confident signature change (build-fail → test-fail) that opens a new BLOCKER, and
+      * the final mutation whose body is withheld (shown up top under LAST RUN OBSERVATION),
+        plus enough observations that message-list elision collapses the stale middle."""
+    h = History()
+    h.record(0, "", "baseline → BUILD FAILED", _BASELINE_OBS)
+    h.record(1, "is a prebuilt binary wheel available?",
+             "explore: pip show psycopg2-binary", _EXPLORE_OBS)
+    for ver, note in ((1, "add the -dev headers"), (2, "try the runtime lib"),
+                      (3, "reinstall the -dev headers")):
+        h.record(
+            ver + 1, note,
+            f"edit v{ver} (insert@4 +apt-get install -y libpq-dev) → BUILD FAILED",
+            _STILL_FAILING_OBS,
+            action={"kind": "edit", "verb": "insert", "start": 4, "end": 4,
+                    "content": "apt-get install -y libpq-dev"},
+            outcome={"build_ok": False, "failing_command": "pip install psycopg2",
+                     "lineno": 5, "passed": 0, "failed": 0, "errors": 0, "collected": 0},
+        )
+    h.record(
+        5, "swap to the binary wheel to skip the source link",
+        "edit v4 (replace@5 +pip install psycopg2-binary) → BUILD OK", _TESTFAIL_OBS,
+        action={"kind": "edit", "verb": "replace", "start": 5, "end": 5,
+                "content": "pip install psycopg2-binary"},
+        outcome={"build_ok": True, "failing_command": None, "lineno": None,
+                 "passed": 3, "failed": 2, "errors": 0, "collected": 5},
+    )
+    return h
+
+
+def stuck_transcript() -> History:
+    """Three edits against the SAME still-open blocker, with DISTINCT deltas — ends open, so
+    the do-not-retry ledger lists all three and the STUCK escalation trips (3 >= threshold).
+    Complements `history_transcript`, whose blocker resolves (closing the ledger)."""
+    h = History()
+    h.record(0, "", "baseline → BUILD FAILED", _BASELINE_OBS)
+    for ver, delta in ((1, "+apt-get install -y libpq-dev"),
+                       (2, "+apt-get install -y libpq5"),
+                       (3, "+apt-get install -y libpq")):
+        h.record(
+            ver, f"attempt {ver} at the libpq headers",
+            f"edit v{ver} (insert@4 {delta}) → BUILD FAILED", _STILL_FAILING_OBS,
+            action={"kind": "edit", "verb": "insert", "start": 4, "end": 4,
+                    "content": delta.lstrip("+")},
+            outcome={"build_ok": False, "failing_command": "pip install psycopg2",
+                     "lineno": 5, "passed": 0, "failed": 0, "errors": 0, "collected": 0},
+        )
+    return h
+
+
+def history_transcripts() -> dict:
+    """The named T2 transcripts, each captured through all four render styles."""
+    return {"resolve": history_transcript(), "stuck": stuck_transcript()}
+
+
+# Fixed scaffold inputs for the message-list render (T2 focuses on the transcript, so the
+# planner-owned scaffold pieces are simple constants).
+_T2_SYSTEM_PROMPT = "SYSTEM PROMPT (fixed for the history golden)."
+_T2_CLOSING_LINE = "Turn 6/30 (24 left). Reason briefly, then call one tool — explore or edit."
+
+
+def _t2_numbered_script() -> str:
+    return planner_mod._numbered(_SEED_SCRIPT, fail_lineno=None)
+
+
+def build_history_message_list(steps):
+    """`message_view.build_messages` over the T2 transcript (style set by REACT_MSG_STYLE)."""
+    return message_view.build_messages(
+        steps, system_prompt=_T2_SYSTEM_PROMPT, numbered_script=_t2_numbered_script(),
+        closing_line=_T2_CLOSING_LINE, graph_context_text=None, rejection=None, rejected=None)

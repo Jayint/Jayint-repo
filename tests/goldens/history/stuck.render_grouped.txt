@@ -1,0 +1,15 @@
+HISTORY — chronological; grouped by BLOCKER (the failure signature being fought). Each attempt is a card: think → action → observe (observe = real stdout/stderr).
+### BLOCKER 1 — pip install psycopg2 → fatal error: libpq-fe.h: No such file or directory   (baseline: BUILD FAILED)   ← current turn
+- v1 · insert@4 +apt-get install -y libpq-dev
+    think:   attempt 1 at the libpq headers
+    observe:
+      BUILD FAILED at `pip install psycopg2` (line 5):
+          src/psycopg2/_psycopg.c:36:10: fatal error: libpq-fe.h: No such file or directory
+- v2 · insert@4 +apt-get install -y libpq5
+    think:   attempt 2 at the libpq headers
+    observe: (output unchanged from v1)
+- v3 · insert@4 +apt-get install -y libpq
+    think:   attempt 3 at the libpq headers
+    observe: (current run — full output above under LAST RUN OBSERVATION)
+    ↳ already tried for this blocker (didn't help): insert@4 +apt-get install -y libpq-dev, insert@4 +apt-get install -y libpq5, insert@4 +apt-get install -y libpq
+    ⚠ 3 same-shaped edits against this blocker, none cleared it.

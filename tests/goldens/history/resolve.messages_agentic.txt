@@ -1,0 +1,67 @@
+===== message[0] role=system =====
+SYSTEM PROMPT (fixed for the history golden).
+===== message[1] role=user =====
+$ bash setup.sh          # fresh container from the base image — EVERY turn
+exit 1 — halted: `(unknown command)`
+
+src/psycopg2/_psycopg.c:36:10: fatal error: libpq-fe.h: No such file or directory
+===== message[2] role=assistant =====
+is a prebuilt binary wheel available?
+
+explore: pip show psycopg2-binary
+===== message[3] role=user =====
+Old run output: (2 lines elided)
+===== message[4] role=assistant =====
+add the -dev headers
+
+edit(verb="insert", start=4, end=4, content="apt-get install -y libpq-dev")
+===== message[5] role=user =====
+Old run output: (7 lines elided)
+===== message[6] role=assistant =====
+try the runtime lib
+
+edit(verb="insert", start=4, end=4, content="apt-get install -y libpq-dev")
+===== message[7] role=user =====
+setup.sh updated:
+  4| apt-get install -y libpq-dev
+
+$ bash setup.sh          # fresh container from the base image — EVERY turn
+exit 1 — halted at line 5: `pip install psycopg2`
+
+src/psycopg2/_psycopg.c:36:10: fatal error: libpq-fe.h: No such file or directory
+===== message[8] role=assistant =====
+reinstall the -dev headers
+
+edit(verb="insert", start=4, end=4, content="apt-get install -y libpq-dev")
+===== message[9] role=user =====
+setup.sh updated:
+  4| apt-get install -y libpq-dev
+
+$ bash setup.sh          # fresh container from the base image — EVERY turn
+exit 1 — halted at line 5: `pip install psycopg2`
+
+src/psycopg2/_psycopg.c:36:10: fatal error: libpq-fe.h: No such file or directory
+===== message[10] role=assistant =====
+swap to the binary wheel to skip the source link
+
+edit(verb="replace", start=5, end=5, content="pip install psycopg2-binary")
+===== message[11] role=user =====
+setup.sh updated:
+  5| pip install psycopg2-binary
+
+$ bash setup.sh          # fresh container from the base image — EVERY turn
+exit 0
+
+E   ModuleNotFoundError: No module named 'redis'
+    2 failed, 3 passed in 0.41s
+
+──────────────────────────────── harness state ────────────────────────────────
+setup.sh — edit by these line numbers:
+1| #!/usr/bin/env bash
+2| set -e
+3| apt-get update
+4| pip install -e .
+5| pip install psycopg2
+
+Turn 6/30 (24 left). Reason briefly, then call one tool — explore or edit.
+───────────────────────────────────────────────────────────────────────────────
