@@ -704,3 +704,34 @@ def test_build_threads_repaired_into_resolve_audit_root_names(tmp_path):
 
     # Round 2's resolve carries the repaired dist (canon) in audit_root_names.
     assert any(a and "pyyaml" in a for a in seen)
+
+
+# --------------------------------------------------------------------------- #
+# Stage B Task 7 — lane-aware `_missing_import_nodes` (module-routed + deferred)
+# --------------------------------------------------------------------------- #
+def test_missing_excludes_module_routed_and_deferred():
+    from python_deps.depgraph.build import _missing_import_nodes  # extracted pure helper
+    from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy
+
+    def imp(name, **data):
+        return Node(id=f"import:{name}", type=NodeType.IMPORT, name=name,
+                    layer=Layer.NAMING, discovered_by=DiscoveredBy.STATIC_SCAN, data=data)
+
+    graph = (DepGraph()
+             .with_node(imp("requests"))
+             .with_node(imp("myapp", routed_provider="module"))
+             .with_node(imp("items")))
+    got = {n.name for n in _missing_import_nodes(graph, provided=frozenset(), deferred=frozenset({"items"}))}
+    assert got == {"requests"}   # myapp is module-routed; items is deferred; only requests is missing
+
+
+def test_missing_filter_is_byte_identical_without_lanes():
+    # With no module-routed nodes and empty deferred, the new helper equals the
+    # old comprehension exactly (behavior-preserving gate for Stage C).
+    from python_deps.depgraph.build import _missing_import_nodes
+    from python_deps.depgraph.schema import DepGraph, Node, NodeType, Layer, DiscoveredBy
+    imp = lambda n, **d: Node(id=f"import:{n}", type=NodeType.IMPORT, name=n,
+                              layer=Layer.NAMING, discovered_by=DiscoveredBy.STATIC_SCAN, data=d)
+    graph = DepGraph().with_node(imp("requests")).with_node(imp("flask", optional=True))
+    got = {n.name for n in _missing_import_nodes(graph, provided=frozenset(), deferred=frozenset())}
+    assert got == {"requests"}   # optional dropped; nothing else excluded

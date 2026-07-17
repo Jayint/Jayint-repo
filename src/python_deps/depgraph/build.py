@@ -364,6 +364,21 @@ def _stamp_audit(graph: DepGraph, repaired: set[str]) -> DepGraph:
     return new
 
 
+def _missing_import_nodes(graph, *, provided: frozenset[str], deferred: frozenset[str]):
+    """Non-optional IMPORT nodes no resolved dist provides — LANE-AWARE: also
+    excludes Module-routed imports and deferred-collision names so first-party
+    names never inflate the repair bound nor reach the dist-guesser. Vacuous when
+    no node is Module-routed and ``deferred`` is empty (today's real construction)."""
+    return [
+        n for n in graph.nodes
+        if n.type is NodeType.IMPORT
+        and n.data.get("optional") is not True
+        and n.data.get("routed_provider") != "module"
+        and n.name.split(".", 1)[0] not in deferred
+        and top_level_import_name(n.name).lower() not in provided
+    ]
+
+
 def _phase_a_fixpoint(
     graph: DepGraph,
     roots: list[tuple[str | None, str]],
@@ -381,6 +396,7 @@ def _phase_a_fixpoint(
     workspace_members: tuple[str, ...] = (),
     repo_path: str | None = None,
     llm: DistGuesser | None = None,
+    deferred: frozenset[str] = frozenset(),
 ) -> DepGraph:
     """Bounded resolve -> install -> look -> repair fixpoint (Phase A).
 
@@ -429,13 +445,7 @@ def _phase_a_fixpoint(
         # Correction 3: the coverage oracle is RECORD-union over the RESOLVED
         # closure, NOT a post-install packages_distributions() snapshot.
         provided = resolved_record_coverage(pkg_nodes, record_provider)
-        missing = [
-            n
-            for n in graph.nodes
-            if n.type is NodeType.IMPORT
-            and n.data.get("optional") is not True
-            and top_level_import_name(n.name).lower() not in provided
-        ]
+        missing = _missing_import_nodes(graph, provided=frozenset(provided), deferred=deferred)
         if bound is None:
             bound = min(len(missing), _MAX_REPAIR_ROUNDS)
         if not missing:
