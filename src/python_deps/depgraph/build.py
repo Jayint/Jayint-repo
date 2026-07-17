@@ -1071,6 +1071,12 @@ def _python_native_obligations(graph: DepGraph, container_executor: Executor) ->
         if n.discovered_by is DiscoveredBy.PROBE
     }
     graph = _restamp(graph, probe_ids, _PROBE_CYCLE)
+    # Stage 4b — release-aware apt-name reconciliation against the TARGET image:
+    # remap stale predicted/table names (e.g. libglib2.0-0 -> libglib2.0-0t64)
+    # so the fix-candidate is correct for the actual base image. The last native
+    # step — homed here (not in build_dep_graph) so the orchestrator calls no
+    # native module directly.
+    graph = reconcile_apt_names(graph, container_executor)
     return graph
 
 
@@ -1175,11 +1181,6 @@ def build_dep_graph(
     # provider-composition / test-visibility surface (spec extraction boundary).
 
     graph = provider.native_obligations(graph, container_executor)
-
-    # Stage 4b — release-aware apt-name reconciliation against the TARGET image:
-    # remap stale predicted/table names (e.g. libglib2.0-0 -> libglib2.0-0t64)
-    # so the fix-candidate is correct for the actual base image.
-    graph = reconcile_apt_names(graph, container_executor)
 
     # Stage 5 — host certification in the container (layer-ordered; flips state).
     graph = certify_all(graph, container_executor, cycle=_CERTIFY_CYCLE)
