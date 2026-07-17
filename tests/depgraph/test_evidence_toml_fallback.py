@@ -42,7 +42,7 @@ def test_evidence_reads_pyproject_without_stdlib_tomllib(tmp_path):
             return _real(name, *a, **k)
         builtins.__import__ = _fake
         sys.path[:0] = [{str(_ROOT)!r}, {str(_ROOT / "src")!r}]
-        from python_deps.evidence import (
+        from graph.python.read.evidence import (
             collect_python_dependency_evidence, tomllib as parser,
         )
         assert parser is not None, "evidence.py left NO toml parser on <3.11"

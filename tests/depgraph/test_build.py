@@ -590,7 +590,7 @@ def test_build_repairs_under_declared_repo_via_fixpoint(tmp_path):
     from conftest import SequencedFakeExecutor  # type: ignore
 
     from graph.schema import DiscoveredBy as _DB
-    from python_deps.import_mapping import normalize_package_name as _norm
+    from graph.python.util.import_mapping import normalize_package_name as _norm
 
     (tmp_path / "app.py").write_text(
         "import os\nimport cv2\nfrom PIL import Image\nimport bs4\n"
@@ -677,7 +677,7 @@ def test_declared_package_names_for_repair_excludes_uv_sourced_names():
     acme_sdk` be "repaired" by installing the unrelated PUBLIC `acme-sdk`
     from PyPI instead of the git-pinned fork the repo actually declared."""
     from graph.core.build import _declared_package_names_for_repair
-    from python_deps.models import PythonDependencyEvidence, PythonRequirement
+    from graph.python.models import PythonDependencyEvidence, PythonRequirement
 
     evidence = PythonDependencyEvidence(
         repo_path="/repo",
@@ -706,7 +706,7 @@ def test_declared_package_names_for_repair_keys_off_uv_sources_not_kind():
     for "any kind value whatsoever" to prove the exclusion never inspects
     it)."""
     from graph.core.build import _declared_package_names_for_repair
-    from python_deps.models import PythonDependencyEvidence, PythonRequirement
+    from graph.python.models import PythonDependencyEvidence, PythonRequirement
 
     evidence = PythonDependencyEvidence(
         repo_path="/repo",
@@ -1072,7 +1072,7 @@ def test_excluded_uv_source_node_cannot_be_certified_by_successful_pip_show():
 # --------------------------------------------------------------------------- #
 def test_uv_sourced_dist_names_includes_direct_reference_sources():
     from graph.core.build import _uv_sourced_dist_names
-    from python_deps.models import PythonDependencyEvidence
+    from graph.python.models import PythonDependencyEvidence
 
     evidence = PythonDependencyEvidence(
         repo_path="/repo",
@@ -1088,7 +1088,7 @@ def test_declared_package_names_for_repair_excludes_direct_reference_names():
     # `[tool.uv.sources]` table entry: a git-pinned `kivymd` must never be
     # "repaired" into the unrelated PUBLIC PyPI `kivymd`.
     from graph.core.build import _declared_package_names_for_repair
-    from python_deps.models import PythonDependencyEvidence, PythonRequirement
+    from graph.python.models import PythonDependencyEvidence, PythonRequirement
 
     evidence = PythonDependencyEvidence(
         repo_path="/repo",

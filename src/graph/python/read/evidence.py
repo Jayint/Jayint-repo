@@ -12,8 +12,8 @@ from typing import Iterable, Mapping
 from packaging.requirements import InvalidRequirement, Requirement
 
 from .import_graph import collect_pydeps_evidence, scan_imports
-from .import_mapping import is_unresolved, map_import_to_package, normalize_package_name
-from .models import (
+from graph.python.util.import_mapping import is_unresolved, map_import_to_package, normalize_package_name
+from graph.python.models import (
     ImportPackageMapping,
     PythonDependencyEvidence,
     PythonRequirement,

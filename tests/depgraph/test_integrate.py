@@ -20,7 +20,7 @@ def _graph_for(case):
 
 
 def _pkg_nodes(graph, name):
-    from python_deps.import_mapping import normalize_package_name
+    from graph.python.util.import_mapping import normalize_package_name
     want = normalize_package_name(name)
     return [n for n in graph.nodes
             if n.type is NodeType.PACKAGE and normalize_package_name(n.name) == want]

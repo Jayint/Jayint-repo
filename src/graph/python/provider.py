@@ -20,7 +20,7 @@ from graph.core.build import (
 from graph.contracts.executor import Executor
 from graph.python.lanes.install.repair import DistGuesser, RecordProvider
 from graph.schema import DepGraph
-from python_deps.evidence import collect_python_dependency_evidence
+from graph.python.read.evidence import collect_python_dependency_evidence
 
 
 class PythonProvider:

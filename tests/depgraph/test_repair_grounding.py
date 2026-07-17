@@ -13,7 +13,7 @@ from graph.python.lanes.install.repair import (
     choose_provider,
     record_grounds,
 )
-from python_deps.import_mapping import normalize_package_name
+from graph.python.util.import_mapping import normalize_package_name
 
 
 def make_provider(table):

@@ -8,7 +8,7 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.failure_classifier import classify_config_error, classify_tool_error
+from graph.python.util.failure_classifier import classify_config_error, classify_tool_error
 
 
 # ── classify_config_error ────────────────────────────────────────────────────
@@ -237,7 +237,7 @@ def test_dispatch_import_name_error_returns_package():
 
 def test_dispatch_unresolved_import_yields_none_package(monkeypatch):
     import graph.runtime_classify as rc
-    from python_deps.import_mapping import unresolved_result
+    from graph.python.util.import_mapping import unresolved_result
 
     monkeypatch.setattr(
         rc, "map_import_to_package",

@@ -6,7 +6,7 @@ Turns a repo's imports into ``ImportNode``s tagged by CONTEXT (runtime / test
 flag *runtime* under-declarations only, never crying wolf on guarded or
 type-only imports.
 
-Reuses ``python_deps.import_graph.scan_imports`` for the raw
+Reuses ``graph.python.read.import_graph.scan_imports`` for the raw
 external/stdlib/local classification and per-import provenance (does not
 re-walk to redo that split). Runs its own focused, parent-aware AST pass over
 the same repo to determine, per import SITE, the SET of applicable context
@@ -35,7 +35,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-from python_deps.import_graph import EXCLUDED_DIRS, scan_imports
+from graph.python.read.import_graph import EXCLUDED_DIRS, scan_imports
 from python_deps.pkg_layer.planes import ImportContext, ImportNode
 
 # Highest-runtime-relevance-wins total order, most to least "real".

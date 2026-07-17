@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from .models import DependencyFailure
+from graph.python.models import DependencyFailure
 
 
 MODULE_NOT_FOUND_RE = re.compile(

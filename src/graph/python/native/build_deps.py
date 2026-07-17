@@ -43,7 +43,7 @@ from graph.schema import (
     NodeType,
     State,
 )
-from python_deps.import_mapping import normalize_package_name
+from graph.python.util.import_mapping import normalize_package_name
 
 logger = logging.getLogger(__name__)
 

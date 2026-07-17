@@ -14,7 +14,7 @@ be A/B-evaluated; this module does not modify anything under ``depgraph/``.
 from __future__ import annotations
 
 from graph.python.lanes.install.roots import _requirement_group
-from python_deps.evidence import collect_python_dependency_evidence
+from graph.python.read.evidence import collect_python_dependency_evidence
 from python_deps.pkg_layer.planes import DeclaredDep, _canon
 
 
@@ -22,7 +22,7 @@ def read_contract(repo_path: str) -> tuple[DeclaredDep, ...]:
     """Declared dependencies from every manifest source, as ``DeclaredDep``s.
 
     Delegates evidence collection to
-    :func:`python_deps.evidence.collect_python_dependency_evidence` (parses
+    :func:`graph.python.read.evidence.collect_python_dependency_evidence` (parses
     pyproject.toml / setup.cfg / setup.py / requirements*.txt) and maps each
     resulting ``PythonRequirement`` 1:1. The extras GROUP for a
     ``kind=="optional_dependency"`` requirement is derived from its

@@ -10,7 +10,7 @@ pip installs *distributions*, so each ``Import`` node must be resolved to a
 distribution root before the resolver (stage 3) can run.
 
 This module is pure (no Executor, no I/O) and reuses the curated table in
-``python_deps.import_mapping``.  Precedence follows the design's ladder (10.3):
+``graph.python.util.import_mapping``.  Precedence follows the design's ladder (10.3):
 declared manifest names outrank the curated table. An import that matches
 neither is unresolved and yields no root — it is never guessed to be its own
 distribution name.
@@ -19,7 +19,7 @@ distribution name.
 from __future__ import annotations
 
 from graph.schema import DepGraph, NodeType
-from python_deps.import_mapping import (
+from graph.python.util.import_mapping import (
     is_unresolved,
     map_import_to_package,
     normalize_package_name,
@@ -38,11 +38,11 @@ def package_roots(
        name equals the import's normalized name, the declared name wins
        (original manifest form preserved). Project declarations are the
        highest-trust evidence (design 4.2 / 10.3).
-    2. **curated table** — ``python_deps.import_mapping.map_import_to_package``
+    2. **curated table** — ``graph.python.util.import_mapping.map_import_to_package``
        (handles ``cv2 -> opencv-python`` and friends).
 
     An import that matches neither is **unresolved**
-    (``python_deps.import_mapping.is_unresolved``) and yields NO root — it is
+    (``graph.python.util.import_mapping.is_unresolved``) and yields NO root — it is
     never guessed to be its own distribution name.
 
     Non-Import nodes are ignored. Output order follows graph node order, one

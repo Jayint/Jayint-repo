@@ -52,7 +52,7 @@ from graph.schema import (
     State,
 )
 from graph.python.native.tables import NATIVE_RISK_PACKAGES
-from python_deps.import_mapping import normalize_package_name
+from graph.python.util.import_mapping import normalize_package_name
 
 logger = logging.getLogger(__name__)
 

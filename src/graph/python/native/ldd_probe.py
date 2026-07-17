@@ -40,7 +40,7 @@ from graph.schema import (
     State,
 )
 from graph.python.native.syslib import make_syslib_node
-from python_deps.import_mapping import normalize_package_name
+from graph.python.util.import_mapping import normalize_package_name
 
 # One container round-trip: emit JSON {canonical_dist_name: [absolute ext-.so paths]}
 # for all installed distributions via importlib.metadata.

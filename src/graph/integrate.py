@@ -16,7 +16,7 @@ from graph.ids import (
 from graph.schema import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State, Strength,
 )
-from python_deps.import_mapping import (
+from graph.python.util.import_mapping import (
     is_unresolved, map_import_to_package, normalize_package_name,
 )
 

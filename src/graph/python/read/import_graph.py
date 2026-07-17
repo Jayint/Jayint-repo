@@ -8,7 +8,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-from .models import ImportFinding
+from graph.python.models import ImportFinding
 
 
 EXCLUDED_DIRS = {

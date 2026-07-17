@@ -16,7 +16,7 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.import_mapping import (  # noqa: E402
+from graph.python.util.import_mapping import (  # noqa: E402
     MappingResult,
     UNRESOLVED_SOURCE,
     declared_metadata_match,

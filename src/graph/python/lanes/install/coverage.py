@@ -33,7 +33,7 @@ from graph.contracts.executor import Executor
 from graph.python.lanes.install.relink import PACKAGES_DIST_CMD, parse_packages_distributions
 from graph.python.lanes.install.repair import RecordProvider
 from graph.schema import Node, NodeType, State
-from python_deps.import_mapping import normalize_package_name
+from graph.python.util.import_mapping import normalize_package_name
 
 
 def resolved_record_coverage(

@@ -9,7 +9,7 @@ them into structural ``requires`` edges without corroborating evidence (design
 
 from __future__ import annotations
 
-from python_deps.import_mapping import normalize_package_name
+from graph.python.util.import_mapping import normalize_package_name
 # The admission-time service vocabulary now lives on the schema waist; re-exported
 # here so `from ...service_tables import KNOWN_SERVICE_KINDS` consumers keep working.
 # Invariant: SERVICE_DEFAULTS' keys must stay within KNOWN_SERVICE_KINDS.

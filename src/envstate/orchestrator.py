@@ -506,8 +506,8 @@ def run_v3(
         Locality, Mode, RepoContext, classify_locality, diagnose_all,
     )
     from graph.python.read import repo_modules as _repo_modules
-    from python_deps.failure_classifier import classify_dependency_failure
-    from python_deps.import_mapping import normalize_package_name
+    from graph.python.util.failure_classifier import classify_dependency_failure
+    from graph.python.util.import_mapping import normalize_package_name
     # PRECISE top-levels for the give-up decision; the COLLISION zone (broad-walk
     # stems that are not importable top-levels) is routed to AMBIGUOUS with
     # evidence instead of being silently dropped. Construction (scan_to_nodes)

@@ -13,8 +13,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from graph.schema import Layer, NodeType
-from python_deps.failure_classifier import classify_dependency_failure
-from python_deps.import_mapping import is_unresolved, map_import_to_package
+from graph.python.util.failure_classifier import classify_dependency_failure
+from graph.python.util.import_mapping import is_unresolved, map_import_to_package
 
 
 # ---------------------------------------------------------------------------
@@ -128,7 +128,7 @@ def classify_observation(command: str, output: str) -> Discovery | None:
         )
 
     # ── Priority 3: missing config / env-var ─────────────────────────────
-    from python_deps.failure_classifier import classify_config_error
+    from graph.python.util.failure_classifier import classify_config_error
     var_name = classify_config_error(command, text)
     if var_name is not None:
         return Discovery(
@@ -140,7 +140,7 @@ def classify_observation(command: str, output: str) -> Discovery | None:
         )
 
     # ── Priority 4: missing tool / executable ────────────────────────────
-    from python_deps.failure_classifier import classify_tool_error
+    from graph.python.util.failure_classifier import classify_tool_error
     tool_name = classify_tool_error(command, text)
     if tool_name is not None:
         return Discovery(

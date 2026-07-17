@@ -1,6 +1,6 @@
 """Stage 1: static import scan -> Import + Test nodes.
 
-Wraps :func:`python_deps.import_graph.scan_imports` (which classifies each
+Wraps :func:`graph.python.read.import_graph.scan_imports` (which classifies each
 top-level import as ``stdlib`` / ``project_local`` / ``external``) and lifts the
 ``external`` findings into the concrete dependency graph of
 ``docs/DESIGN-static-probe-certified-dependency-graph.md`` section 5:
@@ -23,7 +23,7 @@ from __future__ import annotations
 import os
 import re
 
-from python_deps.import_graph import scan_imports
+from graph.python.read.import_graph import scan_imports
 
 from graph.ids import TEST_NODE_ID, import_id
 from graph.schema import (

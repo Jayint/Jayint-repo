@@ -64,7 +64,7 @@ from graph.python.native.project_native_scan import (
 )
 from graph.schema import DepGraph, Edge, EdgeType, NodeType
 from graph.python.native.seed import _BUILD_ESSENTIAL_ID, _build_essential_node
-from python_deps.import_mapping import normalize_package_name
+from graph.python.util.import_mapping import normalize_package_name
 
 logger = logging.getLogger(__name__)
 

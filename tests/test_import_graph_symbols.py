@@ -17,7 +17,7 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from python_deps.import_graph import _symbols_from_ast  # noqa: E402
+from graph.python.read.import_graph import _symbols_from_ast  # noqa: E402
 
 
 def test_attribute_access():

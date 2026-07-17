@@ -109,7 +109,7 @@ def test_non_import_nodes_are_ignored():
 
 def test_package_roots_omits_unresolved_import(monkeypatch):
     import graph.python.lanes.install.naming as naming
-    from python_deps.import_mapping import unresolved_result, MappingResult
+    from graph.python.util.import_mapping import unresolved_result, MappingResult
 
     def fake_map(import_name, declared_package_names=None):
         if import_name == "mystery":

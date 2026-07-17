@@ -33,7 +33,7 @@ import re
 import shlex
 
 from graph.contracts.executor import Executor
-from python_deps.import_mapping import normalize_package_name
+from graph.python.util.import_mapping import normalize_package_name
 
 logger = logging.getLogger(__name__)
 

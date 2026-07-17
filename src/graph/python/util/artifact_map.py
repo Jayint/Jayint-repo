@@ -35,7 +35,7 @@ import shlex
 
 from graph.contracts.executor import Executor
 from graph.python.read.target_env import TargetEnv
-from python_deps.import_mapping import normalize_package_name
+from graph.python.util.import_mapping import normalize_package_name
 
 _WHEEL = "wheel"
 _SDIST = "sdist"

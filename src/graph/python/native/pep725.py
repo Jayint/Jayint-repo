@@ -43,7 +43,7 @@ except ModuleNotFoundError:  # Python < 3.11
 
 from graph.contracts.executor import Executor
 from graph.python.native.os_resolver import ObservedNeed, capability_id
-from python_deps.import_mapping import normalize_package_name
+from graph.python.util.import_mapping import normalize_package_name
 
 logger = logging.getLogger(__name__)
 

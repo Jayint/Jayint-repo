@@ -214,7 +214,7 @@ def test_unsafe_specifier_falls_back_to_bare_name(tmp_path):
     # A specifier carrying a marker / odd chars is dropped (bare name kept) rather
     # than risking injection into the resolver's temp pyproject.
     from graph.python.lanes.install.roots import _manifest_root_token
-    from python_deps.models import PythonRequirement
+    from graph.python.models import PythonRequirement
 
     assert _manifest_root_token(PythonRequirement("flask", ">=2.0")) == "flask>=2.0"
     assert (

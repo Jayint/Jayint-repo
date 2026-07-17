@@ -1,6 +1,6 @@
 """TDD tests for the pkg_layer Usage plane: context-tagged import scan (Task 2).
 
-``scan_usage`` reuses ``python_deps.import_graph.scan_imports`` for the raw
+``scan_usage`` reuses ``graph.python.read.import_graph.scan_imports`` for the raw
 external import set + provenance, then runs its own focused AST pass to
 assign a runtime-relevance CONTEXT per import site. Only
 ``classification == "external"`` imports become nodes.

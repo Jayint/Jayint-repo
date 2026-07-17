@@ -21,7 +21,7 @@ from graph.ids import package_id
 from graph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType
 from graph.python.native.seed import seed_wheel_oracle_prior
 from graph.python.read.target_env import detect_target_env
-from python_deps.import_mapping import normalize_package_name
+from graph.python.util.import_mapping import normalize_package_name
 
 _APT = "apt:"
 

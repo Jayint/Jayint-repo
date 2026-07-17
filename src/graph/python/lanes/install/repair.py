@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from graph.python.lanes.install.pipreqs_map import pipreqs_candidates
-from python_deps.import_mapping import (
+from graph.python.util.import_mapping import (
     normalize_package_name,
     top_level_import_name,
 )

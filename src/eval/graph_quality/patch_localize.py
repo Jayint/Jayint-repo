@@ -95,7 +95,7 @@ hit at all):
      import-time failure (empirically reproduced: `pip install GitPython` into a
      scratch venv, hide `git` from `$PATH`, `import git`) raises
      `ImportError: Failed to initialize: Bad git executable.` --
-     `python_deps.failure_classifier.classify_tool_error` recognizes THREE shapes:
+     `graph.python.util.failure_classifier.classify_tool_error` recognizes THREE shapes:
      `"<name>: command not found"` / `"<name>: not found"`
      (`_TOOL_COMMAND_NOT_FOUND_RE`), `"<name> executable not found"`
      (`_TOOL_EXECUTABLE_NOT_FOUND_RE`, modeled on setuptools/psycopg2's `pg_config`

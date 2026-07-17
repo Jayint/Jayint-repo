@@ -11,7 +11,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from python_deps.import_mapping import top_level_import_name
+from graph.python.util.import_mapping import top_level_import_name
 
 # Package-data lives at the graph package root (graph/data/), not beside this
 # module — anchor to the "graph" ancestor so the path is robust to the module's

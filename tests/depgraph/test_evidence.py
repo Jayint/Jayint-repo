@@ -12,7 +12,7 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-from python_deps.evidence import (
+from graph.python.read.evidence import (
     UvSourceConfig,
     _add_requirement_line,
     _build_import_mappings,
@@ -20,7 +20,7 @@ from python_deps.evidence import (
     collect_python_dependency_evidence,
     uv_source_config,
 )
-from python_deps.models import ImportFinding, PythonDependencyEvidence, PythonRequirement
+from graph.python.models import ImportFinding, PythonDependencyEvidence, PythonRequirement
 
 
 def test_parse_requirement_line_returns_four_tuple_with_extras():
@@ -739,8 +739,8 @@ def test_build_import_mappings_omits_unresolved(monkeypatch):
     # advise (Task 6). Before the guard, _build_import_mappings would still
     # emit an ImportPackageMapping for it (package_name=None), polluting the
     # advisory evidence layer with a mapping nobody can act on.
-    import python_deps.evidence as evidence_module
-    from python_deps.import_mapping import MappingResult, unresolved_result
+    import graph.python.read.evidence as evidence_module
+    from graph.python.util.import_mapping import MappingResult, unresolved_result
 
     monkeypatch.setattr(
         evidence_module,
@@ -1124,7 +1124,7 @@ def test_recursive_discovery_file_count_is_capped(tmp_path, monkeypatch):
     # ingested into declared_dependencies regardless. Assert the actual
     # capped quantity instead: the retained SOFT path count, and that a
     # specific excluded file really is gone.
-    import python_deps.evidence as evidence_module
+    import graph.python.read.evidence as evidence_module
 
     cap = 3
     monkeypatch.setattr(evidence_module, "_MAX_DISCOVERED_REQUIREMENTS_FILES", cap)
@@ -1298,7 +1298,7 @@ def test_cap_never_drops_a_hard_root(tmp_path, monkeypatch):
     # a real hard root -- present in neither declared_dependencies nor
     # soft_requirements_files. Every one of these ten HARD files must survive
     # even though the (monkeypatched, tiny) cap is far smaller than ten.
-    import python_deps.evidence as evidence_module
+    import graph.python.read.evidence as evidence_module
 
     monkeypatch.setattr(evidence_module, "_MAX_DISCOVERED_REQUIREMENTS_FILES", 3)
     (tmp_path / "requirements").mkdir()
@@ -1403,7 +1403,7 @@ def test_cap_keeps_shallowest_when_deep_vendored_subtree_sorts_first(tmp_path):
     # The fix walks fully, then keeps the shallowest N by (depth, path) --
     # the vendored files here are nested one level deeper than the real file
     # specifically so depth (not lexical order) decides survival.
-    import python_deps.evidence as evidence_module
+    import graph.python.read.evidence as evidence_module
 
     n_vendor = evidence_module._MAX_DISCOVERED_REQUIREMENTS_FILES + 50
     for i in range(n_vendor):

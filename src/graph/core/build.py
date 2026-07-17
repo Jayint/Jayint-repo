@@ -97,8 +97,8 @@ from graph.python.native.seed import seed_wheel_oracle_prior
 from graph.python.read.subprocess_scan import add_subprocess_tool_nodes
 from graph.python.read.target_env import detect_target_env
 from graph.python.native.wheel_preflight import wheel_preflight_probe
-from python_deps.evidence import collect_python_dependency_evidence
-from python_deps.import_mapping import normalize_package_name, top_level_import_name
+from graph.python.read.evidence import collect_python_dependency_evidence
+from graph.python.util.import_mapping import normalize_package_name, top_level_import_name
 
 logger = logging.getLogger(__name__)
 

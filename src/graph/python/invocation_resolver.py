@@ -9,7 +9,7 @@ declares.
 Step 1 of the collection-graph simplification design
 (``docs/superpowers/specs/2026-07-16-collection-graph-simplification-design.md``,
 "The deterministic resolver"). ADDITIVE: reuses the existing declaration parsing
-(:func:`python_deps.evidence.collect_python_dependency_evidence` reads
+(:func:`graph.python.read.evidence.collect_python_dependency_evidence` reads
 ``requires-python``, declared deps, PEP 735 ``[dependency-groups]``, extras, and
 requirements files incl. nested ones) and the root-scope policy constants from
 :mod:`graph.python.lanes.install.roots`. Three build priorities, in order: (a)
@@ -40,9 +40,9 @@ from graph.python.util.group_scope import (
     _DEV_GROUP_DENYLIST,
     _TEST_SCOPE_EXTRA_ALLOWLIST,
 )
-from python_deps.evidence import collect_python_dependency_evidence
-from python_deps.import_mapping import normalize_package_name
-from python_deps.models import PythonDependencyEvidence
+from graph.python.read.evidence import collect_python_dependency_evidence
+from graph.python.util.import_mapping import normalize_package_name
+from graph.python.models import PythonDependencyEvidence
 
 try:
     import tomllib
@@ -552,7 +552,7 @@ def _requirements_files(root: Path, evidence: PythonDependencyEvidence) -> list[
     """Every requirements file evidence discovered — HARD (root + top-level
     requirements/tests/test/docs, incl. ``tests/requirements.txt``) plus SOFT
     (nested per-subdir, Archipelago ``worlds/*``). Reuses evidence's own
-    discovery (:func:`python_deps.evidence._discover_hard_requirements_files`)
+    discovery (:func:`graph.python.read.evidence._discover_hard_requirements_files`)
     rather than re-globbing, so no HARD file — and thus no declared test dep — is
     ever dropped from the install plan."""
     return sorted(

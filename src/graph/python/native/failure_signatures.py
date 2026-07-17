@@ -18,7 +18,7 @@ import os
 import re
 
 from graph.python.native.os_resolver import ObservedNeed, default_context
-from python_deps.failure_classifier import SONAME_RES
+from graph.python.util.failure_classifier import SONAME_RES
 
 _HDR_EXTS = (".h", ".hh", ".hpp", ".hxx", ".H", ".tcc", ".ipp")
 _HDR = r"[\w./+-]+\.(?:h|hh|hpp|hxx|H|tcc|ipp)"

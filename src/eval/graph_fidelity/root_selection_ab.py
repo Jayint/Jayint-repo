@@ -191,8 +191,8 @@ def reconstruct_generator_roots(
     of the pure adjudication functions."""
     from graph.python.lanes.install.naming import package_roots
     from graph.python.lanes.install.roots import _is_non_distribution
-    from python_deps.evidence import collect_python_dependency_evidence
-    from python_deps.import_mapping import normalize_package_name
+    from graph.python.read.evidence import collect_python_dependency_evidence
+    from graph.python.util.import_mapping import normalize_package_name
 
     declared_names = {
         req.name

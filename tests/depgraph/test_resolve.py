@@ -2352,7 +2352,7 @@ def test_link_imports_skips_unresolved_mapping(monkeypatch):
     import graph.python.lanes.install.resolve_link as resolve_link
     from graph.python.lanes.install.resolve import link_imports_to_packages
     from graph.schema import DepGraph, DiscoveredBy, Layer, Node, NodeType
-    from python_deps.import_mapping import unresolved_result
+    from graph.python.util.import_mapping import unresolved_result
 
     monkeypatch.setattr(
         resolve_link, "map_import_to_package",
@@ -2379,7 +2379,7 @@ def test_link_imports_reconciles_unresolved_by_own_name(monkeypatch):
     from graph.schema import (
         DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType,
     )
-    from python_deps.import_mapping import unresolved_result
+    from graph.python.util.import_mapping import unresolved_result
 
     # Force the mapper to unresolved for every import (simulates post-flip behavior).
     monkeypatch.setattr(

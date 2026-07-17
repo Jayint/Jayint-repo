@@ -25,7 +25,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 
-from python_deps.import_mapping import is_unresolved, map_import_to_package
+from graph.python.util.import_mapping import is_unresolved, map_import_to_package
 from python_deps.pkg_layer.planes import ImportContext, PackageLayer, _canon
 
 # Contexts whose usage of an import name counts as a real, RUNTIME-adjacent

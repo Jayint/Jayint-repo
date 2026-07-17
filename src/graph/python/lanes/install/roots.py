@@ -9,7 +9,7 @@ This module realizes the spec's "Root selection" ladder
 (``docs/superpowers/specs/2026-06-23-uv-enriched-depgraph.md``):
 
 1. **Manifest-declared roots only** — declared dependencies (parsed via
-   :func:`python_deps.evidence.collect_python_dependency_evidence`) are the
+   :func:`graph.python.read.evidence.collect_python_dependency_evidence`) are the
    ONLY roots.  They carry no import node, so their ``import_id`` is always
    ``None``.  Imports never generate roots: they are the post-install audit
    signal (catching under-declaration), never a source of install roots (the
@@ -33,8 +33,8 @@ from typing import TYPE_CHECKING
 
 from graph.python.lanes.install.resolve_lock import _marker_applies
 from graph.schema import DepGraph
-from python_deps.evidence import collect_python_dependency_evidence
-from python_deps.import_mapping import (
+from graph.python.read.evidence import collect_python_dependency_evidence
+from graph.python.util.import_mapping import (
     normalize_package_name,
     top_level_import_name,
 )

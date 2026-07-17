@@ -1,6 +1,6 @@
 """Data models for the v3 depgraph stack.
 
-This is the verbatim subset of the original ``python_deps.models`` needed by
+This is the verbatim subset of the original ``graph.python.models`` needed by
 ``evidence.py``, ``import_graph.py`` and ``failure_classifier.py`` — all
 transitively reached from ``depgraph/build.py`` and ``depgraph/roots.py``.
 
@@ -133,7 +133,7 @@ class PythonDependencyEvidence:
     # never carries (git commit, in-checkout workspace member, local path, or
     # private index). Keyed by canonical (PyPI-normalised) distribution name;
     # each value is a tuple because uv allows a marker-conditional LIST of
-    # source tables for one name. See `python_deps.evidence.UvSourceConfig`.
+    # source tables for one name. See `graph.python.read.evidence.UvSourceConfig`.
     uv_sources: dict[str, tuple[dict, ...]] = field(default_factory=dict)
     uv_workspace_members: tuple[str, ...] = ()
     uv_indexes: tuple[dict, ...] = ()

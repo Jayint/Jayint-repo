@@ -20,7 +20,7 @@ from dataclasses import replace
 
 from graph.contracts.executor import Executor
 from graph.schema import DepGraph, Edge, EdgeType, NodeType
-from python_deps.import_mapping import (
+from graph.python.util.import_mapping import (
     normalize_package_name,
     top_level_import_name,
 )

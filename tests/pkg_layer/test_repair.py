@@ -94,7 +94,7 @@ def test_identity_not_verified_falls_through_to_next_rung():
 
 
 # --------------------------------------------------------------------------- #
-# Rung 2: curated (python_deps.import_mapping)
+# Rung 2: curated (graph.python.util.import_mapping)
 # --------------------------------------------------------------------------- #
 
 def test_curated_alias_accepted_at_rung_two():

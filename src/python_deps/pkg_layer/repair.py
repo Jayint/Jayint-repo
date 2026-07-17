@@ -27,7 +27,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from python_deps.import_mapping import is_unresolved, map_import_to_package
+from graph.python.util.import_mapping import is_unresolved, map_import_to_package
 
 
 class ProviderProbe(Protocol):

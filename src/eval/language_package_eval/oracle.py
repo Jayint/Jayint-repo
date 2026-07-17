@@ -53,7 +53,7 @@ for _p in (_REPO_ROOT, _SRC):
 
 from graph.schema import NodeType  # noqa: E402
 from graph.service_scan import scan_compose_services  # noqa: E402
-from python_deps.evidence import _read_requirement_lines  # noqa: E402
+from graph.python.read.evidence import _read_requirement_lines  # noqa: E402
 
 _TIER_KEYS: tuple[str, ...] = (
     NodeType.SYSTEM_LIB.name,

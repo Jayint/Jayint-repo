@@ -57,7 +57,7 @@ def classify_naming(dep_name: str, import_name: str) -> str:
     """``identity`` (canon dep == canon import), ``curated_alias`` (import is a key in the real
     curated table), else ``other`` (e.g. a namespace-truncated import). Determines whether the
     generator's post-Phase-2 gap-fill can re-derive a deleted dep from its import at all."""
-    from python_deps.import_mapping import CURATED_IMPORT_TO_PACKAGE
+    from graph.python.util.import_mapping import CURATED_IMPORT_TO_PACKAGE
 
     if _canon(dep_name) == _canon(import_name):
         return "identity"
@@ -96,13 +96,13 @@ def inject_and_score(repo_dir: str, full_name: str, deleted_dep: str, import_nam
 
     The deletion is applied via a scoped patch on BOTH evidence bindings: the one
     ``roots.select_roots`` reads (``roots_mod``) AND the one
-    ``reconstruct_generator_roots`` reads afresh (``python_deps.evidence``). Both
+    ``reconstruct_generator_roots`` reads afresh (``graph.python.read.evidence``). Both
     must see the removal, or the reconstructed generator's ``declared_names`` would
     still carry the deleted dep and falsely "recover" an identity-named dep through
     the declared-precedence path — inverting the post-Phase-2 result this measures.
     """
     import graph.python.lanes.install.roots as roots_mod
-    import python_deps.evidence as evidence_mod
+    import graph.python.read.evidence as evidence_mod
     from graph.python.read.scan import scan_to_nodes
     from graph.schema import NodeType
 

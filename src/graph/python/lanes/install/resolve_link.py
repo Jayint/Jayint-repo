@@ -15,7 +15,7 @@ from graph.schema import (
     Node,
     NodeType,
 )
-from python_deps.import_mapping import is_unresolved, map_import_to_package
+from graph.python.util.import_mapping import is_unresolved, map_import_to_package
 from graph.python.lanes.install.resolve_lock import _canon, _req_name
 
 
