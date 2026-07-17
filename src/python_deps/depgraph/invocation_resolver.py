@@ -32,6 +32,10 @@ from pathlib import Path
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
+from python_deps.depgraph.config_scan import (
+    authoritative_ambiguous_vars,
+    scan_authoritative_config,
+)
 from python_deps.depgraph.roots import (
     _DEV_GROUP_DENYLIST,
     _TEST_SCOPE_EXTRA_ALLOWLIST,
@@ -108,6 +112,13 @@ class TestEnvPlan:
     import_mode: str
     layout: str  # src | flat | flat_ambiguous | monorepo | none
     flags: tuple[str, ...] = field(default_factory=tuple)
+    # The working dir the canonical collect invocation runs from (defaults to the
+    # discovered rootdir) and the unambiguous authoritative env-vars it must carry
+    # (sorted ``(var, value)`` pairs; vars the authoritative sources disagree on
+    # are dropped, never guessed). Defaulted -> additive: existing callers that
+    # don't pass them are unaffected.
+    cwd: str = "."
+    env: tuple[tuple[str, str], ...] = ()
 
 
 def resolve(repo_path: str | Path) -> TestEnvPlan:
@@ -133,16 +144,35 @@ def resolve(repo_path: str | Path) -> TestEnvPlan:
     if confidence == "undiscoverable":
         flags.append("interpreter_undiscoverable")
 
+    rootdir = config["rootdir"]
+    # Unambiguous authoritative env-vars the canonical collect invocation carries.
+    # TODO(stage-b): config_scan's env readers search the repo ROOT only, while
+    # _discover_pytest_config searches ["."] + project_dirs; a nested e.g.
+    # sdk/python/tox.ini setenv is missed. Reconciling the two readers' search
+    # scope is Stage B; Stage A surfaces only unambiguous root-level vars.
+    repo_root = str(root)
+    ambiguous_vars = authoritative_ambiguous_vars(repo_root)
+    env = tuple(sorted(
+        (k, v)
+        for k, v in scan_authoritative_config(repo_root).items()
+        if k not in ambiguous_vars
+    ))
+    # cwd defaults to the discovered rootdir (absolute materialization is the
+    # cure-runner's job in Stage B; here it mirrors rootdir).
+    cwd = rootdir
+
     return TestEnvPlan(
         interpreter=interpreter,
         interpreter_confidence=confidence,
         project_dirs=project_dirs,
         install_plan=_build_install_plan(root, evidence, project_dirs),
-        rootdir=config["rootdir"],
+        rootdir=rootdir,
         pythonpath=pythonpath,
         import_mode=config["import_mode"],
         layout=_classify_layout(root, project_dirs, is_monorepo, pythonpath, ambiguous),
         flags=tuple(flags),
+        cwd=cwd,
+        env=env,
     )
 
 

@@ -722,3 +722,19 @@ def test_ci_inline_trailing_comment_not_a_version(tmp_path):
     # lowest) wrongly picks it; 3.13 is the only real matrix value.
     assert plan.interpreter == "3.13"
     assert plan.interpreter_confidence == "ci_default"
+
+
+# --------------------------------------------------------------------------- #
+# cwd + unambiguous authoritative env (canonical collect invocation)
+# --------------------------------------------------------------------------- #
+
+
+def test_testenvplan_carries_cwd_and_unambiguous_env(tmp_path):
+    (tmp_path / "pytest.ini").write_text("[pytest]\n")
+    (tmp_path / "tox.ini").write_text(
+        "[testenv]\nsetenv =\n    DJANGO_SETTINGS_MODULE=app.settings\n"
+    )
+    from python_deps.depgraph.invocation_resolver import resolve
+    plan = resolve(str(tmp_path))
+    assert plan.cwd == plan.rootdir            # default cwd = rootdir
+    assert ("DJANGO_SETTINGS_MODULE", "app.settings") in plan.env
