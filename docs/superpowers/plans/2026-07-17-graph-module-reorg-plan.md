@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- **Behavior-preserving is THE gate.** Every Phase-0 commit and the Phase-1 move must leave `pytest` green AND the pass-repo sweep green. Phase 0 changes are pure relocations of symbols within the *current* package; Phase 1 is a pure move. No logic changes ride along.
+- **Behavior-preserving is THE gate — and it is DEFINED as a golden-output differential** (see "Validation harness" below), not a vague "still green." Every Phase-0 commit and the Phase-1 move must leave `pytest` green AND produce a **byte-identical `graph.to_dict()` + `setup.sh` per pass-repo** vs the frozen baseline. Phase 0 changes are pure relocations of symbols within the *current* package; Phase 1 is a pure move. No logic changes ride along.
 - **Scoped commits ONLY** (shared branch): `git add <exact paths>`; **`-m` before `--`**; never `git add -A`; no `Co-Authored-By`.
 - **Shims are UNSAFE for ~35 identity-sensitive sites.** `monkeypatch.setattr(mod, …)` / `patch.object(mod, …)` bind the shim, so patching silently no-ops against the real moved module (research 1 cat. 5 — it would corrupt `fault_injection.py`'s eval numbers with no error). Those sites MUST be rewritten to the real new module in the atomic commit; a re-export shim is allowed ONLY for plain `from X import symbol` value imports, for one window.
 - **The blast radius is 830 import sites** (163 production + 667 test), 288 of them function-local (52 production), across 240 files. Completeness of the import rewrite is the pass/fail criterion for Phase 1.
@@ -19,9 +19,35 @@
 
 ---
 
+## Validation harness — the behavior-preserving gate, defined
+
+The existing eval already validates this refactor end-to-end; it needs only a golden-diff wrapper (which does NOT exist today — the "sweep" is currently a convention). The eval is two decoupled stages: **construct+render** (`run_v3_e2e --construction-only` → `build_advisory_for_repo` → graph → `render_build_script` → `setup.sh`) and **measure** (`bench`/`run_replay_ladder` → run the `setup.sh` in a container → `pytest --collect-only`/`pytest`). The measure side is refactor-AGNOSTIC (it reads the artifact, not construction internals), so a reorg that preserves graph+setup.sh is proven by re-measuring.
+
+**The golden-output differential (the gate for every Phase-0 + Phase-1 step):**
+- **Baseline** (captured ONCE, before any touch): per pass-repo, `json.dumps(graph.to_dict(), sort_keys=True)` (`schema.py:445`) + the `--construction-only` `setup.sh`, with LLM responses recorded (base-image/service-config/dist-guesser, all `temperature=0`) so the diff isolates construction from model variance.
+- **After each step:** regenerate and diff. **Byte-identical graph + setup.sh = behavior-preserving PROVEN** — stronger than "tests pass" (it catches a subtly reordered edge a green suite misses). A byte-identical `setup.sh` means the container run is identical, so `bench`/collect need only run on CHANGED repos.
+- **Layers beneath it:** the unit suite (`tests/depgraph`) + the LLM-free `graph_fidelity` edge-cases (deterministic graph correctness on fixtures).
+
+**For the NEW design's e2e** (post-Stage-C, separate from this reorg): Gate A (`gate_a_cure_recovery.py` — cure clears the collect cliff), Gate B (`gate_b_partition_sanity.py` — shadow partition sanity), and `run_v3_e2e` full → `bench` EBSR (`collect_clean`) + the provisional-flag bucket. Those already exist and answer "does the two-lane model work e2e."
+
+**Catch:** the harness scripts (`run_v3_e2e`, the gates) IMPORT the moving entry points (`build_advisory_for_repo`→`runtime`, `build_dep_graph`→`core`, `render_build_script`→`emit`), so they are IN the 830-site blast radius — the baseline must be captured with the PRE-reorg harness and compared with the rewritten harness running on reorged code.
+
+---
+
 ## PHASE 0 — Decoupling prep (behavior-preserving, lands now, shrinks the move)
 
 Each task removes one backward cluster-edge on the current flat layout, is independently testable, and ends in a small scoped commit. Order matters only where noted.
+
+### Task 0.0: Build the golden-output differential harness + freeze the baseline
+
+Do this FIRST — it is the gate every subsequent step (and both audits) is checked against. Without it, "behavior-preserving" is an assertion, not a proof.
+
+**Files:** Create `scripts/graph_golden_diff.py` (thin driver over the existing eval — reuses `build_advisory_for_repo`/`build_dep_graph`, `render_build_script`, `graph.to_dict()`).
+
+- [ ] **Step 1:** Per repo in the **pass-repo set** (the repos that currently produce a clean result — never baseline against a broken repo; memory `regression-sweep-is-the-gate`), call construction → `graph`, write `json.dumps(graph.to_dict(), sort_keys=True)` to `<baseline>/<repo>/graph.json` and the `--construction-only` `setup.sh` to `<baseline>/<repo>/setup.sh`. Record the LLM responses so re-runs are deterministic.
+- [ ] **Step 2:** Add a `--compare <baseline>` mode that regenerates and diffs `graph.json` + `setup.sh` per repo, exits non-zero on ANY diff, and prints the per-repo delta.
+- [ ] **Step 3:** Capture the baseline on the pass-repo set; commit the driver + the baseline artifacts.
+- [ ] **Step 4:** Prove the gate works: a trivial no-op construction edit → `--compare` green; a deliberate 1-node change → red; revert. (A gate that can't go red is not a gate.)
 
 ### Task 0.1: Hoist the Layer-order constants to `schema.py`
 
