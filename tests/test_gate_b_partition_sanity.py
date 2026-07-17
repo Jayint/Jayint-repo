@@ -231,6 +231,34 @@ def test_read_records_since_excludes_stale_and_leaves_file_intact(tmp_path):
     assert json.dumps(_R_CLEAN) in p.read_text()
 
 
+# ---------------------------------------------------------------------------
+# _reject_aliased_record_path — the record path must not alias the result doc,
+# or the end-of-run _write_result_doc would clobber this run's records
+# ---------------------------------------------------------------------------
+def test_reject_aliased_record_path_raises_when_equal_to_result_doc():
+    """If V3_SHADOW_RECORD_PATH points AT the fixed Gate B result doc, the guard must
+    fail fast (rather than let _write_result_doc silently overwrite the records)."""
+    with pytest.raises(SystemExit):
+        gate._reject_aliased_record_path(str(gate._RESULT_DOC))
+
+
+def test_reject_aliased_record_path_raises_on_abspath_equivalent(tmp_path):
+    """Equivalent spellings resolve to the same file — a relative form of the result
+    doc must be rejected too (the guard compares os.path.abspath, not raw strings)."""
+    rel = os.path.relpath(str(gate._RESULT_DOC))
+    assert os.path.abspath(rel) == os.path.abspath(str(gate._RESULT_DOC))
+    with pytest.raises(SystemExit):
+        gate._reject_aliased_record_path(rel)
+
+
+def test_reject_aliased_record_path_allows_distinct_path(tmp_path):
+    """A distinct record path (the normal case) must NOT raise — pure additive
+    precondition, no effect on the happy path."""
+    distinct = str(tmp_path / "shadow.jsonl")
+    assert distinct != str(gate._RESULT_DOC)
+    gate._reject_aliased_record_path(distinct)  # must not raise
+
+
 def test_read_records_since_offset_zero_reads_this_run_records_for_new_file(tmp_path):
     """When the record path does NOT pre-exist, main() computes ``start_offset`` as
     ``os.path.getsize(path) if os.path.exists(path) else 0`` -> 0. The file is then

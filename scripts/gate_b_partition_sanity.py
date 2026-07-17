@@ -410,6 +410,22 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     return ap
 
 
+def _reject_aliased_record_path(record_path: str, *, result_doc: Path = _RESULT_DOC) -> None:
+    """Fail fast if ``V3_SHADOW_RECORD_PATH`` is aliased to the Gate B result doc.
+
+    A real run ends by OVERWRITING the fixed result-doc path (``_write_result_doc``
+    -> ``_RESULT_DOC``). If the shadow record path — the JSONL the pass APPENDS to and
+    this driver reads back — is the SAME file, that final write would clobber the
+    records instead of the deferred note. This precondition raises ``SystemExit`` with
+    a clear message rather than letting the two writers silently collide. Paths are
+    compared via ``os.path.abspath`` so equivalent spellings (relative vs absolute)
+    are caught too."""
+    if os.path.abspath(record_path) == os.path.abspath(str(result_doc)):
+        raise SystemExit(
+            f"V3_SHADOW_RECORD_PATH must not point at the Gate B result doc ({result_doc})"
+        )
+
+
 def main(argv=None) -> int:
     args = _build_arg_parser().parse_args(argv)
 
@@ -428,6 +444,10 @@ def main(argv=None) -> int:
         print("ERROR: V3_SHADOW_RECORD_PATH must be set — it names the shadow JSONL "
               "the pass appends to AND that this driver aggregates.", file=sys.stderr)
         return 2
+
+    # Guard: the record path must not alias the result doc, or the end-of-run
+    # _write_result_doc would clobber the very records this driver just aggregated.
+    _reject_aliased_record_path(record_path)
 
     # Capture the record file's byte size BEFORE construction. The shadow pass
     # APPENDS, so aggregating only the bytes AT OR AFTER this offset excludes any
