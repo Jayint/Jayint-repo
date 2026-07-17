@@ -27,7 +27,7 @@ class NodeType(enum.Enum):
     PLATFORM = "Platform"
     SERVICE = "Service"
     CONFIG = "Config"
-    FILE = "File"  # first-party module (config-cured lane); emitted by the classifier stage (later task)
+    MODULE = "Module"  # first-party module (config-cured lane); emitted by the classifier stage (later task)
 
 
 class EdgeType(enum.Enum):
@@ -91,9 +91,9 @@ class Phase(enum.Enum):
 # relation -> (allowed src node-type values, allowed dst node-type values)
 EDGE_RULES: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "requires": (
-        frozenset({"Test", "Project", "Import", "Package", "Service", "Config", "File"}),
+        frozenset({"Test", "Project", "Import", "Package", "Service", "Config", "Module"}),
         frozenset({"Project", "Import", "Package", "SystemLib", "Tool", "Runtime",
-                   "Platform", "Service", "Config", "File"}),
+                   "Platform", "Service", "Config", "Module"}),
     ),
     # Resolver-discovered version conflicts join two Packages (uv unsat core).
     "conflicts_with": (
