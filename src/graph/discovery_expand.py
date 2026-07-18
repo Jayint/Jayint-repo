@@ -20,7 +20,7 @@ import logging
 from dataclasses import replace
 
 from graph.python.native.build_deps import seed_build_deps_for
-from graph.python.native.os_resolver import ObservedNeed, resolve
+from graph.python.native.apt import ObservedNeed, resolve
 from graph.model import DepGraph, NodeType
 
 logger = logging.getLogger(__name__)

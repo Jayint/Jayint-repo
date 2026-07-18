@@ -38,7 +38,7 @@ if str(_SRC) not in sys.path:
 from graph.core.build import build_dep_graph  # noqa: E402
 from graph.executors import DockerExecutor, LocalSubprocessExecutor  # noqa: E402
 from graph.model import DiscoveredBy, NodeType  # noqa: E402
-from graph.python.native.os_resolver import PROVIDER_TABLE  # noqa: E402
+from graph.python.native.apt import PROVIDER_TABLE  # noqa: E402
 
 # soname -> apt subset of the unified resolver table (the former curated
 # soname->apt table was folded into os_resolver.PROVIDER_TABLE).

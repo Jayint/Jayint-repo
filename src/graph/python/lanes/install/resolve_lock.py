@@ -577,7 +577,7 @@ def parse_uv_lock(
 # --------------------------------------------------------------------------- #
 # Pure parser 2: per-package native-build risk — delegates to wheel_oracle.py.
 # --------------------------------------------------------------------------- #
-from graph.python.native.wheel_oracle import (  # noqa: E402
+from graph.python.native.wheel import (  # noqa: E402
     _artifact_filename,
     _wheel_matches_platform,
     risk_from_packages,

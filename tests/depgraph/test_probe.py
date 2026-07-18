@@ -10,7 +10,7 @@ from __future__ import annotations
 import subprocess
 
 from graph.ids import binary_id, import_id, package_id, pkgconfig_id, syslib_id
-from graph.python.native.os_resolver import ObservedNeed, check_command_for
+from graph.python.native.apt import ObservedNeed, check_command_for
 from graph.python.native.probe import import_probe, install_closure, reconcile_predicted
 from graph.model import (
     DepGraph,
@@ -138,7 +138,7 @@ def test_make_syslib_node_is_self_contained():
 
 
 def test_make_capability_node_is_self_contained(fake_executor):
-    from graph.python.native.os_resolver import ObservedNeed
+    from graph.python.native.apt import ObservedNeed
     from graph.python.native.probe import _make_capability_node
 
     need = ObservedNeed(kind="binary", name="pg_config", context="build")

@@ -1,47 +1,40 @@
-"""Stage 4.5 — ldd-based run-time native library discovery.
+"""System-library discovery: ldd runtime probe + SystemLib node shape + signatures.
 
-After ``install_closure`` installs the resolved closure, this stage runs ``ldd``
-on each package's compiled extension ``.so`` files and collects shared libraries
-the dynamic linker reports as ``=> not found``.  Each missing soname becomes a
-``SystemLib`` node (``discovered_by=PROBE``, ``state=MISSING``) with a
-``requires`` edge from the owning ``Package``.
-
-This is the *primary authoritative* source for run-time native-lib nodes
-(option A of the plan).  The curated ``PACKAGE_TO_SYSTEM_DEPS`` table stays as a
-proactive/install-fail fallback (seeded before install; ldd supersedes it for
-successfully installed packages).
-
-``os_resolver.resolve`` is table-first with an apt-file fallback that is ABSENT on
-slim images.  An unknown soname yields a node with EMPTY ``fix_candidates``
-(option A: *need* surfaced, apt *name* not known).  Option B (lazy apt-file)
-closes that gap — see plan Future TODOs.
-
-Pure parser + thin executor orchestrator (repo immutability: every "mutation"
-returns a NEW ``DepGraph``).
+Folds three native leaves into one concept file (3c-3):
+  * ``ldd_probe`` — post-install ldd discovery of run-time ``=> not found`` sonames
+    (the primary authoritative source of run-time native-lib nodes);
+  * ``make_syslib_node`` — the single ``SystemLib`` node shape, so a pre-install
+    prediction and a post-install observation collapse onto ONE canonical-soname id;
+  * ``extract_needs`` — table-independent stderr -> ``ObservedNeed`` signature parsing.
 """
 
 from __future__ import annotations
 
 import json
+import os
+import re
 import shlex
 
 from graph.contracts.executor import Executor
 from graph.ids import syslib_id
-from graph.python.native.os_resolver import ObservedNeed, resolve
-from graph.python.native.probe import reconcile_predicted
 from graph.model import (
     Attempt,
     DepGraph,
     DiscoveredBy,
     Edge,
     EdgeType,
+    Layer,
     Node,
     NodeType,
     State,
 )
-from graph.python.native.syslib import make_syslib_node
+from graph.python.native.apt import ObservedNeed, default_context, resolve
+from graph.python.native.probe import reconcile_predicted
+from graph.python.util.failure_classifier import SONAME_RES
 from graph.python.util.import_mapping import normalize_package_name
 
+
+# === ldd_probe: post-install ldd run-time native-lib discovery ===
 # One container round-trip: emit JSON {canonical_dist_name: [absolute ext-.so paths]}
 # for all installed distributions via importlib.metadata.
 #
@@ -244,3 +237,132 @@ def _first_line_with(text: str, needle: str, max_chars: int = 500) -> str:
         if needle in line:
             return line.strip()[:max_chars]
     return (text or "").strip()[:max_chars]
+
+
+# === make_syslib_node: the single SystemLib node shape (was syslib.py) ===
+def make_syslib_node(
+    soname: str,
+    *,
+    discovered_by: DiscoveredBy,
+    state: State,
+    apt: str | None = None,
+    evidence: str | None = None,
+    provenance: str | None = None,
+) -> Node:
+    """Build a ``SystemLib`` node keyed by canonical soname.
+
+    ``apt`` (when given) fills both ``fix_candidates`` and ``chosen_fix`` as
+    ``apt:<name>``; a ``None`` apt leaves them empty (need surfaced, apt name
+    unknown). The check is always ``ldconfig -p | grep <soname>``. Callers set
+    ``discovered_by``/``state`` (RESOLVER/UNKNOWN for a pre-install prior,
+    PROBE/MISSING for an ldd observation) and append any ``Attempt`` themselves.
+    """
+    return Node(
+        id=syslib_id(soname),
+        type=NodeType.SYSTEM_LIB,
+        name=soname,
+        layer=Layer.SYSTEM,
+        discovered_by=discovered_by,
+        state=state,
+        check_command=f"ldconfig -p | grep {soname}",
+        evidence=evidence,
+        fix_candidates=(f"apt:{apt}",) if apt else (),
+        chosen_fix=f"apt:{apt}" if apt else None,
+        provenance=provenance,
+    )
+
+
+# === failure_signatures: stderr -> ObservedNeed extraction ===
+_HDR_EXTS = (".h", ".hh", ".hpp", ".hxx", ".H", ".tcc", ".ipp")
+_HDR = r"[\w./+-]+\.(?:h|hh|hpp|hxx|H|tcc|ipp)"
+
+HEADER_RES = (
+    re.compile(rf"(?:fatal error:\s*)?({_HDR})\s*:\s*No such file or directory"),  # gcc/g++/cc
+    re.compile(rf"fatal error:\s*'({_HDR})'\s*file not found"),                    # clang, quoted
+    re.compile(rf"'({_HDR})'\s*file not found"),                                   # clang driver
+)
+
+BINARY_RES = (
+    re.compile(r"(?:^|\n)(?:\S*sh: )?([A-Za-z0-9_][\w.+-]*): command not found\b"),          # shell
+    re.compile(r"/bin/(?:sh|dash): \d+: ([A-Za-z0-9_][\w.+-]*): not found\b"),               # dash numbered
+    re.compile(r"([A-Za-z0-9_][\w.+-]*) executable (?:was )?not found\b"),                   # setuptools
+    re.compile(r"[Tt]he ['\"]([A-Za-z0-9_][\w.+-]*)['\"] executable (?:was |is )?not found\b"),  # meson/skbuild
+    re.compile(r"configure: error: Cannot find ([A-Za-z0-9_][\w.+-]*)"),                     # autoconf "Cannot find X"
+    re.compile(r"configure: error: ([A-Za-z0-9_][\w.+-]*) not found\b"),                     # autoconf "X not found"
+    re.compile(r"checking for ([A-Za-z0-9_][\w.+()-]*)\.\.\.\s*(?:not found|no)\b"),         # autoconf probe (…no)
+    re.compile(r"Could not find ([A-Za-z0-9_][\w.+-]*)\b(?!\s*[:=])"),                       # cmake find_program
+    re.compile(r"Program(?: or command)? ['\"]?([A-Za-z0-9_][\w.+-]*)['\"]? not found or not executable"),  # meson
+    re.compile(r"which: no ([A-Za-z0-9_][\w.+-]*) in \("),                                   # which
+    re.compile(r"error: command ['\"]([A-Za-z0-9_][\w.+-]*)['\"] failed:\s*No such file or directory\b"),  # distutils errno=2
+)
+
+PKGCONFIG_RES = (
+    re.compile(r"No package ['\"]([A-Za-z0-9][\w.+-]*)['\"] found"),                          # pkg-config (quotes REQUIRED)
+    re.compile(r"Package ([A-Za-z0-9][\w.+-]*) was not found in the pkg-config search path"), # pkg-config (unquoted tail is safe)
+    re.compile(r"Package ['\"]([A-Za-z0-9][\w.+-]*)['\"], required by ['\"][\w:.+-]+['\"], not found"),  # transitive
+    re.compile(r'Dependency "([A-Za-z0-9][\w.+-]*)" not found, tried (?=[a-z, ]*pkgconfig)[a-z, ]+'),    # meson (pkgconfig-gated)
+    re.compile(r"Dependency '([A-Za-z0-9][\w.+-]*)' not found(?!, tried)"),                   # meson simple fallback
+    re.compile(r"--\s*No package '([A-Za-z0-9][\w.+-]*)' found"),                             # cmake pkg_check_modules echo
+    re.compile(r"None of the required ['\"]([A-Za-z0-9][\w.+;-]*)['\"] found"),               # meson alternatives (split on ';')
+)
+
+LINKER_RES = (
+    re.compile(r"(?m)^\s*/?(?:usr/bin/)?ld(?:\.(?:bfd|gold|lld))?:\s*cannot find -l([\w.+-]+)"),
+)
+
+
+def _norm_header(name: str) -> str:
+    """Keep the name as printed; basename only an absolute or traversal path."""
+    if name.startswith("/") or name.startswith("../") or "/../" in name:
+        return os.path.basename(name)
+    return name
+
+
+def _line_of(text: str, pos: int, max_chars: int = 500) -> str:
+    """The single line of ``text`` containing offset ``pos`` (evidence)."""
+    start = text.rfind("\n", 0, pos) + 1
+    end = text.find("\n", pos)
+    if end < 0:
+        end = len(text)
+    return text[start:end].strip()[:max_chars]
+
+
+def extract_needs(stderr: str, *, context_hint: str = "build") -> list[ObservedNeed]:
+    """See module docstring. Dedup by (kind, name), first-occurrence text order."""
+    text = stderr or ""
+    hits: list[tuple[int, str, str]] = []  # (position, kind, name)
+
+    for rx in HEADER_RES:
+        for m in rx.finditer(text):
+            hits.append((m.start(1), "header", _norm_header(m.group(1))))
+    for rx in BINARY_RES:
+        for m in rx.finditer(text):
+            name = m.group(1)
+            kind = "header" if name.endswith(_HDR_EXTS) else "binary"
+            hits.append((m.start(1), kind, name))
+    for rx in PKGCONFIG_RES:
+        for m in rx.finditer(text):
+            for alt in m.group(1).split(";"):
+                alt = alt.strip()
+                if alt:
+                    hits.append((m.start(1), "pkgconfig", alt))
+    for rx in SONAME_RES:
+        for m in rx.finditer(text):
+            hits.append((m.start(1), "soname", m.group(1)))
+    for rx in LINKER_RES:
+        for m in rx.finditer(text):
+            hits.append((m.start(1), "linker_lib", m.group(1)))
+
+    hits.sort(key=lambda h: h[0])
+    seen: set[tuple[str, str]] = set()
+    needs: list[ObservedNeed] = []
+    for pos, kind, name in hits:
+        key = (kind, name)
+        if key in seen:
+            continue
+        seen.add(key)
+        context = context_hint if kind == "binary" else default_context(kind)
+        needs.append(
+            ObservedNeed(kind=kind, name=name, context=context, evidence=_line_of(text, pos))
+        )
+    return needs

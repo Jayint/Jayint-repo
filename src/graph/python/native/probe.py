@@ -31,15 +31,16 @@ from collections import defaultdict
 from dataclasses import replace
 
 from graph.contracts.executor import Executor
-from graph.python.native.failure_signatures import extract_needs
+from graph.python.native import system_libs  # module import (not `from ... import
+# extract_needs`) breaks the system_libs<->probe cycle: system_libs imports
+# probe.reconcile_predicted, so `extract_needs` is reached call-time via the module.
 from graph.ids import syslib_id, TEST_NODE_ID
-from graph.python.native.os_resolver import (
+from graph.python.native.apt import (
     ObservedNeed,
     capability_id,
     check_command_for,
     resolve,
 )
-from graph.python.lanes.install.link import flag_runtime_import_failure
 from graph.model import (
     Attempt,
     DepGraph,
@@ -123,7 +124,7 @@ def install_closure(graph: DepGraph, executor: Executor) -> DepGraph:
 
     stderr = result.stderr or ""
     owners = _build_owners(packages, stderr)
-    for need in extract_needs(stderr, context_hint="build"):
+    for need in system_libs.extract_needs(stderr, context_hint="build"):
         new, node_id = _ingest_need(
             new, need, stderr=stderr, command=command, executor=executor
         )
@@ -263,7 +264,7 @@ def import_probe(graph: DepGraph, executor: Executor) -> DepGraph:
         if result.ok:
             continue
         stderr = result.stderr or ""
-        needs = extract_needs(stderr, context_hint="runtime")
+        needs = system_libs.extract_needs(stderr, context_hint="runtime")
         if needs:
             for need in needs:
                 new, node_id = _ingest_need(
@@ -282,6 +283,12 @@ def import_probe(graph: DepGraph, executor: Executor) -> DepGraph:
             # (P0.3) and are left alone by flag_runtime_import_failure (it only
             # touches provided Import nodes).
             reason = _short_import_error(stderr) or f"import {name} failed"
+            # Local import: native/ must not pull the install lane at module load.
+            # A module-level edge (probe -> install.link) re-enters a partially
+            # initialized link via resolve_lock -> native.wheel -> system_libs ->
+            # probe; deferring to call-time keeps native/ import-acyclic.
+            from graph.python.lanes.install.link import flag_runtime_import_failure
+
             for node_id in target["attempt_nodes"]:
                 new = flag_runtime_import_failure(new, node_id, reason=reason)
     return new
@@ -306,7 +313,7 @@ def test_gate_probe(
     ``_ingest_need`` path as ``import_probe`` (so it becomes renderable). Pure.
     """
     new = graph
-    for need in extract_needs(stderr, context_hint="runtime"):
+    for need in system_libs.extract_needs(stderr, context_hint="runtime"):
         if need.kind != "soname":
             continue  # only a runtime shared object is actionable at test time
         new, node_id = _ingest_need(

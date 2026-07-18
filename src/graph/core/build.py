@@ -54,7 +54,7 @@ try:  # tomllib is stdlib on 3.11+; fall back to the tomli backport on 3.10.
 except ModuleNotFoundError:  # pragma: no cover - exercised on Python < 3.11
     import tomli as tomllib
 
-from graph.python.native.apt_verify import reconcile_apt_names
+from graph.python.native.apt import reconcile_apt_names
 from graph.python.native.build_deps import seed_build_deps
 from graph.core.certify import certify_all
 from graph.python.lanes.install.ground import (
@@ -66,10 +66,10 @@ from graph.python.lanes.install.ground import (
 from graph.contracts.executor import Executor
 from graph.executors import LocalSubprocessExecutor
 from graph.ids import TEST_NODE_ID, package_id, project_id
-from graph.python.native.ldd_probe import ldd_probe
+from graph.python.native.system_libs import ldd_probe
 from graph.python.lanes.install.resolve_lock import compute_exclude_newer
 from graph.python.native.probe import import_probe, install_closure
-from graph.python.native.project_native_deps import project_native_obligations
+from graph.python.native.project_native import project_native_obligations
 from graph.python.lanes.install.link import certified_import_links
 from graph.python.lanes.install.ground import (
     DistGuesser,
@@ -94,10 +94,10 @@ from graph.model import (
     NodeType,
     State,
 )
-from graph.python.native.seed import seed_wheel_oracle_prior
+from graph.python.native.build_deps import seed_wheel_oracle_prior
 from graph.python.read.subprocess_scan import add_subprocess_tool_nodes
 from graph.python.read.target_env import detect_target_env
-from graph.python.native.wheel_preflight import wheel_preflight_probe
+from graph.python.native.wheel import wheel_preflight_probe
 from graph.python.read.evidence import collect_python_dependency_evidence
 from graph.python.util.import_mapping import normalize_package_name, top_level_import_name
 

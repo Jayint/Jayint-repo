@@ -14,7 +14,7 @@ import re
 import sys
 
 from graph.ids import package_id, syslib_id
-from graph.python.native.ldd_probe import (
+from graph.python.native.system_libs import (
     EXT_SO_MAP_CMD,
     ldd_probe,
     parse_ext_so_map,

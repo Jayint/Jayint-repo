@@ -10,7 +10,7 @@ from graph.emit.emit import _is_reciped
 from graph.ids import (
     apt_build_id, binary_id, header_id, package_id, pkgconfig_id,
 )
-from graph.python.native.os_resolver import ObservedNeed
+from graph.python.native.apt import ObservedNeed
 from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )

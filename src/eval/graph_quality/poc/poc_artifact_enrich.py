@@ -31,7 +31,7 @@ from graph.diagnose import RepoContext
 from graph.executors import DockerExecutor
 from graph.graph_enrich import enrich
 from graph.ids import TEST_NODE_ID, package_id
-from graph.python.native.ldd_probe import ldd_probe
+from graph.python.native.system_libs import ldd_probe
 from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )

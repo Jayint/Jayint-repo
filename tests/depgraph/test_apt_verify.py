@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from graph.python.native.apt_verify import (
+from graph.python.native.apt import (
     apt_name_installable,
     parse_showpkg_reverse_provides,
     reconcile_apt_names,

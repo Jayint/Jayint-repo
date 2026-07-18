@@ -2,7 +2,7 @@ import zipfile
 from pathlib import Path
 
 from graph.contracts.executor import CommandResult
-from graph.python.native.wheel_inspect import (
+from graph.python.native.wheel import (
     download_target_wheel,
     inspect_wheel_sonames,
 )
@@ -102,5 +102,5 @@ def test_download_returns_none_when_no_wheel_present(tmp_path):
 
 
 def test_base_image_sonames_includes_cpython_guaranteed_libs():
-    from graph.python.native.wheel_inspect import _BASE_IMAGE_SONAMES
+    from graph.python.native.wheel import _BASE_IMAGE_SONAMES
     assert "libz.so.1" in _BASE_IMAGE_SONAMES  # zlib: required by CPython, present in any base image

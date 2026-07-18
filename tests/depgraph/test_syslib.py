@@ -1,5 +1,5 @@
 from graph.model import DiscoveredBy, Layer, NodeType, State
-from graph.python.native.syslib import make_syslib_node
+from graph.python.native.system_libs import make_syslib_node
 
 
 def test_resolver_prior_shape_with_apt():

@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import textwrap
 
-from graph.python.native.os_resolver import ObservedNeed
-from graph.python.native.project_native_scan import (
+from graph.python.native.apt import ObservedNeed
+from graph.python.native.project_native import (
     has_native_build_signal,
     scan_native_build_surface,
 )

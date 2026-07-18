@@ -22,7 +22,7 @@ from graph.model import (
     NodeType,
     State,
 )
-from graph.python.native.seed import seed_wheel_oracle_prior
+from graph.python.native.build_deps import seed_wheel_oracle_prior
 
 
 def _package(name: str, version: str, *, build_from_source=None) -> Node:

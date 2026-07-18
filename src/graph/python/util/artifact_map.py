@@ -236,7 +236,7 @@ def _pypi_fallback(
     A file list containing a wheel compatible with the target platform -> wheel;
     else an sdist archive present -> sdist. Reuses ``wheel_oracle`` tag matching.
     """
-    from graph.python.native.wheel_oracle import _wheel_matches_platform
+    from graph.python.native.wheel import _wheel_matches_platform
 
     tp = target_env.python_platform_tag
     out: dict[str, str] = {}
