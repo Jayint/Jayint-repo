@@ -29,7 +29,7 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-import src.orchestrate.loop.graph_scheduler as gs_module
+import src.orchestrate.loop.scheduler as gs_module
 import src.orchestrate.loop.orchestrator as orch
 from src.orchestrate.loop import orchestrator
 from src.orchestrate.loop.constants import NO_PROGRESS_CYCLES

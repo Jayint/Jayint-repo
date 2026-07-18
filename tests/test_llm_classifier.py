@@ -8,7 +8,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from graph.model import NodeType, Layer  # noqa: E402
-from src.orchestrate.loop.llm_classifier import make_llm_classifier  # noqa: E402
+from src.orchestrate.loop.classify_error import make_llm_classifier  # noqa: E402
 
 
 def _fixed(json_text):

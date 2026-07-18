@@ -163,7 +163,7 @@ def test_discover_gate_external_import_is_not_auto_fabricated(tmp_path):
 # ``Mode.AMBIGUOUS``, ``discovery=None`` -- confirmed directly against
 # ``diagnose()`` before writing this test) and the cascade falls through to
 # the LLM tier; (3) monkeypatch the orchestrator's lazy-imported
-# ``src.orchestrate.loop.llm_classifier.make_llm_classifier`` (same interception point
+# ``src.orchestrate.loop.classify_error.make_llm_classifier`` (same interception point
 # as ``tests/test_residual_handler_wiring.py``) to return a stub that always
 # yields a ``Discovery`` for a FIXED name, independent of the (generic, name-
 # free) failure text -- this isolates ``_guarded_llm``'s own guard from
@@ -192,7 +192,7 @@ _UNCLASSIFIABLE_STDERR = (
 def _make_stub_llm_classifier(discovery_name: str, calls: list):
     """Factory matching ``make_llm_classifier``'s signature (positional
     ``complete_fn`` + keyword ``note_out_of_scope``) -- monkeypatched in for
-    the real ``src.orchestrate.loop.llm_classifier.make_llm_classifier``. Returns a
+    the real ``src.orchestrate.loop.classify_error.make_llm_classifier``. Returns a
     fixed ``Discovery`` for ``discovery_name`` on every call, regardless of
     the (cmd, out) it is given, and records every invocation in ``calls`` so
     the test can assert the LLM tier was genuinely reached."""
@@ -222,7 +222,7 @@ def test_guarded_llm_drops_repo_local_discovery(tmp_path, monkeypatch):
     sandbox_execute = _failing_verify_sandbox(_UNCLASSIFIABLE_STDERR.strip("\n"))
 
     calls: list = []
-    import src.orchestrate.loop.llm_classifier as _llm_mod
+    import src.orchestrate.loop.classify_error as _llm_mod
     monkeypatch.setattr(
         _llm_mod, "make_llm_classifier", _make_stub_llm_classifier("docs_src", calls)
     )
@@ -262,7 +262,7 @@ def test_guarded_llm_keeps_external_discovery(tmp_path, monkeypatch):
     sandbox_execute = _failing_verify_sandbox(_UNCLASSIFIABLE_STDERR.strip("\n"))
 
     calls: list = []
-    import src.orchestrate.loop.llm_classifier as _llm_mod
+    import src.orchestrate.loop.classify_error as _llm_mod
     monkeypatch.setattr(
         _llm_mod, "make_llm_classifier", _make_stub_llm_classifier("requests", calls)
     )

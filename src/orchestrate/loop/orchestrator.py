@@ -216,7 +216,7 @@ def run_v3(
     retried. ``repo_path`` (optional) seeds the router's ``RepoContext.local_names``
     so a repo-local import is never mistaken for a missing PyPI package.
     """
-    from src.orchestrate.loop.graph_scheduler import (
+    from src.orchestrate.loop.scheduler import (
         next_decision, unsatisfied_provisionable_services,
     )
     # Task 8: pure record-type imports (no behavior). Cheap/unconditional — only
@@ -453,7 +453,7 @@ def run_v3(
         nonlocal _last_replay_result
         from graph.emit.build_script import render_build_script
         from graph.emit.emit import _is_reciped
-        from src.orchestrate.loop.install_localizer import localize_install_failure, certify_reciped_only
+        from src.orchestrate.loop.localize import localize_install_failure, certify_reciped_only
         # Defense-in-depth: a repair proposal must not add a reciped node that can't be certified.
         _missing = [n.id for n in graph.nodes if _is_reciped(n) and not n.check_command]
         if _missing:
@@ -749,7 +749,7 @@ def run_v3(
             # LLM tier is appended when a client exists (spec §6 cascade).
             classifiers = (make_diagnostic_classifier(_repo_ctx()),)
             if getattr(build_agent, "client", None) is not None:
-                from src.orchestrate.loop.llm_classifier import make_llm_classifier
+                from src.orchestrate.loop.classify_error import make_llm_classifier
                 from src.llm import complete_with_retry
                 from graph.util import extract_json_object
 

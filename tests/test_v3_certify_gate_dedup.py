@@ -11,7 +11,7 @@ Counts physical ``certify_refresh`` calls by monkeypatching
 imported *inside* ``_dep_emit_phase`` on every call, so patching the module
 attribute is intercepted by each fresh ``from ... import certify_refresh``.
 
-Note: ``src.orchestrate.loop.install_localizer`` also does
+Note: ``src.orchestrate.loop.localize`` also does
 ``from src.orchestrate.loop.depgraph_live import certify_refresh`` — but at MODULE
 import time (once), inside ``certify_reciped_only`` (called every
 ``_binding_emit``, i.e. once per cycle regardless of Change 2). That is a
@@ -32,7 +32,7 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-import src.orchestrate.loop.install_localizer  # noqa: F401 — force real import before patching (see module docstring)
+import src.orchestrate.loop.localize  # noqa: F401 — force real import before patching (see module docstring)
 import src.orchestrate.loop.depgraph_live as dl
 from src.orchestrate.loop.orchestrator import VERIFY_TEST_CMD, run_v3
 from src.orchestrate.loop.ledger import ActionLedger

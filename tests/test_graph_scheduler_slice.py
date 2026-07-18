@@ -14,7 +14,7 @@ for p in (str(_ROOT), str(_SRC)):
 
 from graph.model import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
 from graph.schedule import frame_obligation
-from src.orchestrate.loop.graph_scheduler import packet_to_task
+from src.orchestrate.loop.scheduler import packet_to_task
 
 
 def _frontier_packet():

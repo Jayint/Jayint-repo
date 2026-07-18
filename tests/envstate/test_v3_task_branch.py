@@ -20,7 +20,7 @@ Harness mirrors tests/envstate/test_v3_repair_wiring.py.
 
 Patching strategy
 -----------------
-- ``src.orchestrate.loop.graph_scheduler.next_decision`` is patched on the SOURCE module
+- ``src.orchestrate.loop.scheduler.next_decision`` is patched on the SOURCE module
   because run_v3 imports it with a local ``from ... import`` statement inside the
   function body; patching ``orch.next_decision`` would not intercept that lookup.
 - ``src.orchestrate.loop.orchestrator.run_structured_repair`` is patched on the orchestrator
@@ -39,7 +39,7 @@ for p in (str(_ROOT), str(_SRC)):
 
 import pytest
 
-import src.orchestrate.loop.graph_scheduler as gs_module
+import src.orchestrate.loop.scheduler as gs_module
 import src.orchestrate.loop.orchestrator as orch
 from src.orchestrate.loop import orchestrator
 from src.orchestrate.loop.ledger import ActionLedger

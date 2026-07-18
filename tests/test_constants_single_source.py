@@ -2,7 +2,7 @@
 
 Before the refactor, ``graph_scheduler`` lazy-imported the constant from
 ``orchestrator`` inside ``_discover_task`` purely to dodge an import cycle, so
-``from src.orchestrate.loop.graph_scheduler import VERIFY_TEST_CMD`` raised ImportError.
+``from src.orchestrate.loop.scheduler import VERIFY_TEST_CMD`` raised ImportError.
 After moving the constant to the dependency-free ``constants`` leaf module, all
 three modules reference the same object and the cycle is gone.
 """
@@ -12,7 +12,7 @@ import sys
 def test_verify_test_cmd_is_single_object_across_modules():
     from src.orchestrate.loop.constants import VERIFY_TEST_CMD as from_constants
     from src.orchestrate.loop.orchestrator import VERIFY_TEST_CMD as from_orchestrator
-    from src.orchestrate.loop.graph_scheduler import VERIFY_TEST_CMD as from_scheduler
+    from src.orchestrate.loop.scheduler import VERIFY_TEST_CMD as from_scheduler
 
     assert from_constants is from_orchestrator is from_scheduler
     # the canonical bare-interpreter gate; lenient (matches the ratbench scorer) + -ra for the
@@ -37,11 +37,11 @@ def test_graph_scheduler_does_not_import_orchestrator_at_module_load():
     # re-imported) orchestrator in sys.modules, whose TerminationReason enum identity diverges —
     # cross-file pollution that flipped v3 stop-reasons (planner_done -> max_cycles).
     saved = {k: sys.modules.get(k)
-             for k in ("src.orchestrate.loop.graph_scheduler", "src.orchestrate.loop.orchestrator")}
+             for k in ("src.orchestrate.loop.scheduler", "src.orchestrate.loop.orchestrator")}
     try:
-        sys.modules.pop("src.orchestrate.loop.graph_scheduler", None)
+        sys.modules.pop("src.orchestrate.loop.scheduler", None)
         sys.modules.pop("src.orchestrate.loop.orchestrator", None)
-        import src.orchestrate.loop.graph_scheduler  # noqa: F401
+        import src.orchestrate.loop.scheduler  # noqa: F401
 
         assert "src.orchestrate.loop.orchestrator" not in sys.modules
     finally:

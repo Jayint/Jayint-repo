@@ -210,9 +210,9 @@ def test_out_of_scope_from_success_event_does_not_give_up_on_cycle1(monkeypatch)
     # Monkeypatch the LLM classifier import site in the orchestrator to inject a
     # fake that immediately calls note_out_of_scope (reproduces llm_classifier.py:75-78
     # on a non-env verdict). The orchestrator imports make_llm_classifier lazily
-    # inside _runtime_ingest_phase via `from src.orchestrate.loop.llm_classifier import ...`,
+    # inside _runtime_ingest_phase via `from src.orchestrate.loop.classify_error import ...`,
     # so patching the module attribute is the correct interception point.
-    import src.orchestrate.loop.llm_classifier as _llm_mod
+    import src.orchestrate.loop.classify_error as _llm_mod
 
     def _fake_make(complete_fn, *, note_out_of_scope=None):
         def _classify(cmd, out):
@@ -319,7 +319,7 @@ def test_out_of_scope_without_divergence_does_not_finalize_giveup(monkeypatch):
     RED (pre-fix): stop == "planner_giveup"  (buggy: _out_of_scope alone suffices)
     GREEN (post-fix): stop == "planner_done"  (gate is False; tests pass)
     """
-    import src.orchestrate.loop.llm_classifier as _llm_mod
+    import src.orchestrate.loop.classify_error as _llm_mod
 
     def _fake_make(complete_fn, *, note_out_of_scope=None):
         def _classify(cmd, out):
