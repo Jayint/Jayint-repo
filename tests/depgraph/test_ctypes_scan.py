@@ -112,3 +112,24 @@ def test_escaped_quote_in_string_does_not_suppress_real_call():
         '/x/site-packages/a/w.py:6:    label = "a\\"#b"; CDLL("libz.so")\n'
     )
     assert {h.lib for h in hits} == {"libz.so"}
+
+
+def test_call_name_inside_string_literal_is_not_a_hit():
+    grep = (
+        "/x/site-packages/a/s.py:1:    example = \"CDLL('libfake.so')\"\n"
+        "/x/site-packages/a/t.py:2:    msg = 'use find_library(\"magic\")'\n"
+    )
+    assert parse_ctypes_grep(grep) == []
+
+
+def test_single_line_triple_quoted_call_is_not_a_hit():
+    assert parse_ctypes_grep(
+        '/x/site-packages/a/u.py:3:    doc = """CDLL(\'libfake.so\')"""\n'
+    ) == []
+
+
+def test_real_call_after_earlier_string_on_same_line_is_a_hit():
+    hits = parse_ctypes_grep(
+        "/x/site-packages/a/v.py:4:    path = \"/x\"; lib = CDLL(\"libz.so\")\n"
+    )
+    assert {h.lib for h in hits} == {"libz.so"}

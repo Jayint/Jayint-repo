@@ -60,21 +60,28 @@ def _short_evidence(path: str, lineno: str, content: str) -> str:
     return f"{rel}:{lineno}  {snippet}"[:200]
 
 
-def _strip_inline_comment(content: str) -> str:
-    """Drop a trailing ``#`` comment, respecting single/double quotes so a
-    ``#`` inside a string literal is preserved. Sonames never contain ``#``,
-    so cutting at the first UNQUOTED ``#`` cannot truncate a real call literal.
-    A comment-only line collapses to ``""`` (then skipped by the caller).
-
-    NOTE: this is a line-local filter. A ctypes call inside a triple-quoted
-    docstring example (no ``#`` on the line) cannot be distinguished from real
-    code on isolated grep lines and remains a documented residual — the Part V
-    false-positive guard measures the real-corpus rate.
+def _line_lex(content: str) -> tuple[list[bool], int]:
+    """One escape-aware pass over a source line. Returns:
+      - ``in_string``: per-char flags — True where the char is inside a string
+        literal (the delimiting quotes included);
+      - ``comment_at``: index of the first UNQUOTED ``#`` (a comment start), or
+        ``len(content)`` if none.
+    A regex match is a real call only when its call-name start is in code
+    (``not in_string[start]`` and ``start < comment_at``). This distinguishes
+    real calls from commented-out calls, calls quoted inside a string, and
+    single-line triple-quoted text. It is line-local: a ctypes call inside a
+    genuinely MULTI-line triple-quoted docstring (no quote/# on this line) is
+    indistinguishable from code here and remains a documented residual — the
+    Part V false-positive guard measures the real-corpus rate.
     """
+    n = len(content)
+    in_string = [False] * n
     quote = None
     escaped = False
+    comment_at = n
     for i, ch in enumerate(content):
         if quote:
+            in_string[i] = True
             if escaped:
                 escaped = False
             elif ch == "\\":
@@ -83,9 +90,11 @@ def _strip_inline_comment(content: str) -> str:
                 quote = None
         elif ch in "'\"":
             quote = ch
+            in_string[i] = True
         elif ch == "#":
-            return content[:i]
-    return content
+            comment_at = i
+            break
+    return in_string, comment_at
 
 
 def parse_ctypes_grep(stdout: str) -> list[LibHit]:
@@ -101,11 +110,12 @@ def parse_ctypes_grep(stdout: str) -> list[LibHit]:
         if len(parts) < 3:
             continue
         path, lineno, content = parts
-        content = _strip_inline_comment(content)
-        if not content.strip():
-            continue
+        in_string, comment_at = _line_lex(content)
         for rx in CTYPES_CALL_RES:
             for m in rx.finditer(content):
+                start = m.start()
+                if start >= comment_at or in_string[start]:
+                    continue   # match is in a comment or is quoted string text
                 lib = m.group("lib")
                 key = (lib, f"{path}:{lineno}")
                 if key in seen:
