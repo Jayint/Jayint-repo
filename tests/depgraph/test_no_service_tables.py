@@ -41,11 +41,14 @@ def test_deleted_modules_are_gone():
         try:
             spec = importlib.util.find_spec(name)
         except ModuleNotFoundError as exc:
-            # find_spec imports parent packages; a ModuleNotFoundError here means a
-            # *parent* package is gone -- a different failure than the target module
-            # returning. Fail loudly and name it; never count it as absence.
-            raise AssertionError(
-                f"cannot prove {name!r} absent: parent package unimportable "
-                f"(missing {exc.name!r})"
-            ) from exc
+            # find_spec imports parent packages. A missing ANCESTOR of the target
+            # PROVES the target is absent (you cannot have src.envstate.service_translate
+            # if src.envstate itself is gone -- envstate was deleted wholesale in the
+            # Phase 2 stage-refactor). Only an unrelated missing module would be
+            # suspicious, but find_spec only imports ancestors, so name it and require
+            # it to be one; then count it as absence.
+            assert exc.name and (name == exc.name or name.startswith(exc.name + ".")), (
+                f"cannot prove {name!r} absent: unexpected missing module {exc.name!r}"
+            )
+            continue
         assert spec is None, f"{name} is back"

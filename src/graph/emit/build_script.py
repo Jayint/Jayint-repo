@@ -268,8 +268,8 @@ _NEED_TYPES: tuple[NodeType, ...] = (NodeType.CONFIG, NodeType.SERVICE)
 _CONFIG_ENV_UNKNOWN = "?"
 # Never bake a secret-shaped var name into an image layer (Dockerfile ENV
 # values are visible in `docker history`/inspect) — mirrors the same-purpose
-# denylist in src.envstate.synthesis.bakeable_config_env, kept as its own small
-# local copy so build_script.py stays decoupled from src.envstate.
+# denylist in the orchestrate/loop synthesizer, kept as its own small local copy
+# so build_script.py (graph) stays decoupled from src.orchestrate (the run loop).
 _CONFIG_ENV_SECRET_RE = re.compile(
     r"(SECRET|PASSWORD|PASSWD|TOKEN|API[_-]?KEY|PRIVATE[_-]?KEY|ACCESS[_-]?KEY)",
     re.IGNORECASE,

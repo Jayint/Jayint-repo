@@ -4,8 +4,8 @@ The DECIDE role's "what & when". Given a host-certified DepGraph, pick the MISSI
 obligations whose every dependency is already SATISFIED and that carry a host
 check_command (the agent's stop condition), ordered deps-before-dependents.
 
-PURE: must not import from src.envstate. Depends only on the depgraph schema and
-emit helpers.
+PURE: must not import from src.orchestrate (the outer loop). Depends only on the
+depgraph schema and emit helpers.
 """
 from __future__ import annotations
 
