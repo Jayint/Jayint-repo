@@ -83,3 +83,23 @@ def test_canonical_soname_anchors_dot_so_suffix():
     # ".so" only counts as a suffix, not any substring
     assert canonical_soname("foo.something") == "libfoo.something.so"
     assert canonical_soname("libX.so") == "libX.so"
+
+
+def test_comment_only_line_is_not_a_hit():
+    assert parse_ctypes_grep(
+        "/x/site-packages/a/x.py:3:    # CDLL(\"libcomment.so\")\n"
+    ) == []
+
+
+def test_inline_comment_call_is_not_a_hit():
+    assert parse_ctypes_grep(
+        "/x/site-packages/a/y.py:4:    x = 1  # CDLL('libc.so')\n"
+    ) == []
+
+
+def test_hash_inside_string_literal_does_not_suppress_real_call():
+    # an earlier string containing '#' must not truncate a real call later on the line
+    hits = parse_ctypes_grep(
+        "/x/site-packages/a/z.py:5:    label = \"a#b\"; CDLL('libz.so')\n"
+    )
+    assert {h.lib for h in hits} == {"libz.so"}

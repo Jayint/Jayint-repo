@@ -60,6 +60,29 @@ def _short_evidence(path: str, lineno: str, content: str) -> str:
     return f"{rel}:{lineno}  {snippet}"[:200]
 
 
+def _strip_inline_comment(content: str) -> str:
+    """Drop a trailing ``#`` comment, respecting single/double quotes so a
+    ``#`` inside a string literal is preserved. Sonames never contain ``#``,
+    so cutting at the first UNQUOTED ``#`` cannot truncate a real call literal.
+    A comment-only line collapses to ``""`` (then skipped by the caller).
+
+    NOTE: this is a line-local filter. A ctypes call inside a triple-quoted
+    docstring example (no ``#`` on the line) cannot be distinguished from real
+    code on isolated grep lines and remains a documented residual — the Part V
+    false-positive guard measures the real-corpus rate.
+    """
+    quote = None
+    for i, ch in enumerate(content):
+        if quote:
+            if ch == quote:
+                quote = None
+        elif ch in "'\"":
+            quote = ch
+        elif ch == "#":
+            return content[:i]
+    return content
+
+
 def parse_ctypes_grep(stdout: str) -> list[LibHit]:
     """Parse ``grep -rIn`` output (``path:lineno:content``) into LibHits.
 
@@ -73,6 +96,9 @@ def parse_ctypes_grep(stdout: str) -> list[LibHit]:
         if len(parts) < 3:
             continue
         path, lineno, content = parts
+        content = _strip_inline_comment(content)
+        if not content.strip():
+            continue
         for rx in CTYPES_CALL_RES:
             for m in rx.finditer(content):
                 lib = m.group("lib")
