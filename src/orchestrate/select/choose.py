@@ -2,9 +2,9 @@
 
 Composes two existing pieces into the single decision the conductor needs:
 
-* :class:`src.orchestrate.select.image_selector.ImageSelector` — LLM picks one image from a
+* :class:`src.orchestrate.select.image.ImageSelector` — LLM picks one image from a
   language handler's candidate list (ported from the pruned agent path).
-* :func:`src.orchestrate.select.runtime_base.resolve_runtime_base` — reads
+* :func:`src.orchestrate.select.runtime.resolve_runtime_base` — reads
   ``requires-python`` and pins the chosen tag's python minor.
 
 Returns ONE :class:`BaseImageChoice` whose ``minor`` is meant to flow into BOTH
@@ -19,8 +19,8 @@ import logging
 import re
 from dataclasses import dataclass
 
-from src.orchestrate.select.image_selector import ImageSelector
-from src.orchestrate.select.runtime_base import (
+from src.orchestrate.select.image import ImageSelector
+from src.orchestrate.select.runtime import (
     DEFAULT_MINOR,
     _base_image_minor,
     resolve_runtime_base,

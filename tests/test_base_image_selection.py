@@ -1,6 +1,6 @@
 import os, tempfile
-from src.orchestrate.select import base_image_selection as bis
-from src.orchestrate.select.base_image_selection import BaseImageChoice, choose_base_image
+from src.orchestrate.select import choose as bis
+from src.orchestrate.select.choose import BaseImageChoice, choose_base_image
 
 
 def _repo(requires_python: str | None) -> str:

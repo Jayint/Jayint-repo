@@ -10,7 +10,7 @@ else ``default`` (byte-identical to today's behavior).
 """
 import pytest
 
-from src.orchestrate.select.runtime_base import (
+from src.orchestrate.select.runtime import (
     RuntimeBaseDecision,
     _base_image_minor,
     choose_python_minor,

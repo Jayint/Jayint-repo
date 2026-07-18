@@ -10,7 +10,7 @@ import json
 
 from src.constants import DEFAULT_LLM_MODEL
 from src.llm import apply_minimax_thinking
-from src.orchestrate.select.language_handlers import (
+from src.orchestrate.select.language import (
     LanguageHandler, 
     get_language_handler, 
     detect_language,
