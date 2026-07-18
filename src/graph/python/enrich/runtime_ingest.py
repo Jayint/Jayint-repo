@@ -19,7 +19,7 @@ from dataclasses import replace
 from graph.model import (
     TEST_NODE_ID, capability_id, config_id, package_id, service_id, syslib_id,
 )
-from graph.runtime_classify import Discovery, classify_observation
+from graph.python.enrich.runtime_classify import Discovery, classify_observation
 from graph.model import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )

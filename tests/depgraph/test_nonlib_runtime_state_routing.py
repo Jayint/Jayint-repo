@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from graph.python.native.system_libs import extract_needs
 from graph.python.native.system_libs import test_gate_probe
-from graph.runtime_classify import classify_observation
+from graph.python.enrich.runtime_classify import classify_observation
 from graph.model import DepGraph, NodeType
 
 

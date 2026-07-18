@@ -10,10 +10,10 @@ from __future__ import annotations
 import re
 
 from graph.core.certify import certify
-from graph.diagnose import RepoContext, make_diagnostic_classifier
+from graph.python.enrich.diagnose import RepoContext, make_diagnostic_classifier
 from graph.python.lanes.install.link import normalize_package_name
 from graph.req_slice import _provider_from_command
-from graph.runtime_ingest import ingest_runtime_failures
+from graph.python.enrich.runtime_ingest import ingest_runtime_failures
 from graph.model import DepGraph, NodeType
 
 # `_provider_from_command` deliberately DROPS the version (`req_slice.py:52` does

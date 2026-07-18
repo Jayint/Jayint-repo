@@ -8,7 +8,7 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from graph.diagnose import (
+from graph.python.enrich.diagnose import (
     Diagnosis, Locality, Mode, RepoContext, classify_locality, is_local_import,
 )
 from graph.python.read.scan import local_module_names

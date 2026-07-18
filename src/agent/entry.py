@@ -9,11 +9,11 @@ import pathlib
 
 from graph.python.read import repo_modules
 from graph.core.certify import EXECUTION_LAYER_ORDER, certify_all
-from graph.diagnose import RepoContext
-from graph.discovery_expand import expand_discovery
+from graph.python.enrich.diagnose import RepoContext
+from graph.python.enrich.discovery_expand import expand_discovery
 from graph.contracts.executor import CommandResult
 from graph.graph_context import render_graph_context
-from graph.graph_enrich import certify_only, enrich
+from graph.python.enrich.graph_enrich import certify_only, enrich
 from graph.model import Layer
 from src.constants import VERIFY_TEST_CMD           # shared canonical "python -m pytest -q" (neutral leaf)
 from src.agent.gate import test_verdict

@@ -11,8 +11,8 @@ for _p in (str(_ROOT), str(_ROOT / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from graph.diagnose import RepoContext
-from graph.graph_enrich import certify_only, enrich, owner_node_for_command
+from graph.python.enrich.diagnose import RepoContext
+from graph.python.enrich.graph_enrich import certify_only, enrich, owner_node_for_command
 from graph.model import TEST_NODE_ID, package_id
 from graph.model import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,

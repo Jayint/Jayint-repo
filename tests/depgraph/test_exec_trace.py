@@ -1,4 +1,4 @@
-from graph.exec_trace import (
+from graph.python.enrich.exec_trace import (
     ParsedFailure, Observation, ObservationOverlay, stable_failure_id,
 )
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from graph.exec_trace import ParsedFailure
+from graph.python.enrich.exec_trace import ParsedFailure
 from graph.model import Node, NodeType, Layer, State, Strength, DiscoveredBy
 from graph.model import package_id, TEST_NODE_ID
 

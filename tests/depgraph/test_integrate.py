@@ -2,9 +2,9 @@
 import pytest
 
 from corpus_integrate import CASES
-from graph.exec_trace import ObservationOverlay
-from graph.integrate import integrate
-from graph.diagnose import RepoContext
+from graph.python.enrich.exec_trace import ObservationOverlay
+from graph.python.enrich.integrate import integrate
+from graph.python.enrich.diagnose import RepoContext
 from graph.model import DepGraph, Node, NodeType, Layer, State, DiscoveredBy, EdgeType
 from graph.model import TEST_NODE_ID
 

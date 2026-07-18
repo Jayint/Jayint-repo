@@ -17,9 +17,9 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from graph.diagnose import Mode, RepoContext, diagnose, make_diagnostic_classifier
+from graph.python.enrich.diagnose import Mode, RepoContext, diagnose, make_diagnostic_classifier
 from graph.model import TEST_NODE_ID
-from graph.runtime_ingest import ingest_runtime_failures
+from graph.python.enrich.runtime_ingest import ingest_runtime_failures
 from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType,
 )

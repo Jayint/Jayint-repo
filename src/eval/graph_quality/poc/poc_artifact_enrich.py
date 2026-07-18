@@ -27,9 +27,9 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from graph.diagnose import RepoContext
+from graph.python.enrich.diagnose import RepoContext
 from graph.executors import DockerExecutor
-from graph.graph_enrich import enrich
+from graph.python.enrich.graph_enrich import enrich
 from graph.model import TEST_NODE_ID, package_id
 from graph.python.native.system_libs import ldd_probe
 from graph.model import (

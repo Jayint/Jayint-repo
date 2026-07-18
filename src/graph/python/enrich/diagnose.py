@@ -14,7 +14,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from graph.runtime_classify import Discovery, classify_observation
+from graph.python.enrich.runtime_classify import Discovery, classify_observation
 from graph.model import NodeType
 from graph.python.util.failure_classifier import classify_dependency_failure
 

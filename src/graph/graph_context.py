@@ -416,7 +416,7 @@ def render_graph_context(graph: DepGraph, result, causes, prev_states,
     all_anchors: list[tuple[Node, int, bool]] = []            # -> RECORDS (uncapped)
 
     if result is not None and not result.ok and result.failing_command:
-        from graph.graph_enrich import owner_node_for_command
+        from graph.python.enrich.graph_enrich import owner_node_for_command
         owner = owner_node_for_command(graph, result.failing_command)
         n = graph.get(owner) if owner else None
         if n is not None:

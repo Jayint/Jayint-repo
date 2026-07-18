@@ -402,7 +402,7 @@ def run_v3(
     # degrades to "no known local names", never REPO_INTERNAL_REF). invalid_names
     # accumulates as pip disproves package names across cycles; the context is
     # rebuilt on every call so a name disproven THIS cycle is honored next cycle.
-    from graph.diagnose import (
+    from graph.python.enrich.diagnose import (
         Locality, Mode, RepoContext, classify_locality, diagnose_all,
     )
     from graph.python.read import repo_modules as _repo_modules
@@ -627,8 +627,8 @@ def run_v3(
             return
         try:
             from graph.advise import render_depgraph_planner
-            from graph.runtime_ingest import ingest_runtime_failures
-            from graph.diagnose import (
+            from graph.python.enrich.runtime_ingest import ingest_runtime_failures
+            from graph.python.enrich.diagnose import (
                 Locality, classify_locality, make_diagnostic_classifier,
             )
             events = ledger.events()
@@ -746,7 +746,7 @@ def run_v3(
             # deterministic frontier is clean, is not fixable by adding nodes. Record
             # the reason; the main loop returns planner_giveup. done_flag is NEVER set.
             import logging
-            from graph.runtime_ingest import diverged_node_ids
+            from graph.python.enrich.runtime_ingest import diverged_node_ids
             from graph.compile.emit import partition
             from graph.schedule import scheduler_frontier
             diverged = diverged_node_ids(pre_graph, found)

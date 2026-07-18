@@ -170,7 +170,7 @@ def test_discover_gate_external_import_is_not_auto_fabricated(tmp_path):
 # ``diagnose()``'s pre-existing REPO_INTERNAL_REF detection, and a call
 # counter proves the stub actually ran (not a vacuous pass via the
 # deterministic tier alone).
-from graph.runtime_classify import Discovery
+from graph.python.enrich.runtime_classify import Discovery
 from graph.model import Layer, NodeType
 
 

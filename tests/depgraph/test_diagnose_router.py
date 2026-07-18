@@ -8,7 +8,7 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from graph.diagnose import Mode, RepoContext, diagnose
+from graph.python.enrich.diagnose import Mode, RepoContext, diagnose
 from graph.model import NodeType
 
 
@@ -81,8 +81,8 @@ def test_none_named_discovery_does_not_route_invalid_attempt(monkeypatch):
     # permanently match it as a previously-invalid attempt. A discovery with
     # no name is unnameable -- it cannot be "previously disproven" -- and
     # must route exactly as any other present-but-not-invalid name does.
-    import graph.diagnose as diagnose_module
-    from graph.runtime_classify import Discovery
+    import graph.python.enrich.diagnose as diagnose_module
+    from graph.python.enrich.runtime_classify import Discovery
     from graph.model import Layer
 
     unresolved = Discovery(

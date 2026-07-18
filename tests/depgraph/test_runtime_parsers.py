@@ -130,7 +130,7 @@ def test_tool_error_recognises_the_real_config_probe_binaries():
 
 # ── classify_observation dispatch ────────────────────────────────────────────
 
-from graph.runtime_classify import classify_observation, Discovery
+from graph.python.enrich.runtime_classify import classify_observation, Discovery
 from graph.model import NodeType, Layer
 
 
@@ -236,7 +236,7 @@ def test_dispatch_import_name_error_returns_package():
 
 
 def test_dispatch_unresolved_import_yields_none_package(monkeypatch):
-    import graph.runtime_classify as rc
+    import graph.python.enrich.runtime_classify as rc
     from graph.python.util.import_mapping import unresolved_result
 
     monkeypatch.setattr(

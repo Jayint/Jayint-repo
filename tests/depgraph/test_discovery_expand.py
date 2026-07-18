@@ -8,7 +8,7 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-import graph.discovery_expand as dx
+import graph.python.enrich.discovery_expand as dx
 from graph.model import package_id
 from graph.model import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
@@ -111,7 +111,7 @@ def test_a_FAILING_expansion_is_not_retried_every_turn(monkeypatch):
     same failure recurs forever. Each retry is fresh network/container work inside a loop where
     one turn already costs a full container rebuild.
     """
-    import graph.discovery_expand as dx
+    import graph.python.enrich.discovery_expand as dx
 
     calls = []
 

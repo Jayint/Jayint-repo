@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from graph.runtime_classify import Discovery
+from graph.python.enrich.runtime_classify import Discovery
 from graph.model import Layer, NodeType
 from graph.util import extract_json_object
 

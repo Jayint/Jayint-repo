@@ -7,8 +7,8 @@ if str(_SRC) not in sys.path:
 from graph.model import (  # noqa: E402
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy, EdgeType,
 )
-from graph.runtime_classify import Discovery  # noqa: E402
-from graph.runtime_ingest import _annotate_or_append  # noqa: E402
+from graph.python.enrich.runtime_classify import Discovery  # noqa: E402
+from graph.python.enrich.runtime_ingest import _annotate_or_append  # noqa: E402
 from graph.model import TEST_NODE_ID, syslib_id  # noqa: E402
 
 

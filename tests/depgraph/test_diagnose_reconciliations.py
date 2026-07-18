@@ -19,7 +19,7 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from graph.diagnose import (
+from graph.python.enrich.diagnose import (
     Diagnosis, Mode, RepoContext, _norm, diagnose, diagnose_all,
     make_diagnostic_classifier,
 )
