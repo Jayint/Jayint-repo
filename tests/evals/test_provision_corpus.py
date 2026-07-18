@@ -55,7 +55,7 @@ def test_adversary_counts():
 
 
 def test_known_kinds_match_tables():
-    from graph.service_tables import KNOWN_SERVICE_KINDS
+    from graph.python.services.service_tables import KNOWN_SERVICE_KINDS
 
     checked_kinds = {"redis", "mysql", "postgres", "mongo", "rabbitmq"}
     matched = [c for c in PROVISION_CASES if c.kind in checked_kinds]

@@ -52,7 +52,7 @@ for _p in (_REPO_ROOT, _SRC):
         sys.path.insert(0, str(_p))
 
 from graph.model import NodeType  # noqa: E402
-from graph.service_scan import scan_compose_services  # noqa: E402
+from graph.python.services.service_scan import scan_compose_services  # noqa: E402
 from graph.python.read.evidence import _read_requirement_lines  # noqa: E402
 
 _TIER_KEYS: tuple[str, ...] = (

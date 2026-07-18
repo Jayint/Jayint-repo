@@ -9,7 +9,7 @@ import re
 import shlex
 from urllib.parse import urlparse
 
-from graph.service_evidence import Check, Mount, Port, PortSource
+from graph.python.services.service_evidence import Check, Mount, Port, PortSource
 
 _SEED_MARKERS = ("docker-entrypoint-initdb.d", "/initdb")
 

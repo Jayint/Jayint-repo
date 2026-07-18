@@ -1,5 +1,5 @@
-from graph.service_evidence import Mount, Port
-from graph.service_parse import (
+from graph.python.services.service_evidence import Mount, Port
+from graph.python.services.service_parse import (
     derive_port, is_templated, parse_command, parse_depends_on,
     parse_entrypoint, parse_env, parse_expose, parse_image, parse_ports,
     parse_volumes, seed_mounts,
@@ -170,7 +170,7 @@ def test_port_ladder_gives_up_cleanly():
     assert derive_port((), (), {}, "svc", ()) == (None, "none")
 
 
-from graph.service_parse import (
+from graph.python.services.service_parse import (
     ci_healthcheck, compose_healthcheck, derive_check, tcp_check,
 )
 
@@ -262,7 +262,7 @@ def test_a_whitespace_only_declared_healthcheck_falls_through_to_tcp():
     assert without_port.source == "none" and without_port.command is None
 
 
-from graph.service_parse import _OPAQUE, expand_declared_defaults
+from graph.python.services.service_parse import _OPAQUE, expand_declared_defaults
 
 
 def test_expand_declared_defaults_reads_the_literal_the_file_declares():

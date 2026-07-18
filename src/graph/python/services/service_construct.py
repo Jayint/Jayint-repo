@@ -9,18 +9,18 @@ import os
 import re
 from dataclasses import dataclass
 
-from graph.service_evidence import (
+from graph.python.services.service_evidence import (
     Check, Mount, Port, ServiceNode, Source,
 )
-from graph.service_parse import (
+from graph.python.services.service_parse import (
     ci_healthcheck, compose_healthcheck, derive_check, derive_port,
     expand_declared_defaults, parse_command, parse_depends_on, parse_entrypoint,
     parse_env, parse_expose, parse_image, parse_ports, parse_volumes, seed_mounts,
 )
-from graph.service_relevance import (
+from graph.python.services.service_relevance import (
     ci_referenced_compose_files, compute_relevance,
 )
-from graph.service_sources import (
+from graph.python.services.service_sources import (
     DEFAULT_SOURCES, RawDeclaration, discover_all,
 )
 

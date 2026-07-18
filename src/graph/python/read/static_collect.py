@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from graph.python.config_scan import (
     scan_env_reads, parse_env_example, scan_framework_config_reads,
 )
-from graph.service_scan import scan_ci_services, scan_compose_services
+from graph.python.services.service_scan import scan_ci_services, scan_compose_services
 
 _GOAL = ("Infer local install/test/run environment requirements, not deployment "
          "requirements.")

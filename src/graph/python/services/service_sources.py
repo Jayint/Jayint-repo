@@ -13,7 +13,7 @@ from typing import Protocol
 
 import yaml
 
-from graph.service_parse import parse_env
+from graph.python.services.service_parse import parse_env
 
 
 @dataclass(frozen=True)

@@ -1,4 +1,4 @@
-from graph.service_tables import (
+from graph.python.services.service_tables import (
     services_for_package, service_defaults, KNOWN_SERVICE_KINDS,
 )
 

@@ -18,7 +18,7 @@ sys.path.insert(0, str(_ROOT))
 sys.path.insert(0, str(_ROOT / "src"))
 
 from evals.service_config_detection.provision_corpus import PROVISION_CASES  # noqa: E402
-from graph.service_parse import (  # noqa: E402
+from graph.python.services.service_parse import (  # noqa: E402
     compose_healthcheck, derive_check, derive_port, parse_env, parse_expose,
     parse_image, parse_ports,
 )

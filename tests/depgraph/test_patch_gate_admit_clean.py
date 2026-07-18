@@ -9,7 +9,7 @@ is the SOLE Service shape (the legacy confidence/binding shape was deleted)."""
 from graph.patch.proposal import PatchProposal, NodeSpec
 from graph.patch.gate import admit_proposal, _requirement_errors
 from graph.model import DepGraph, State
-from graph.service_recipes import render_probe_poll
+from graph.python.services.service_recipes import render_probe_poll
 
 _EV = frozenset({"e0"})
 _PROBE = "nc -z 127.0.0.1 6379"

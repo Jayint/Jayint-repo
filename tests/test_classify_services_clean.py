@@ -22,7 +22,7 @@ for _p in (str(_ROOT), str(_SRC)):
 from graph.compile.build_script import render_build_script
 from graph.compile.emit import _is_service_reciped
 from graph.model import DepGraph, NodeType, State
-from graph.service_recipes import render_probe_poll
+from graph.python.services.service_recipes import render_probe_poll
 
 import graph.python.classify_services_clean as csc
 from graph.python.classify_services_clean import (

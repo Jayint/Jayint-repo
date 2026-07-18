@@ -116,7 +116,7 @@ def classify_observation(command: str, output: str) -> Discovery | None:
     # tool classifiers below. Returning None here would silently drop 3 of 5 classes.
 
     # ── Priority 2: service connection failures ───────────────────────────
-    from graph.service_scan import classify_service_error
+    from graph.python.services.service_scan import classify_service_error
     svc_kind = classify_service_error(text)
     if svc_kind is not None:
         return Discovery(

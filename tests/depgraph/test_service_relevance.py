@@ -1,9 +1,9 @@
 import textwrap
 
-from graph.service_relevance import (
+from graph.python.services.service_relevance import (
     ci_referenced_compose_files, compute_relevance,
 )
-from graph.service_sources import RawDeclaration
+from graph.python.services.service_sources import RawDeclaration
 
 
 def _write(tmp_path, rel, src):
@@ -69,7 +69,7 @@ def test_reference_paths_are_normalized_not_char_stripped(tmp_path):
 def test_norm_rejects_absolute_and_degenerate_paths():
     """`_norm`'s contract: a repo-relative POSIX path, or None. `C:\\x` becomes `C:/x`
     after backslash conversion — absolute, and never a repo declaration."""
-    from graph.service_relevance import _norm
+    from graph.python.services.service_relevance import _norm
     for bad in ("/abs/x.yml", "//x.yml", "C:\\x.yml", "c:/x.yml", "..", "../", "a/../..", "", "  ", "."):
         assert _norm(bad) is None, bad
     assert _norm("./deploy/../docker-compose.yml") == "docker-compose.yml"

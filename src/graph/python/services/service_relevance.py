@@ -12,8 +12,8 @@ import posixpath
 import re
 from typing import Iterator
 
-from graph.service_evidence import Relevance
-from graph.service_sources import RawDeclaration, load_yaml
+from graph.python.services.service_evidence import Relevance
+from graph.python.services.service_sources import RawDeclaration, load_yaml
 
 # `docker compose ... up`, `docker-compose ... up` -- one shell command, bounded
 # by a newline or a shell separator (`;`, `|`, `&`) so a reference never leaks

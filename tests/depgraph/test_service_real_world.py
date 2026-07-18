@@ -4,7 +4,7 @@ import shutil
 import textwrap
 from pathlib import Path
 
-from graph.service_construct import build_service_nodes
+from graph.python.services.service_construct import build_service_nodes
 
 FIXTURES = Path(__file__).parent / "fixtures" / "services"
 

@@ -38,8 +38,8 @@ from graph.python.config_scan import (
 )
 from graph.patch.proposal import NodeSpec, PatchProposal
 from graph.patch.gate import admit_proposal
-from graph.repoint import render_bind_steps
-from graph.service_construct import build_service_nodes
+from graph.python.services.repoint import render_bind_steps
+from graph.python.services.service_construct import build_service_nodes
 from graph.python.read.static_collect import collect_static_evidence
 
 logger = logging.getLogger(__name__)

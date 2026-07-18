@@ -16,7 +16,7 @@ import os
 import sys
 from collections import Counter
 
-from graph.service_construct import build_service_nodes
+from graph.python.services.service_construct import build_service_nodes
 
 
 def main(root: str) -> int:

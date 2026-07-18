@@ -1,7 +1,7 @@
 import textwrap
 
-from graph.service_construct import _fuse, build_service_nodes
-from graph.service_sources import RawDeclaration
+from graph.python.services.service_construct import _fuse, build_service_nodes
+from graph.python.services.service_sources import RawDeclaration
 
 
 def _write(tmp_path, rel, src):

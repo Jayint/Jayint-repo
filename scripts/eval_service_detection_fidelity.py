@@ -11,7 +11,7 @@ import json
 import os
 import sys
 
-from graph.service_construct import build_service_nodes
+from graph.python.services.service_construct import build_service_nodes
 
 
 def score(detected: dict[str, set[str]], oracle: dict[str, dict]) -> dict:
