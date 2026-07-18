@@ -67,14 +67,14 @@ def test_ensure_python_shim_command_passes_sandbox_preflight():
     # preflight. Built via `Sandbox.__new__` (no Docker) — preflight only needs
     # the command classifier.
     from src.orchestrate.loop.sandbox import Sandbox
-    from src.orchestrate.loop.synthesizer import Synthesizer
+    from src.orchestrate.loop.command_classifier import CommandClassifier
 
     calls = []
     ensure_python_shim(lambda cmd: calls.append(cmd) or (True, ""))
     assert len(calls) == 1
 
     sandbox = Sandbox.__new__(Sandbox)
-    sandbox._command_classifier = Synthesizer()
+    sandbox._command_classifier = CommandClassifier()
     assert sandbox._get_preflight_rejection_prefix(calls[0]) == ""
 
 

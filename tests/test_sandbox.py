@@ -3,7 +3,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 from src.orchestrate.loop.sandbox import Sandbox
-from src.orchestrate.loop.synthesizer import Synthesizer
+from src.orchestrate.loop.command_classifier import CommandClassifier
 
 
 class ErrTrapLineno(unittest.TestCase):
@@ -89,7 +89,7 @@ class SandboxRuntimeReplayTests(unittest.TestCase):
         sandbox = Sandbox.__new__(Sandbox)
         sandbox.runtime_replay_commands = []
         sandbox.package_manager_broken_failure_streak = 0
-        sandbox._command_classifier = Synthesizer()
+        sandbox._command_classifier = CommandClassifier()
         sandbox.command_timeout_seconds = None
         sandbox.workdir = "/app"
         sandbox.container = FakeContainer(results=replay_results)

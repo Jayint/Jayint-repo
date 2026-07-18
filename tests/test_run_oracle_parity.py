@@ -1,4 +1,4 @@
-"""Parity tests: RunOracle vs Synthesizer for is_test_command and analyze_test_run."""
+"""Parity tests: RunOracle vs CommandClassifier for is_test_command and analyze_test_run."""
 import sys
 from pathlib import Path
 
@@ -9,10 +9,10 @@ for p in (str(_ROOT), str(_SRC)):
         sys.path.insert(0, p)
 
 import pytest
-from src.orchestrate.loop.synthesizer import Synthesizer
+from src.orchestrate.loop.command_classifier import CommandClassifier
 from src.run_oracle import RunOracle
 
-_S = Synthesizer()
+_S = CommandClassifier()
 _T = RunOracle()
 
 
@@ -24,7 +24,7 @@ def _cmp_is_test(cmd):
     """Assert is_test_command parity and return the value."""
     sv = _S.is_test_command(cmd)
     tv = _T.is_test_command(cmd)
-    assert sv == tv, f"is_test_command({cmd!r}): Synthesizer={sv}, RunOracle={tv}"
+    assert sv == tv, f"is_test_command({cmd!r}): CommandClassifier={sv}, RunOracle={tv}"
     return tv
 
 
@@ -35,7 +35,7 @@ def _cmp_analyze(cmd, obs=""):
     obs_short = repr(obs)[:40]
     assert sv == tv, (
         f"analyze_test_run({cmd!r}, obs={obs_short}):\n"
-        f"  Synthesizer => {sv}\n"
+        f"  CommandClassifier => {sv}\n"
         f"  RunOracle  => {tv}"
     )
     return tv

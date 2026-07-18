@@ -7,7 +7,7 @@ import time
 import uuid
 import docker
 from dataclasses import dataclass
-from src.orchestrate.loop.synthesizer import Synthesizer
+from src.orchestrate.loop.command_classifier import CommandClassifier
 
 PIP_TRANSIENT_RETRY_ATTEMPTS = 3
 
@@ -144,7 +144,7 @@ class Sandbox:
         self.snapshot_image_ids = set()
         self.runtime_replay_commands = []
         self.package_manager_broken_failure_streak = 0
-        self._command_classifier = Synthesizer()
+        self._command_classifier = CommandClassifier()
         self.apt_mirror_url = self._resolve_apt_mirror_url(apt_mirror_url)
         self.apt_retries = apt_retries
         self.apt_http_timeout_seconds = apt_http_timeout_seconds

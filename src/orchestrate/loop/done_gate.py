@@ -3,8 +3,8 @@
 Verbatim copy of the gate-related module-level items from
 ``src/envstate/maintainer.py``.  The only intentional deviation is
 ``_get_detector``, which imports ``RunOracle`` from ``src.run_oracle``
-instead of ``Synthesizer`` from ``src.orchestrate.loop.synthesizer``, so the v3-only branch
-can drop synthesizer.py without touching this file.
+instead of ``CommandClassifier`` from ``src.orchestrate.loop.command_classifier``, so this
+gate never imports the command classifier.
 
 Exports consumed by v3 consumers:
   _verified_test_run_passed   — used by orchestrator.py
