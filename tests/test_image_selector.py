@@ -3,7 +3,7 @@ import os
 import tempfile
 import types
 
-from src.image_selector import ImageSelector
+from src.orchestrate.select.image_selector import ImageSelector
 
 
 class _FakeMessage:

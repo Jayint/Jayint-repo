@@ -5,7 +5,7 @@ Returns the RAW specifier string (PEP 621 ``requires-python`` or poetry's
 ``tool.poetry.dependencies.python``); interpreting it is choose_python_minor's
 job, not this reader's. Pure, never raises.
 """
-from src.envstate.manifest import read_requires_python
+from src.orchestrate.select.manifest import read_requires_python
 
 
 def test_pep621_requires_python(tmp_path):

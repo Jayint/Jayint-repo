@@ -2,7 +2,7 @@
 consumers, and target_python == the pinned minor. No Docker, no network."""
 import types
 import scripts.run_v3_e2e as e2e
-from src.envstate.base_image_selection import BaseImageChoice
+from src.orchestrate.select.base_image_selection import BaseImageChoice
 
 
 def test_selected_image_and_minor_thread_to_all_consumers(monkeypatch, tmp_path):

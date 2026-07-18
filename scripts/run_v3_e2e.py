@@ -64,9 +64,9 @@ from src.envstate.deterministic_maintainer import DeterministicMaintainer
 from src.envstate.world_model import initial_map
 from src.envstate.ledger import ActionLedger
 from src.envstate.snapshot import probe_env
-from src.envstate.manifest import parse_manifests
+from src.orchestrate.select.manifest import parse_manifests
 from graph.python.classify_services_clean import make_construction_classifier
-from src.envstate.base_image_selection import choose_base_image
+from src.orchestrate.select.base_image_selection import choose_base_image
 from graph.llm_dist_guess import make_dist_guesser
 from src.llm import complete_with_retry
 from graph.util import extract_json_object

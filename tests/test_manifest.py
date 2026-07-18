@@ -1,6 +1,6 @@
 # tests/test_manifest.py
 import os
-from src.envstate.manifest import parse_manifests, ManifestResult
+from src.orchestrate.select.manifest import parse_manifests, ManifestResult
 
 
 def _write(tmp_path, name, content):

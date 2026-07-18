@@ -3,7 +3,7 @@
 import pytest
 from pathlib import Path
 
-from src.envstate.manifest import parse_manifests
+from src.orchestrate.select.manifest import parse_manifests
 
 
 _WELL_KNOWN_EXTRAS = ["tests", "test", "testing", "dev", "development", "ci"]

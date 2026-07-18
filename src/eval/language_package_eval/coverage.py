@@ -55,7 +55,7 @@ from graph.contracts.executor import (  # noqa: E402
     CommandResult, DockerExecutor, Executor, LocalSubprocessExecutor,
 )
 from graph.model import DepGraph, NodeType  # noqa: E402
-from src.envstate.runtime_base import (  # noqa: E402
+from src.orchestrate.select.runtime_base import (  # noqa: E402
     DEFAULT_MINOR, SUPPORTED_MINORS, resolve_runtime_base,
 )
 
@@ -91,7 +91,7 @@ def base_image_for_repo(repo_dir: "Path | str") -> tuple[str, str, str]:
     A ``.python-version`` pin (if present and supported) is offered as the
     preferred minor; ``resolve_runtime_base`` then clamps/keeps it against
     ``requires-python`` (PEP 621 / poetry) exactly as the real conductor does
-    (``src.envstate.base_image_selection.choose_base_image`` minus the LLM
+    (``src.orchestrate.select.base_image_selection.choose_base_image`` minus the LLM
     candidate step -- this eval never calls the LLM ImageSelector).
     """
     repo_dir = Path(repo_dir)

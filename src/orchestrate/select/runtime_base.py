@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
-from src.envstate.manifest import read_requires_python
+from src.orchestrate.select.manifest import read_requires_python
 
 # Ascending order — policy searches within this set.
 SUPPORTED_MINORS: tuple[str, ...] = ("3.9", "3.10", "3.11", "3.12", "3.13")
