@@ -1,6 +1,6 @@
 import graph.emit.build_script as bs
 from graph.emit.build_script import render_build_script
-from graph.emit.populate import populate_setup_commands
+from graph.emit.emit import populate_setup_commands
 from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )

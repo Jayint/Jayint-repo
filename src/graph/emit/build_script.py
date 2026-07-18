@@ -12,21 +12,17 @@ import json
 import re
 import shlex
 from collections import Counter
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from graph.mutate.block import Block
-
 from graph.core.certify import EXECUTION_LAYER_ORDER
 from graph.emit.emit import (
     _apt_name,
     _is_installable_project,
     _is_reciped,
     _is_service_reciped,
+    populate_setup_commands,
     topo_order,
 )
-from graph.emit.populate import populate_setup_commands
 from graph.model import DepGraph, Layer, Node, NodeType
+from graph.mutate.block import Block  # runtime (script's render/parse folded in here, 3c-1)
 
 _BANNER = (
     "#!/usr/bin/env bash",
@@ -638,3 +634,57 @@ def render_service_start_script(graph: DepGraph | None) -> str:
         parts.append("")
     parts.append('exec "$@"')
     return "\n".join(parts) + "\n"
+
+
+# === script.py: render annotated setup.sh from blocks + parse it back (design §3.2, §7) ===
+_PREAMBLE = "#!/usr/bin/env bash\nset -Eeuo pipefail\n"
+
+
+def render_setup_sh(blocks: tuple[Block, ...]) -> str:
+    parts = [_PREAMBLE]
+    for b in blocks:
+        parts.append(f"\n#@action id={b.block_id} wave={b.wave}")
+        if b.target_node_ids:
+            parts.append("#@targets " + " ".join(b.target_node_ids))
+        if b.provider_ids:
+            parts.append("#@provides " + " ".join(b.provider_ids))
+        for chk in b.check_commands:
+            parts.append(f"#@check {chk}")
+        parts.extend(b.commands)
+    return "\n".join(parts) + "\n"
+
+
+def parse_setup_sh(text: str) -> tuple[Block, ...]:
+    blocks: list[Block] = []
+    cur: dict | None = None
+    cmds: list[str] = []
+
+    def _flush():
+        if cur is not None:
+            blocks.append(Block(
+                block_id=cur["id"], wave=cur["wave"], commands=tuple(cmds),
+                target_node_ids=tuple(cur.get("targets", ())),
+                provider_ids=tuple(cur.get("provides", ())),
+                check_commands=tuple(cur.get("checks", ())),
+            ))
+
+    for line in text.splitlines():
+        s = line.strip()
+        if s.startswith("#@action"):
+            _flush()
+            cmds = []
+            kv = dict(tok.split("=", 1) for tok in s[len("#@action"):].split() if "=" in tok)
+            cur = {"id": kv.get("id", ""), "wave": kv.get("wave", ""),
+                   "targets": (), "provides": (), "checks": []}
+        elif s.startswith("#@targets") and cur is not None:
+            cur["targets"] = tuple(s[len("#@targets"):].split())
+        elif s.startswith("#@provides") and cur is not None:
+            cur["provides"] = tuple(s[len("#@provides"):].split())
+        elif s.startswith("#@check") and cur is not None:
+            cur["checks"].append(s[len("#@check"):].strip())
+        elif s.startswith("#!") or s.startswith("set -") or not s:
+            continue
+        elif cur is not None:
+            cmds.append(line)
+    _flush()
+    return tuple(blocks)
