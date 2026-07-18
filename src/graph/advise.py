@@ -18,7 +18,8 @@ import re
 from collections.abc import Callable
 
 from graph.core.build import build_dep_graph
-from graph.contracts.executor import DockerExecutor, Executor, LocalSubprocessExecutor
+from graph.contracts.executor import Executor
+from graph.executors import DockerExecutor, LocalSubprocessExecutor
 from graph.emit.emit import partition
 from graph.python.lanes.install.repair import DistGuesser
 from graph.model import DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State

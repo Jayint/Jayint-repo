@@ -130,7 +130,7 @@ def test_wheel_preflight_seeds_runtime_soname_reconciled_by_ldd(tmp_path):
         pytest.skip("Docker binary not on PATH — skipping Docker integration test")
 
     from graph.core.build import build_dep_graph
-    from graph.contracts.executor import (
+    from graph.executors import (
         DockerExecutor,
         LocalSubprocessExecutor,
     )

@@ -6,13 +6,9 @@ import sys
 
 from conftest import FakeExecutor, make_result
 
-import graph.contracts.executor as executor_mod
-from graph.contracts.executor import (
-    CommandResult,
-    DockerExecutor,
-    Executor,
-    LocalSubprocessExecutor,
-)
+import graph.executors as executor_mod  # _run_subprocess + DockerExecutor live here now (monkeypatch target)
+from graph.contracts.executor import CommandResult, Executor
+from graph.executors import DockerExecutor, LocalSubprocessExecutor
 
 
 def test_command_result_ok_property():

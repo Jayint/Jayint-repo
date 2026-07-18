@@ -10,12 +10,8 @@ from __future__ import annotations
 
 from graph.core.build import build_dep_graph
 from graph.core.certify import certify, certify_all
-from graph.contracts.executor import (
-    CommandResult,
-    DockerExecutor,
-    Executor,
-    LocalSubprocessExecutor,
-)
+from graph.contracts.executor import CommandResult, Executor
+from graph.executors import DockerExecutor, LocalSubprocessExecutor
 from graph.emit.export import to_graphml
 from graph.model import (
     Attempt,

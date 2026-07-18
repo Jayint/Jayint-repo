@@ -61,7 +61,7 @@ for _p in (_ROOT, _ROOT / "src"):
         sys.path.insert(0, str(_p))
 
 from graph.core.build import build_dep_graph  # noqa: E402
-from graph.contracts.executor import (  # noqa: E402
+from graph.executors import (  # noqa: E402
     DockerExecutor,
     LocalSubprocessExecutor,
 )

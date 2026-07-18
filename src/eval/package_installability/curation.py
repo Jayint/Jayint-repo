@@ -119,7 +119,7 @@ def run_vetting(image: str = DEFAULT_IMAGE, platform: str = DEFAULT_PLATFORM,
                 candidates=CANDIDATES) -> list[VetResult]:
     """Vet each (candidate, mode) in a FRESH container. Docker; lazy import so unit
     tests never need docker."""
-    from graph.contracts.executor import DockerExecutor
+    from graph.executors import DockerExecutor
 
     results: list[VetResult] = []
     for cand in candidates:

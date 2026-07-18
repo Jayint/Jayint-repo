@@ -63,7 +63,8 @@ from graph.python.lanes.install.coverage import (
     pypi_record_provider,
     resolved_record_coverage,
 )
-from graph.contracts.executor import Executor, LocalSubprocessExecutor
+from graph.contracts.executor import Executor
+from graph.executors import LocalSubprocessExecutor
 from graph.ids import TEST_NODE_ID, package_id, project_id
 from graph.python.native.ldd_probe import ldd_probe
 from graph.python.lanes.install.pins import compute_exclude_newer

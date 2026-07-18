@@ -182,7 +182,7 @@ def test_ext_so_map_cmd_does_not_crash_on_host():
     distributions on a real system have no RECORD file (e.g. system-managed
     packages), and the command must skip them gracefully.
     """
-    from graph.contracts.executor import LocalSubprocessExecutor
+    from graph.executors import LocalSubprocessExecutor
 
     result = LocalSubprocessExecutor().run(_local_cmd(EXT_SO_MAP_CMD))
     assert result.ok, f"EXT_SO_MAP_CMD crashed: {result.stderr[:400]}"
@@ -199,7 +199,7 @@ def test_ext_so_map_cmd_excludes_bundled_helpers_locally():
     and must be excluded (standalone ldd on them produces false ``not found``
     because they can't follow their parent's RPATH).
     """
-    from graph.contracts.executor import LocalSubprocessExecutor
+    from graph.executors import LocalSubprocessExecutor
 
     result = LocalSubprocessExecutor().run(_local_cmd(EXT_SO_MAP_CMD))
     assert result.ok

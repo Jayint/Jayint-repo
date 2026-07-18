@@ -10,7 +10,7 @@ import logging
 from dataclasses import asdict
 from pathlib import Path
 
-from graph.contracts.executor import DockerExecutor
+from graph.executors import DockerExecutor
 
 from src.eval.package_installability.answer_key import answer_key_of
 from src.eval.package_installability.gate import run_gate

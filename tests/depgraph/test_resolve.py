@@ -2210,7 +2210,7 @@ def test_lock_command_succeeds_against_real_uv(tmp_path):
     entirely without a real ``uv`` on PATH, and skipped gracefully on an
     apparent network failure rather than failing CI on flaky connectivity.
     """
-    from graph.contracts.executor import LocalSubprocessExecutor
+    from graph.executors import LocalSubprocessExecutor
     from graph.python.lanes.install.resolve import _lock_command, _write_pyproject
 
     workdir = str(tmp_path)

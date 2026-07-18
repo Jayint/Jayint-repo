@@ -51,9 +51,8 @@ from src.eval.language_package_eval.oracle import _TIER_KEYS, parse_oracle  # no
 from graph.core.build import _project_name, build_dep_graph  # noqa: E402
 from graph.emit.build_script import render_build_script  # noqa: E402
 from graph.emit.emit import _apt_name  # noqa: E402
-from graph.contracts.executor import (  # noqa: E402
-    CommandResult, DockerExecutor, Executor, LocalSubprocessExecutor,
-)
+from graph.contracts.executor import CommandResult, Executor  # noqa: E402
+from graph.executors import DockerExecutor, LocalSubprocessExecutor  # noqa: E402
 from graph.model import DepGraph, NodeType  # noqa: E402
 from src.orchestrate.select.runtime_base import (  # noqa: E402
     DEFAULT_MINOR, SUPPORTED_MINORS, resolve_runtime_base,

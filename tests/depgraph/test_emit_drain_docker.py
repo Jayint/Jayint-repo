@@ -30,7 +30,7 @@ for _p in (_REPO, _SRC):
 from src.orchestrate.loop.depgraph_live import emit_drain  # noqa: E402
 from src.orchestrate.loop.ledger import ActionLedger  # noqa: E402
 from src.orchestrate.loop.world_model import TaskReport, CommandRecord  # noqa: E402
-from graph.contracts.executor import DockerExecutor  # noqa: E402
+from graph.executors import DockerExecutor  # noqa: E402
 from graph.model import (  # noqa: E402
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy,
 )
