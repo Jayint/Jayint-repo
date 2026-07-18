@@ -20,11 +20,27 @@ from dataclasses import dataclass
 # variable argument (``CDLL(path_var)``) captures nothing and is skipped. Kept
 # host-side and unit-tested; the container step (A3) is a plain grep that does
 # no matching, so there is no second copy to drift from.
+#
+# Shared sub-patterns. `\b` before the call name rejects identifier-embedded
+# false hits (NotCDLL); the trailing `\s*[,)]` requires the literal to be the
+# COMPLETE first argument (rejects `CDLL('lib' + var)`); an optional raw/bytes
+# string prefix and optional `name=` keyword accept the legal literal variants.
+_PREFIX = r"(?:[rRbB]{1,2})?"        # r'' / b'' / rb'' string prefix
+_KW = r"(?:name\s*=\s*)?"            # keyword form of the first arg
+_TAIL = r"\s*[,)]"                   # literal must be the whole first arg
+_STR = r"(?P<q>['\"])(?P<lib>{})(?P=q)"   # matched-quote literal; group 'lib'
+
 CTYPES_CALL_RES: tuple[re.Pattern, ...] = (
-    re.compile(r"find_library\(\s*['\"]([\w.+-]+)['\"]"),
-    re.compile(r"(?:CDLL|cdll\.LoadLibrary|windll\.LoadLibrary|LoadLibrary)"
-               r"\(\s*['\"]([\w./+-]+)['\"]"),
-    re.compile(r"(?:ffi\.dlopen|dlopen)\(\s*['\"]([\w./+-]+)['\"]"),
+    re.compile(
+        r"\bfind_library\s*\(\s*" + _KW + _PREFIX + _STR.format(r"[\w.+-]+") + _TAIL
+    ),
+    re.compile(
+        r"\b(?:CDLL|cdll\.LoadLibrary|windll\.LoadLibrary|LoadLibrary)\s*\(\s*"
+        + _KW + _PREFIX + _STR.format(r"[\w./+-]+") + _TAIL
+    ),
+    re.compile(
+        r"\b(?:ffi\.dlopen|dlopen)\s*\(\s*" + _KW + _PREFIX + _STR.format(r"[\w./+-]+") + _TAIL
+    ),
 )
 
 
@@ -59,7 +75,7 @@ def parse_ctypes_grep(stdout: str) -> list[LibHit]:
         path, lineno, content = parts
         for rx in CTYPES_CALL_RES:
             for m in rx.finditer(content):
-                lib = m.group(1)
+                lib = m.group("lib")
                 key = (lib, f"{path}:{lineno}")
                 if key in seen:
                     continue
@@ -75,7 +91,7 @@ def canonical_soname(lib: str) -> str:
     -> ``libX.so.2`` (basename, already a soname); a bare ``cairo`` -> ``libcairo.so``.
     """
     base = os.path.basename(lib)
-    if ".so" in base:
+    if re.search(r"\.so(\.\d+)*$", base):   # terminal .so or .so.N[.M...]
         return base
     if base.startswith("lib"):
         return f"{base}.so"

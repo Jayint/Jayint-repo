@@ -41,3 +41,45 @@ def test_canonical_soname_normalizes_base_and_passes_soname_through():
     assert canonical_soname("libmediainfo.so.0") == "libmediainfo.so.0"
     assert canonical_soname("/usr/lib/libcairo.so.2") == "libcairo.so.2"
     assert canonical_soname("cairo") == "libcairo.so"
+
+
+def test_rejects_identifier_embedded_and_partial_calls():
+    grep = (
+        "/x/site-packages/a/x.py:1:    NotCDLL('libfake.so')\n"
+        "/x/site-packages/a/y.py:2:    lib = CDLL('lib' + suffix)\n"
+    )
+    assert parse_ctypes_grep(grep) == []
+
+
+def test_matches_all_loader_call_shapes():
+    grep = (
+        "/x/site-packages/a/a.py:1:    cdll.LoadLibrary('libfoo.so')\n"
+        "/x/site-packages/a/b.py:2:    windll.LoadLibrary('libbar.so')\n"
+        "/x/site-packages/a/c.py:3:    LoadLibrary('libbaz.so')\n"
+        "/x/site-packages/a/d.py:4:    dlopen('libqux.so')\n"
+    )
+    assert {h.lib for h in parse_ctypes_grep(grep)} == {
+        "libfoo.so", "libbar.so", "libbaz.so", "libqux.so"
+    }
+
+
+def test_matches_raw_string_and_keyword_literal():
+    grep = (
+        "/x/site-packages/a/e.py:1:    CDLL(r'/usr/lib/libreal.so')\n"
+        "/x/site-packages/a/f.py:2:    find_library(name='crypto')\n"
+    )
+    libs = {h.lib for h in parse_ctypes_grep(grep)}
+    assert "/usr/lib/libreal.so" in libs
+    assert "crypto" in libs
+    assert canonical_soname("/usr/lib/libreal.so") == "libreal.so"
+
+
+def test_dedups_same_lib_same_location():
+    grep = "/x/site-packages/a/g.py:9:    CDLL('libz.so'); CDLL('libz.so')\n"
+    assert len(parse_ctypes_grep(grep)) == 1
+
+
+def test_canonical_soname_anchors_dot_so_suffix():
+    # ".so" only counts as a suffix, not any substring
+    assert canonical_soname("foo.something") == "libfoo.something.so"
+    assert canonical_soname("libX.so") == "libX.so"
