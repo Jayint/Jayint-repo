@@ -287,9 +287,65 @@ def stuck_transcript() -> History:
     return h
 
 
+# P0-c: a transcript whose observations EXCEED the size caps, so the compress/truncate paths the
+# short resolve/stuck transcripts deliberately avoid get pinned too. Fires all three caps: a
+# build/test obs > _OBS_COMPRESS_CAP (1500) → safety_compress SELECTION pass; an explore obs >
+# _EXPLORE_FULL_CAP (6000) → head/tail safety_truncate; a thought > _THOUGHT_CAP (180) → capped
+# think line. These are the exact duplicated cap constants R4 collapses across history_view /
+# message_view, so a bad dedup would surface as a byte diff here. Content is range-built → fully
+# deterministic (no timestamps/paths that would drift between runs).
+_LONG_BUILD_OBS = "BUILD FAILED at `pip install psycopg2` (line 5):\n" + "".join(
+    f"    src/psycopg2/_psycopg.c:{i}:10: error: symbol 'PQ_{i}' used but libpq-fe.h is missing\n"
+    for i in range(1, 41))                    # ~40 lines, well over 1500 chars, no noise → selection fires
+# A DISTINCT >1500 build failure (different text, same blocker) for the v1 edit card, so a
+# NON-current mutation renders its compressed body through history_view._observe_body — pinning that
+# path directly, not only message_view._obs_compressed. Both read the same _OBS_COMPRESS_CAP (the R4
+# collapse target), so this catches a dedup that breaks EITHER copy.
+_LONG_BUILD_OBS2 = "BUILD FAILED at `pip install psycopg2` (line 5):\n" + "".join(
+    f"    /usr/bin/ld: undefined reference to `PQconnectdb_{i}' (link needs -lpq / libpq-dev)\n"
+    for i in range(1, 41))
+_LONG_EXPLORE_OBS = "\n".join(
+    f"{i:3d}  psycopg2-binary=={i}.0.0    # candidate wheel row {i} from the resolver cache dump"
+    for i in range(1, 121))                   # ~120 lines, well over 6000 chars → head/tail truncate fires
+_LONG_THOUGHT = (
+    "the failing link names libpq-fe.h so the obvious fix is the -dev headers, but the resolver cache "
+    "lists a prebuilt binary wheel that would skip the source link entirely, so let me read the full "
+    "candidate dump before choosing between apt and the wheel")   # > 180 chars → thought cap fires
+
+_CAPS_FAIL_OUTCOME = {"build_ok": False, "failing_command": "pip install psycopg2",
+                      "lineno": 5, "passed": 0, "failed": 0, "errors": 0, "collected": 0}
+
+
+def capsfire_transcript() -> History:
+    """baseline (long build fail) → explore (long thought + long cache dump) → edit v1 (still fails,
+    distinct long output) → edit v2 (current, withheld). Every observation is over a cap, so the
+    compaction the short resolve/stuck transcripts skip is exercised: the v1 card fires
+    history_view._observe_body (>1500 build compress), the explore fires _explore_full (>6000
+    truncate), the long thought fires the _THOUGHT_CAP, and the message styles fire _obs_compressed."""
+    h = History()
+    h.record(0, "", "baseline → BUILD FAILED", _LONG_BUILD_OBS)
+    h.record(1, _LONG_THOUGHT, "explore: cat .resolver_cache.txt", _LONG_EXPLORE_OBS)
+    h.record(
+        2, "add the -dev headers so the source build links",
+        "edit v1 (insert@4 +apt-get install -y libpq-dev) → BUILD FAILED", _LONG_BUILD_OBS2,
+        action={"kind": "edit", "verb": "insert", "start": 4, "end": 4,
+                "content": "apt-get install -y libpq-dev"},
+        outcome=_CAPS_FAIL_OUTCOME,
+    )
+    h.record(
+        3, "the link still fails; pin the runtime lib package too",
+        "edit v2 (insert@5 +apt-get install -y libpq5) → BUILD FAILED", _LONG_BUILD_OBS2,
+        action={"kind": "edit", "verb": "insert", "start": 5, "end": 5,
+                "content": "apt-get install -y libpq5"},
+        outcome=_CAPS_FAIL_OUTCOME,
+    )
+    return h
+
+
 def history_transcripts() -> dict:
     """The named T2 transcripts, each captured through all four render styles."""
-    return {"resolve": history_transcript(), "stuck": stuck_transcript()}
+    return {"resolve": history_transcript(), "stuck": stuck_transcript(),
+            "capsfire": capsfire_transcript()}
 
 
 # Fixed scaffold inputs for the message-list render (T2 focuses on the transcript, so the

@@ -1,0 +1,100 @@
+HISTORY — chronological; grouped by BLOCKER (the failure signature being fought). Each attempt is a card: think → action → observe (observe = real stdout/stderr).
+### BLOCKER 1 — pip install psycopg2   (baseline: BUILD FAILED)   ← current turn
+    think:   the failing link names libpq-fe.h so the obvious fix is the -dev headers, but the resolver cache lists a prebuilt binary wheel that would skip the source link entirely, so let me r …
+- explored `cat .resolver_cache.txt` →
+        1  psycopg2-binary==1.0.0    # candidate wheel row 1 from the resolver cache dump
+          2  psycopg2-binary==2.0.0    # candidate wheel row 2 from the resolver cache dump
+          3  psycopg2-binary==3.0.0    # candidate wheel row 3 from the resolver cache dump
+          4  psycopg2-binary==4.0.0    # candidate wheel row 4 from the resolver cache dump
+          5  psycopg2-binary==5.0.0    # candidate wheel row 5 from the resolver cache dump
+          6  psycopg2-binary==6.0.0    # candidate wheel row 6 from the resolver cache dump
+          7  psycopg2-binary==7.0.0    # candidate wheel row 7 from the resolver cache dump
+          8  psycopg2-binary==8.0.0    # candidate wheel row 8 from the resolver cache dump
+          9  psycopg2-binary==9.0.0    # candidate wheel row 9 from the resolver cache dump
+         10  psycopg2-binary==10.0.0    # candidate wheel row 10 from the resolver cache dump
+         11  psycopg2-binary==11.0.0    # candidate wheel row 11 from the resolver cache dump
+         12  psycopg2-binary==12.0.0    # candidate wheel row 12 from the resolver cache dump
+         13  psycopg2-binary==13.0.0    # candidate wheel row 13 from the resolver cache dump
+         14  psycopg2-binary==14.0.0    # candidate wheel row 14 from the resolver cache dump
+         15  psycopg2-binary==15.0.0    # candidate wheel row 15 from the resolver cache dump
+         16  psycopg2-binary==16.0.0    # candidate wheel row 16 from the resolver cache dump
+         17  psycopg2-binary==17.0.0    # candidate wheel row 17 from the resolver cache dump
+         18  psycopg2-binary==18.0.0    # candidate wheel row 18
+        …[omitted]…
+        -binary==69.0.0    # candidate wheel row 69 from the resolver cache dump
+         70  psycopg2-binary==70.0.0    # candidate wheel row 70 from the resolver cache dump
+         71  psycopg2-binary==71.0.0    # candidate wheel row 71 from the resolver cache dump
+         72  psycopg2-binary==72.0.0    # candidate wheel row 72 from the resolver cache dump
+         73  psycopg2-binary==73.0.0    # candidate wheel row 73 from the resolver cache dump
+         74  psycopg2-binary==74.0.0    # candidate wheel row 74 from the resolver cache dump
+         75  psycopg2-binary==75.0.0    # candidate wheel row 75 from the resolver cache dump
+         76  psycopg2-binary==76.0.0    # candidate wheel row 76 from the resolver cache dump
+         77  psycopg2-binary==77.0.0    # candidate wheel row 77 from the resolver cache dump
+         78  psycopg2-binary==78.0.0    # candidate wheel row 78 from the resolver cache dump
+         79  psycopg2-binary==79.0.0    # candidate wheel row 79 from the resolver cache dump
+         80  psycopg2-binary==80.0.0    # candidate wheel row 80 from the resolver cache dump
+         81  psycopg2-binary==81.0.0    # candidate wheel row 81 from the resolver cache dump
+         82  psycopg2-binary==82.0.0    # candidate wheel row 82 from the resolver cache dump
+         83  psycopg2-binary==83.0.0    # candidate wheel row 83 from the resolver cache dump
+         84  psycopg2-binary==84.0.0    # candidate wheel row 84 from the resolver cache dump
+         85  psycopg2-binary==85.0.0    # candidate wheel row 85 from the resolver cache dump
+         86  psycopg2-binary==86.0.0    # candidate wheel row 86 from the resolver cache dump
+         87  psycopg2-binary==87.0.0    # candidate wheel row 87 from the resolver cache dump
+         88  psycopg2-binary==88.0.0    # candidate wheel row 88 from the resolver cache dump
+         89  psycopg2-binary==89.0.0    # candidate wheel row 89 from the resolver cache dump
+         90  psycopg2-binary==90.0.0    # candidate wheel row 90 from the resolver cache dump
+         91  psycopg2-binary==91.0.0    # candidate wheel row 91 from the resolver cache dump
+         92  psycopg2-binary==92.0.0    # candidate wheel row 92 from the resolver cache dump
+         93  psycopg2-binary==93.0.0    # candidate wheel row 93 from the resolver cache dump
+         94  psycopg2-binary==94.0.0    # candidate wheel row 94 from the resolver cache dump
+         95  psycopg2-binary==95.0.0    # candidate wheel row 95 from the resolver cache dump
+         96  psycopg2-binary==96.0.0    # candidate wheel row 96 from the resolver cache dump
+         97  psycopg2-binary==97.0.0    # candidate wheel row 97 from the resolver cache dump
+         98  psycopg2-binary==98.0.0    # candidate wheel row 98 from the resolver cache dump
+         99  psycopg2-binary==99.0.0    # candidate wheel row 99 from the resolver cache dump
+        100  psycopg2-binary==100.0.0    # candidate wheel row 100 from the resolver cache dump
+        101  psycopg2-binary==101.0.0    # candidate wheel row 101 from the resolver cache dump
+        102  psycopg2-binary==102.0.0    # candidate wheel row 102 from the resolver cache dump
+        103  psycopg2-binary==103.0.0    # candidate wheel row 103 from the resolver cache dump
+        104  psycopg2-binary==104.0.0    # candidate wheel row 104 from the resolver cache dump
+        105  psycopg2-binary==105.0.0    # candidate wheel row 105 from the resolver cache dump
+        106  psycopg2-binary==106.0.0    # candidate wheel row 106 from the resolver cache dump
+        107  psycopg2-binary==107.0.0    # candidate wheel row 107 from the resolver cache dump
+        108  psycopg2-binary==108.0.0    # candidate wheel row 108 from the resolver cache dump
+        109  psycopg2-binary==109.0.0    # candidate wheel row 109 from the resolver cache dump
+        110  psycopg2-binary==110.0.0    # candidate wheel row 110 from the resolver cache dump
+        111  psycopg2-binary==111.0.0    # candidate wheel row 111 from the resolver cache dump
+        112  psycopg2-binary==112.0.0    # candidate wheel row 112 from the resolver cache dump
+        113  psycopg2-binary==113.0.0    # candidate wheel row 113 from the resolver cache dump
+        114  psycopg2-binary==114.0.0    # candidate wheel row 114 from the resolver cache dump
+        115  psycopg2-binary==115.0.0    # candidate wheel row 115 from the resolver cache dump
+        116  psycopg2-binary==116.0.0    # candidate wheel row 116 from the resolver cache dump
+        117  psycopg2-binary==117.0.0    # candidate wheel row 117 from the resolver cache dump
+        118  psycopg2-binary==118.0.0    # candidate wheel row 118 from the resolver cache dump
+        119  psycopg2-binary==119.0.0    # candidate wheel row 119 from the resolver cache dump
+        120  psycopg2-binary==120.0.0    # candidate wheel row 120 from the resolver cache dump
+- v1 · insert@4 +apt-get install -y libpq-dev
+    think:   add the -dev headers so the source build links
+    observe:
+      BUILD FAILED at `pip install psycopg2` (line 5):
+          /usr/bin/ld: undefined reference to `PQconnectdb_1' (link needs -lpq / libpq-dev)
+          /usr/bin/ld: undefined reference to `PQconnectdb_2' (link needs -lpq / libpq-dev)
+          /usr/bin/ld: undefined reference to `PQconnectdb_3' (link needs -lpq / libpq-dev)
+          /usr/bin/ld: undefined reference to `PQconnectdb_4' (link needs -lpq / libpq-dev)
+          /usr/bin/ld: undefined reference to `PQconnectdb_5' (link needs -lpq / libpq-dev)
+          /usr/bin/ld: undefined reference to `PQconnectdb_6' (link needs -lpq / libpq-dev)
+          /usr/bin/ld: undefined reference to `PQconnectdb_7' (link needs -lpq / libpq-dev)
+      … (24 lines omitted) …
+          /usr/bin/ld: undefined reference to `PQconnectdb_32' (link needs -lpq / libpq-dev)
+          /usr/bin/ld: undefined reference to `PQconnectdb_33' (link needs -lpq / libpq-dev)
+          /usr/bin/ld: undefined reference to `PQconnectdb_34' (link needs -lpq / libpq-dev)
+          /usr/bin/ld: undefined reference to `PQconnectdb_35' (link needs -lpq / libpq-dev)
+          /usr/bin/ld: undefined reference to `PQconnectdb_36' (link needs -lpq / libpq-dev)
+          /usr/bin/ld: undefined reference to `PQconnectdb_37' (link needs -lpq / libpq-dev)
+          /usr/bin/ld: undefined reference to `PQconnectdb_38' (link needs -lpq / libpq-dev)
+          /usr/bin/ld: undefined reference to `PQconnectdb_39' (link needs -lpq / libpq-dev)
+          /usr/bin/ld: undefined reference to `PQconnectdb_40' (link needs -lpq / libpq-dev)
+- v2 · insert@5 +apt-get install -y libpq5
+    think:   the link still fails; pin the runtime lib package too
+    observe: (current run — full output above under LAST RUN OBSERVATION)
+    ↳ already tried for this blocker (didn't help): insert@4 +apt-get install -y libpq-dev, insert@5 +apt-get install -y libpq5
