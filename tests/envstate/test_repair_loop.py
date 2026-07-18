@@ -8,7 +8,7 @@ for p in (str(_ROOT), str(_SRC)):
 
 from graph.mutate.patch import PatchProposal, ProviderSpec
 from src.agent.repair_loop import run_structured_repair, RepairOutcome
-from src.agent.repair_scope import RepairScope
+from src.agent.prompt import RepairScope
 
 def _scope_builder(graph, *, target_node_id, failed_block, bundle, known_invalid, constraints):
     # deterministic fake scope; carries the avoid-list so the memory test can observe it

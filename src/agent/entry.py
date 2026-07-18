@@ -20,7 +20,7 @@ from src.agent.gate import test_verdict
 from src.agent.history import History
 from src.agent.log import ReactLog
 from src.agent.loop import RunResult, run_react
-from src.agent.planner import ReactPlanner
+from src.agent.prompt import ReactPlanner
 from src.agent.script_prep import strip_graph_framing
 
 # Install-tier layers only — drop TESTS so certify never re-runs the suite (spec §5).

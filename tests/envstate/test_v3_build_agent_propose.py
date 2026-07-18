@@ -9,7 +9,7 @@ for p in (str(_ROOT), str(_SRC)):
         sys.path.insert(0, p)
 
 from src.agent.v3_build_agent import V3BuildAgent
-from src.agent.repair_scope import RepairScope
+from src.agent.prompt import RepairScope
 
 
 class _Msg:

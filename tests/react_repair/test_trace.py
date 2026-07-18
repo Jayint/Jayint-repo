@@ -4,9 +4,9 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-import src.agent.planner as planner_mod
+import src.agent.prompt as planner_mod
 from src.agent.log import ReactLog
-from src.agent.planner import ReactPlanner
+from src.agent.prompt import ReactPlanner
 from src.agent.history import History
 
 

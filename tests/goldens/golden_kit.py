@@ -29,10 +29,10 @@ for _p in (str(_ROOT), str(_ROOT / "src")):
 
 import src.agent.history_view as history_view  # noqa: E402
 import src.agent.message_view as message_view  # noqa: E402
-import src.agent.planner as planner_mod  # noqa: E402
-from src.agent.repair_scope import RepairScope  # noqa: E402
+import src.agent.prompt as planner_mod  # noqa: E402
+from src.agent.prompt import RepairScope  # noqa: E402
 from src.agent.history import History  # noqa: E402
-from src.agent.planner import ReactPlanner  # noqa: E402
+from src.agent.prompt import ReactPlanner  # noqa: E402
 
 GOLDEN_DIR = pathlib.Path(__file__).resolve().parent
 

@@ -504,8 +504,8 @@ def test_prompt_style_lever_flows_loop_to_message_list_byte_exact(monkeypatch):
     # planner builds a growing message list, and the edit made on turn 1 appears on turn 2 as a REAL
     # assistant turn rendered BYTE-EXACT from the structured op threaded through the loop onto
     # Step.action — content that the ~60-char action_summary preview would have truncated shows in full.
-    import src.agent.planner as planner_mod
-    from src.agent.planner import ReactPlanner
+    import src.agent.prompt as planner_mod
+    from src.agent.prompt import ReactPlanner
     monkeypatch.setenv("REACT_PROMPT_STYLE", "messages")
     long_content = "apt-get install -y libpq-dev build-essential pkg-config libssl-dev zlib1g-dev libffi-dev"
     captured: list = []

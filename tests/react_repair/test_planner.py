@@ -4,8 +4,8 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-import src.agent.planner as planner_mod
-from src.agent.planner import ReactPlanner
+import src.agent.prompt as planner_mod
+from src.agent.prompt import ReactPlanner
 from src.agent.history import History
 
 _USAGE = {"input_tokens": 1, "output_tokens": 1, "total_tokens": 2}
@@ -198,22 +198,22 @@ def test_planner_bakes_env_info_into_system_prompt():
 
 # --- failure-line anchoring in the numbered script ------------------------
 def test_numbered_marks_the_failing_line():
-    from src.agent.planner import _numbered, _HALT_MARKER
+    from src.agent.prompt import _numbered, _HALT_MARKER
     lines = _numbered("aa\nbb\ncc", fail_lineno=2).splitlines()
     assert _HALT_MARKER in lines[1] and "bb" in lines[1]     # the failing line is tagged where it's edited
     assert _HALT_MARKER not in lines[0] and _HALT_MARKER not in lines[2]
 
 def test_numbered_no_marker_without_fail_lineno():
-    from src.agent.planner import _numbered, _HALT_MARKER
+    from src.agent.prompt import _numbered, _HALT_MARKER
     assert _HALT_MARKER not in _numbered("aa\nbb", fail_lineno=None)
 
 def test_numbered_ignores_out_of_range_fail_lineno():
-    from src.agent.planner import _numbered, _HALT_MARKER
+    from src.agent.prompt import _numbered, _HALT_MARKER
     out = _numbered("aa\nbb", fail_lineno=99)                 # stale/OOB line: don't crash, don't tag
     assert _HALT_MARKER not in out and "1| aa" in out
 
 def test_plan_marks_failing_line_in_rendered_user_message(monkeypatch):
-    from src.agent.planner import _HALT_MARKER
+    from src.agent.prompt import _HALT_MARKER
     seen, fn = _capture(); monkeypatch.setattr(planner_mod, "complete_with_tools", fn)
     ReactPlanner(client=object(), model="m").plan(
         History(), "aa\nbb\ncc", "BUILD FAILED at `x` (line 2)", graph=None, fail_lineno=2)

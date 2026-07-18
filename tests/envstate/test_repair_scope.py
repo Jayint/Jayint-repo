@@ -6,7 +6,7 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-import src.agent.repair_scope as rs
+import src.agent.prompt as rs
 from graph.mutate.block import Block
 from graph.evidence_log import Evidence, EvidenceBundle
 

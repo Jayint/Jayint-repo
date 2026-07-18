@@ -16,16 +16,16 @@ not accept pre-rendered text, so string-concatenating into its public API is
 not possible without this patch (see `scratchpad/task5-recon-report.md` §1).
 
 DEVIATION FROM THE RECON/PLAN'S PATCH TARGET (verified by actually running the
-agent-wiring test, not just reading): `propose()`'s `from src.agent.repair_scope
+agent-wiring test, not just reading): `propose()`'s `from src.agent.prompt
 import render_repair_scope` is a LOCAL import inside the method body (v3_build_agent.py
 line 150), not a module-level one. A local import never adds an attribute to the
 importing module's namespace -- it looks the name up on the SOURCE module
-(`src.agent.repair_scope`) fresh on every call and binds it as a function-local
+(`src.agent.prompt`) fresh on every call and binds it as a function-local
 variable. So `src.agent.v3_build_agent` has no `render_repair_scope` attribute at
 all, and `mock.patch("src.agent.v3_build_agent.render_repair_scope", ...)` (the
 plan's literal target) raises `AttributeError` -- confirmed by running the test.
 The correct patch target is the SOURCE module's attribute,
-`src.agent.repair_scope.render_repair_scope`: since `propose()` re-resolves the
+`src.agent.prompt.render_repair_scope`: since `propose()` re-resolves the
 name from that module at call time, patching it there is picked up transparently.
 This is still reuse-by-import + runtime `mock.patch` only; `v3_build_agent.py` is
 untouched.
@@ -44,8 +44,8 @@ for _p in (_REPO_ROOT, _SRC):
 
 from graph.emit.build_script import render_build_script  # noqa: E402
 from graph.model import NodeType  # noqa: E402
-from src.agent.repair_scope import RepairScope  # noqa: E402
-from src.agent.repair_scope import render_repair_scope as _render_repair_scope  # noqa: E402
+from src.agent.prompt import RepairScope  # noqa: E402
+from src.agent.prompt import render_repair_scope as _render_repair_scope  # noqa: E402
 from src.agent.v3_build_agent import V3BuildAgent  # noqa: E402
 from src.eval.graph_repair_ablation.context import graph_context  # noqa: E402
 from src.eval.graph_repair_ablation.grade import grade_localization  # noqa: E402
@@ -166,7 +166,7 @@ def normalize_patch(proposal, inj: Injection) -> dict | None:
 
 
 def _augmented_render(scope, arm: str, graph) -> str:
-    """What gets monkeypatched in (as `src.agent.repair_scope.render_repair_scope`
+    """What gets monkeypatched in (as `src.agent.prompt.render_repair_scope`
     -- see the module docstring's DEVIATION note for why that's the target and not
     `src.agent.v3_build_agent.render_repair_scope`) for the duration of the
     `propose()` call. Renders the real scope, then appends the arm's context
@@ -256,7 +256,7 @@ def run_one(inj: Injection, arm: str, *, agent_client, model: str, smoke_root,
         def _aug(s, _arm=arm, _graph=graph):
             return _augmented_render(s, _arm, _graph)
 
-        with _mock.patch("src.agent.repair_scope.render_repair_scope", _aug):
+        with _mock.patch("src.agent.prompt.render_repair_scope", _aug):
             proposal = V3BuildAgent(agent_client, model).propose(
                 scope, rec, max_diag_turns=max_diag_turns)
 
