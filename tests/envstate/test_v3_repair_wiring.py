@@ -21,7 +21,7 @@ for p in (str(_ROOT), str(_SRC)):
 import src.orchestrate.loop.orchestrator as orch
 from src.orchestrate.loop import orchestrator
 from src.orchestrate.loop.ledger import ActionLedger
-from src.agent.repair_loop import RepairOutcome
+from src.agent.loop import RepairOutcome
 from src.orchestrate.loop.world_model import TaskReport, initial_map, merge_map
 from src.orchestrate.loop.sandbox import InstallResult
 from graph.model import (

@@ -34,7 +34,7 @@ import src.orchestrate.loop.orchestrator as orch
 from src.orchestrate.loop import orchestrator
 from src.orchestrate.loop.constants import NO_PROGRESS_CYCLES
 from src.orchestrate.loop.ledger import ActionLedger
-from src.agent.repair_loop import RepairOutcome
+from src.agent.loop import RepairOutcome
 from src.orchestrate.loop.world_model import PlannerDecision, Task, initial_map, merge_map
 from src.orchestrate.loop.sandbox import InstallResult
 from graph.model import DepGraph

@@ -20,7 +20,7 @@ from src.orchestrate.loop.constants import NO_PROGRESS_CYCLES, RESIDUAL_GIVEUP_C
 from src.orchestrate.loop.gate_signature import outcome_signature, next_stall
 from src.orchestrate.loop.ledger import ActionLedger, make_action_event
 from src.orchestrate.loop.done_gate import _verified_test_run_passed as _gate_passed
-from src.agent.repair_loop import run_structured_repair
+from src.agent.loop import run_structured_repair
 from src.orchestrate.loop.world_model import (
     CommandRecord,
     PlannerDecision,

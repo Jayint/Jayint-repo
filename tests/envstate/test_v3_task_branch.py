@@ -43,7 +43,7 @@ import src.orchestrate.loop.graph_scheduler as gs_module
 import src.orchestrate.loop.orchestrator as orch
 from src.orchestrate.loop import orchestrator
 from src.orchestrate.loop.ledger import ActionLedger
-from src.agent.repair_loop import RepairOutcome
+from src.agent.loop import RepairOutcome
 from src.orchestrate.loop.world_model import (
     PlannerDecision,
     Task,
