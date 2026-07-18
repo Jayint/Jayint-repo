@@ -8,14 +8,17 @@ can drop synthesizer.py without touching this file.
 
 Exports consumed by v3 consumers:
   _verified_test_run_passed   — used by orchestrator.py
-  _progress_synced_with_done  — used by deterministic_maintainer.py
+  _progress_synced_with_done  — used by _v3_done_gate (below, folded in 3b-5)
+
+Also holds (folded 3b-5) the v3 done-gate maintainer that consumes those helpers:
+``_v3_done_gate`` + the ``DeterministicMaintainer`` shell (was deterministic_maintainer.py).
 """
 from __future__ import annotations
 
 import re
 import shlex
 
-from src.orchestrate.loop.world_model import TaskReport
+from src.orchestrate.loop.world_model import TaskReport, WorldModelMap, merge_map
 
 # ---------------------------------------------------------------------------
 # Execution-aware done-gate helpers
@@ -236,3 +239,32 @@ def _progress_synced_with_done(
     if done and not current_map.progress.get("tests", False):
         return {**current_map.progress, "tests": True}
     return None
+
+
+# === deterministic_maintainer.py: the v3 done-gate maintainer (no LLM) — _v3_done_gate + DeterministicMaintainer shell ===
+def _v3_done_gate(current_map: WorldModelMap, report: TaskReport) -> WorldModelMap:
+    """v3 done-gate: set done_flag + sync progress from host-verified test evidence.
+
+    The dep-graph is the sole world-model in v3. Anti-hollow: still requires
+    ``_verified_test_run_passed`` (host evidence), never finalizes on LLM/action say-so.
+    """
+    done = current_map.done_flag or _verified_test_run_passed(report)
+    progress_update = _progress_synced_with_done(current_map, done)
+    if done == current_map.done_flag and progress_update is None:
+        return current_map  # no-op fast path
+    return merge_map(current_map, done_flag=done, progress=progress_update)
+
+
+class DeterministicMaintainer:
+    """Duck-typed stand-in for Maintainer (exposes ``.update``): the v3 done-gate.
+
+    ``v3_only`` is retained for call-site compatibility (all live callers pass
+    ``v3_only=True``); the done-gate is now the only path — the legacy typed-reasoning
+    ``maintain`` branch was excised with its graph layer in Phase 0.
+    """
+
+    def __init__(self, *, v3_only: bool = False) -> None:
+        self._v3_only = v3_only
+
+    def update(self, current_map: WorldModelMap, report: TaskReport) -> WorldModelMap:
+        return _v3_done_gate(current_map, report)

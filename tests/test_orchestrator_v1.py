@@ -29,7 +29,7 @@ from src.orchestrate.loop.world_model import (
 from src.orchestrate.loop.sandbox import InstallResult
 
 from src.orchestrate.loop.orchestrator import run_v3  # noqa: E402
-from src.orchestrate.loop.deterministic_maintainer import DeterministicMaintainer  # noqa: E402
+from src.orchestrate.loop.done_gate import DeterministicMaintainer  # noqa: E402
 
 
 # ---------------------------------------------------------------------------

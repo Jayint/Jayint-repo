@@ -3,7 +3,7 @@
 
 Guards both sheds: the ``run_v1`` symbol is absent from the orchestrator, the ``envstate/contracts/``
 ContractGraph layer is deleted, ``WorldModelMap`` has no ``contract_graph`` field, the
-``deterministic_maintainer`` keeps only its done-gate (no ``maintain``/``build_blocker_patch``), and
+``DeterministicMaintainer`` (folded into ``done_gate``, 3b-5) keeps only its done-gate (no ``maintain``/``build_blocker_patch``), and
 no OTHER surviving source/test file names the legacy tokens (``run_v1``/``ContractGraph``/
 ``contract_graph``/``derive_open_problems``). This file is the one justified home of those tokens (it
 exists to assert their absence) — mirroring the repo's ``test_deletions_*_gone.py`` convention. Its
@@ -35,8 +35,8 @@ def test_contract_graph_layer_and_field_are_excised():
     """The v1 ContractGraph layer is gone: the package dir, the world-model field, the
     maintainer's blocker path, and the derived view."""
     from src.orchestrate.loop import world_model
-    from src.orchestrate.loop.deterministic_maintainer import DeterministicMaintainer
-    import src.orchestrate.loop.deterministic_maintainer as dm
+    from src.orchestrate.loop.done_gate import DeterministicMaintainer
+    import src.orchestrate.loop.done_gate as dm
 
     assert not (_SRC / "envstate" / "contracts").exists(), "envstate/contracts/ layer must be deleted"
     m = world_model.initial_map(base_image="b", workdir="/r", language="py",
