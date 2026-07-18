@@ -1,12 +1,13 @@
-"""Python package-closure layer (``pkg_layer/``) — eval-only; graph never imports it.
+"""python_deps — residual empty namespace (src/ stage-refactor §10).
 
-Sealed by Phase 1 of the src/ stage-refactor: the shared read/util/model helpers
-that graph construction depends on moved OUT of here into the construction island —
-``import_mapping``/``failure_classifier`` -> ``graph/python/util``,
-``evidence``/``import_graph`` -> ``graph/python/read``, ``models`` ->
-``graph/python/models.py``. What remains is the four-plane ``pkg_layer/`` package
-closure (Contract/Closure/Usage/Environment) consumed by ``eval`` and its tests;
-it depends on ``graph`` and is out of graph's scope, so it stays here.
+Nothing lives here now. Phase 1 moved the shared read/util/model helpers graph
+construction depends on into the construction island (``import_mapping``/
+``failure_classifier`` -> ``graph/python/util``, ``evidence``/``import_graph`` ->
+``graph/python/read``, ``models`` -> ``graph/python/models.py``). Phase 2.5 then shed
+the last resident -- the four-plane ``pkg_layer/`` eval prototype, whose verifier-roots
+idea had already shipped to production ``graph/python/lanes/install/roots.py``.
+
+Kept only as the import target for ``tests/test_purity.py``; Phase 2.5 T2 dissolves it.
 """
 from __future__ import annotations
 

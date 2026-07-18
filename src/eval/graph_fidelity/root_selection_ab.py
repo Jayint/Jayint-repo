@@ -68,7 +68,7 @@ def _bare_name(token: str) -> str:
     gap-fill counterpart and be double-counted. Idempotent on an already-bare
     name. ``token`` is stripped of leading/trailing whitespace first so the
     start-anchored ``_NAME_PREFIX_RE`` still matches a loosely-formatted token
-    (e.g. ``" numpy<2"``). Shared with ``pkg_layer_ab`` (imported from here)."""
+    (e.g. ``" numpy<2"``)."""
     token = token.strip()
     match = _NAME_PREFIX_RE.match(token)
     return match.group(0) if match else token
