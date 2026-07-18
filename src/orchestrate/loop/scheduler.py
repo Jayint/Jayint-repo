@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Callable
 
 from graph.model import DepGraph
-from graph.schedule import (
+from graph.compile.schedule import (
     ObligationPacket, frame_obligation, scheduler_frontier,
 )
 from graph.req_slice import render_requirement_slice

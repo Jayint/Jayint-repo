@@ -13,7 +13,7 @@ for p in (str(_ROOT), str(_SRC)):
         sys.path.insert(0, p)
 
 from graph.model import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
-from graph.schedule import frame_obligation
+from graph.compile.schedule import frame_obligation
 from src.orchestrate.loop.scheduler import packet_to_task
 
 

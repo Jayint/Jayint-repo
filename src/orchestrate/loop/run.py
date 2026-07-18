@@ -748,7 +748,7 @@ def run_v3(
             import logging
             from graph.python.enrich.runtime_ingest import diverged_node_ids
             from graph.compile.emit import partition
-            from graph.schedule import scheduler_frontier
+            from graph.compile.schedule import scheduler_frontier
             diverged = diverged_node_ids(pre_graph, found)
             # Match the real scheduler call (next_decision): the give-up
             # frontier must see Service/binding obligations on-arm, or it

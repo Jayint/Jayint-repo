@@ -5,7 +5,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from graph.model import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
-from graph.schedule import frame_obligation
+from graph.compile.schedule import frame_obligation
 
 
 def _g():

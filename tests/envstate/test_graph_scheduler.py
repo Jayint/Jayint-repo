@@ -27,7 +27,7 @@ def test_packet_to_task_no_service_facts_for_non_service():
     from graph.model import (
         DepGraph, Node, NodeType, Layer, DiscoveredBy, State,
     )
-    from graph.schedule import frame_obligation
+    from graph.compile.schedule import frame_obligation
     from src.orchestrate.loop.scheduler import packet_to_task
     node = Node(id="pkg:requests", type=NodeType.PACKAGE, name="requests",
                 layer=Layer.PIP, discovered_by=DiscoveredBy.STATIC_SCAN,
@@ -44,7 +44,7 @@ def test_packet_to_task_no_binding_facts_without_setup():
     from graph.model import (
         DepGraph, Node, NodeType, Layer, DiscoveredBy, State,
     )
-    from graph.schedule import frame_obligation
+    from graph.compile.schedule import frame_obligation
     from src.orchestrate.loop.scheduler import packet_to_task
     node = Node(id="pkg:requests", type=NodeType.PACKAGE, name="requests",
                 layer=Layer.PIP, discovered_by=DiscoveredBy.STATIC_SCAN,

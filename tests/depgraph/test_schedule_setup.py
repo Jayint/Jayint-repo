@@ -15,7 +15,7 @@ for p in (str(_ROOT), str(_ROOT / "src")):
 from graph.model import (  # noqa: E402
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy,
 )
-from graph.schedule import _is_actionable, frame_obligation  # noqa: E402
+from graph.compile.schedule import _is_actionable, frame_obligation  # noqa: E402
 
 
 _SETUP = {

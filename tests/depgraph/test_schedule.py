@@ -18,7 +18,7 @@ def test_inferred_service_never_actionable():
     from graph.model import (
         DepGraph, Node, NodeType, Layer, DiscoveredBy, State,
     )
-    from graph.schedule import scheduler_frontier
+    from graph.compile.schedule import scheduler_frontier
     svc = Node(id="service:redis", type=NodeType.SERVICE, name="redis",
                layer=Layer.SERVICES, discovered_by=DiscoveredBy.STATIC_SCAN,
                state=State.MISSING, check_command="redis-cli ping",

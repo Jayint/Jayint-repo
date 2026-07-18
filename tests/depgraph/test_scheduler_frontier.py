@@ -8,7 +8,7 @@ sys.path.insert(0, str(_ROOT / "src"))
 from graph.model import (  # noqa: E402
     DepGraph, Node, Edge, NodeType, Layer, State, EdgeType, DiscoveredBy,
 )
-from graph.schedule import scheduler_frontier  # noqa: E402
+from graph.compile.schedule import scheduler_frontier  # noqa: E402
 
 
 def _node(nid, ntype, name, state, *, check="true", layer=Layer.PIP):

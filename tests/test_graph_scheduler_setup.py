@@ -19,7 +19,7 @@ for p in (str(_ROOT), str(_ROOT / "src")):
 from graph.model import (  # noqa: E402
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy,
 )
-from graph.schedule import ObligationPacket  # noqa: E402
+from graph.compile.schedule import ObligationPacket  # noqa: E402
 from src.orchestrate.loop.scheduler import next_decision, packet_to_task  # noqa: E402
 from src.orchestrate.loop.constants import VERIFY_TEST_CMD  # noqa: E402
 

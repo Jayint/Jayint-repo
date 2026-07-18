@@ -124,7 +124,7 @@ def failed_reciped_nodes(graph: DepGraph) -> tuple[Node, ...]:
     """Reciped, host-checkable nodes still MISSING after a drain whose deps are
     SATISFIED — the spec's `isolate`. Excludes CONFIG/SERVICE (advisory) and
     nodes with no check_command (no host stop condition)."""
-    from graph.schedule import _dependencies_satisfied
+    from graph.compile.schedule import _dependencies_satisfied
     out = []
     for n in graph.nodes:
         if n.state is not State.MISSING:

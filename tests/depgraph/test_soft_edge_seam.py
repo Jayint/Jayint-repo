@@ -1,7 +1,7 @@
 from graph.model import (
     DepGraph, Node, Edge, NodeType, Layer, State, DiscoveredBy, EdgeType,
 )
-from graph.schedule import _dependencies_satisfied
+from graph.compile.schedule import _dependencies_satisfied
 
 
 def _two_nodes():
