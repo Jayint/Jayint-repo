@@ -1,6 +1,6 @@
 """Scenario (Task 8c): a reciped SystemLib node's fresh-replay install fails with a
 native-library traceback (``libGL.so.1: cannot open shared object file``). The
-diagnosis router (``graph.diagnose``) must classify this ENVIRONMENT/
+diagnosis router (``graph.python.enrich.diagnose``) must classify this ENVIRONMENT/
 SYSTEM_LIB (not REPO_INTERNAL_REF/RESIDUAL/INVALID_ATTEMPT), routing it INTO typed
 repair; a real (unmocked) ``run_structured_repair``/``admit_proposal`` admits a
 provider correction; the SAME cycle's re-replay (inside ``run_structured_repair``'s

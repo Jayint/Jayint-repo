@@ -1,7 +1,7 @@
 """Enrich replay — the HEADLINE graph-quality metric (design spec §3, plan Task 3).
 
 Replays each real past failure's error text through the REAL
-``graph.graph_enrich.enrich`` and scores whether the graph names --
+``graph.python.enrich.graph_enrich.enrich`` and scores whether the graph names --
 from the error text alone -- a node whose fix matches what the repair actually
 added. Pure offline: no Docker, no network, no LLM.
 

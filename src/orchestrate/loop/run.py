@@ -110,7 +110,7 @@ def run_v3(
     execution, the ``block_emit`` module remains as a quarantined ablation
     baseline — not a runnable entry point; a full ablation loop is future work).
 
-    Every failure bundle is diagnosed (``graph.diagnose``) BEFORE
+    Every failure bundle is diagnosed (``graph.python.enrich.diagnose``) BEFORE
     typed repair is attempted (Phase 6): a repo-internal reference or a residual
     bug never spends a repair turn, and a pip-disproven package name is never
     retried. ``repo_path`` (optional) seeds the router's ``RepoContext.local_names``
