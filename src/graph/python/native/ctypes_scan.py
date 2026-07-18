@@ -8,6 +8,23 @@ call literals, normalizes each to a canonical soname, resolves it to apt via the
 kept ``os_resolver.PROVIDER_TABLE``, and mints a ``SystemLib`` node grounded in a
 real ``file:line``. It is an OBSERVATION (of installed source), never a curated
 dist->syslib prediction (the map deleted in e04784c9).
+
+Precision is line-local by design (grep-line + regex, not a Python tokenizer).
+``_line_lex`` rejects the common false hits (commented-out calls, calls quoted
+inside an ordinary string, single-line triple-quoted text) and preserves the
+common real hits (calls after an earlier string, escaped quotes). Three residual
+cases cannot be resolved from a single grep line and are accepted as known
+limitations, measured — not asserted away — by the Part V false-positive guard
+over 30 real negative repos:
+  * a ctypes call inside a genuinely MULTI-line triple-quoted docstring
+    (no quote/# on the matched line);
+  * a single-line triple-quoted string that itself contains a quote
+    (``\"\"\"note \" CDLL('x')\"\"\"``) — triple delimiters are treated as
+    alternating ordinary quotes;
+  * an f-string interpolation that IS executable (``f\"{CDLL('x')}\"``) — the
+    whole f-string is treated as string text, so a real call there is missed.
+Full fidelity would require in-container Python tokenization (a larger,
+plan-scope change); the real-corpus rate of these patterns is ~nil.
 """
 
 from __future__ import annotations
