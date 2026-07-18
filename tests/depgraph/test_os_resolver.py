@@ -81,6 +81,19 @@ def test_provider_table_is_exactly_the_curated_set():
         ("header", "snappy.h"): "libsnappy-dev",
         # the pkg-config binary itself (container-verified bookworm+trixie)
         ("binary", "pkg-config"): "pkgconf",
+        # ctypes/cffi runtime sonames observed by ctypes_scan (Task A1) — resolution
+        # of an OBSERVED soname -> apt, same shape as the libGL rows above; both the
+        # find_library base form (libX.so) and the full soname (libX.so.N) are keyed.
+        ("soname", "libmagic.so"): "libmagic1",
+        ("soname", "libmagic.so.1"): "libmagic1",
+        ("soname", "libusb-1.0.so"): "libusb-1.0-0",
+        ("soname", "libusb-1.0.so.0"): "libusb-1.0-0",
+        ("soname", "libmediainfo.so"): "libmediainfo0v5",
+        ("soname", "libmediainfo.so.0"): "libmediainfo0v5",
+        ("soname", "libcairo.so"): "libcairo2",
+        ("soname", "libcairo.so.2"): "libcairo2",
+        ("soname", "libpango-1.0.so"): "libpango-1.0-0",
+        ("soname", "libpango-1.0.so.0"): "libpango-1.0-0",
     }
     assert PROVIDER_TABLE == expected
 
