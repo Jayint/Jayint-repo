@@ -108,7 +108,7 @@ def main() -> int:
     for _p in (_root, os.path.join(_root, "src")):
         if _p not in sys.path:
             sys.path.insert(0, _p)
-    from src.orchestrate.loop.proof import aggregate, canonical_success, repo_row, trace_from_dict
+    from src.orchestrate.loop.trace import aggregate, canonical_success, repo_row, trace_from_dict
 
     pairs: list[tuple] = []  # (RunTrace, script_text), one per repo that produced a trace
     rows: list[dict] = []

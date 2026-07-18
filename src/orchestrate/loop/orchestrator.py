@@ -222,7 +222,7 @@ def run_v3(
     # Task 8: pure record-type imports (no behavior). Cheap/unconditional — only
     # the actual ``tracer.record_*``/``tracer.set_*`` CALLS below are guarded by
     # ``if tracer is not None:``, not this import.
-    from src.orchestrate.loop.run_trace import DiscoverRecord, FreshReplayRecord, PatchGateRecord
+    from src.orchestrate.loop.trace import DiscoverRecord, FreshReplayRecord, PatchGateRecord
     # run_v3 has exactly one executor: fresh full-script replay from base. The
     # executor callables are therefore mandatory (there is no fallback branch
     # to silently drop into anymore).
@@ -409,7 +409,7 @@ def run_v3(
 
         IMPORTANT — this guard's success (a ``stop_reason`` of ``done`` /
         ``planner_done`` / ``done_flag``) is a WEAKER signal than
-        ``src.orchestrate.loop.proof.canonical_success``. This guard only checks that
+        ``src.orchestrate.loop.trace.canonical_success``. This guard only checks that
         the latest fresh replay's install rc was 0; ``canonical_success`` is
         strictly stronger — it also requires the replay's ``test_rc == 0``,
         no unsatisfied reciped nodes (a reciped node's ``check_command`` can

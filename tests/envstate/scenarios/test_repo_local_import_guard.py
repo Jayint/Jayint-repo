@@ -40,8 +40,8 @@ for p in (str(_ROOT), str(_SRC)):
 
 from src.orchestrate.loop import orchestrator
 from src.orchestrate.loop.ledger import ActionLedger
-from src.orchestrate.loop.run_trace import RunTracer
-from src.orchestrate.loop.trace_verify import verify_local_import_guard
+from src.orchestrate.loop.trace import RunTracer
+from src.orchestrate.loop.trace import verify_local_import_guard
 from src.orchestrate.loop.world_model import initial_map, merge_map
 from src.orchestrate.loop.sandbox import InstallResult
 from graph.model import DepGraph, DiscoveredBy, Layer, Node, NodeType, State

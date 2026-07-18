@@ -21,14 +21,14 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.orchestrate.loop.proof import (
+from src.orchestrate.loop.trace import (
     aggregate,
     canonical_success,
     finalize_trace,
     repo_row,
     trace_from_dict,
 )
-from src.orchestrate.loop.run_trace import (
+from src.orchestrate.loop.trace import (
     DiscoverRecord,
     FreshReplayRecord,
     PatchGateRecord,

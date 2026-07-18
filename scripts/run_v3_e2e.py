@@ -70,8 +70,8 @@ from src.orchestrate.select.choose import choose_base_image
 from graph.llm_dist_guess import make_dist_guesser
 from src.llm import complete_with_retry
 from graph.util import extract_json_object
-from src.orchestrate.loop.run_trace import RunTracer
-from src.orchestrate.loop.proof import finalize_trace
+from src.orchestrate.loop.trace import RunTracer
+from src.orchestrate.loop.trace import finalize_trace
 from graph.advise import build_advisory_for_repo
 from graph.emit.build_script import (
     render_build_script,
