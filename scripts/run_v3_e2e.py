@@ -59,7 +59,7 @@ from openai import OpenAI
 from httpx import Timeout
 from src.orchestrate.loop.sandbox import Sandbox
 from src.orchestrate.loop.orchestrator import run_v3
-from src.agent.v3_build_agent import V3BuildAgent
+from src.agent.actions.graph import V3BuildAgent
 from src.orchestrate.loop.deterministic_maintainer import DeterministicMaintainer
 from src.orchestrate.loop.world_model import initial_map
 from src.orchestrate.loop.ledger import ActionLedger

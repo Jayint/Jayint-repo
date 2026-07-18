@@ -1,7 +1,7 @@
 """Runner core for the graph-repair-ablation pilot (Task 5, part 1).
 
 Wires the injection oracle (`oracle.py`) + context treatments (`context.py`) +
-the real repair agent (`src.agent.v3_build_agent.V3BuildAgent`) into one
+the real repair agent (`src.agent.actions.graph.V3BuildAgent`) into one
 `run_one(inj, arm, ...)` call per (injection, arm) cell. The only thing that
 differs between arms is the context string appended to the agent's rendered
 repair scope (`arm_context`); everything else -- same agent, model,
@@ -21,8 +21,8 @@ import render_repair_scope` is a LOCAL import inside the method body (v3_build_a
 line 150), not a module-level one. A local import never adds an attribute to the
 importing module's namespace -- it looks the name up on the SOURCE module
 (`src.agent.prompt`) fresh on every call and binds it as a function-local
-variable. So `src.agent.v3_build_agent` has no `render_repair_scope` attribute at
-all, and `mock.patch("src.agent.v3_build_agent.render_repair_scope", ...)` (the
+variable. So `src.agent.actions.graph` has no `render_repair_scope` attribute at
+all, and `mock.patch("src.agent.actions.graph.render_repair_scope", ...)` (the
 plan's literal target) raises `AttributeError` -- confirmed by running the test.
 The correct patch target is the SOURCE module's attribute,
 `src.agent.prompt.render_repair_scope`: since `propose()` re-resolves the
@@ -46,7 +46,7 @@ from graph.emit.build_script import render_build_script  # noqa: E402
 from graph.model import NodeType  # noqa: E402
 from src.agent.prompt import RepairScope  # noqa: E402
 from src.agent.prompt import render_repair_scope as _render_repair_scope  # noqa: E402
-from src.agent.v3_build_agent import V3BuildAgent  # noqa: E402
+from src.agent.actions.graph import V3BuildAgent  # noqa: E402
 from src.eval.graph_repair_ablation.context import graph_context  # noqa: E402
 from src.eval.graph_repair_ablation.grade import grade_localization  # noqa: E402
 from src.eval.graph_repair_ablation.inject import apply_injection  # noqa: E402
@@ -168,7 +168,7 @@ def normalize_patch(proposal, inj: Injection) -> dict | None:
 def _augmented_render(scope, arm: str, graph) -> str:
     """What gets monkeypatched in (as `src.agent.prompt.render_repair_scope`
     -- see the module docstring's DEVIATION note for why that's the target and not
-    `src.agent.v3_build_agent.render_repair_scope`) for the duration of the
+    `src.agent.actions.graph.render_repair_scope`) for the duration of the
     `propose()` call. Renders the real scope, then appends the arm's context
     treatment -- never string-concatenated into `propose()`'s public API (it takes
     the `scope` object and renders it internally)."""
