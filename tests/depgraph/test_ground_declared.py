@@ -1,5 +1,10 @@
 # tests/depgraph/test_ground_declared.py
-from graph.python.lanes.install.ground import declared_coverage, declared_candidates
+from graph.python.lanes.install.ground import (
+    Candidate,
+    declared_candidates,
+    declared_coverage,
+)
+from graph.python.util.import_mapping import normalize_package_name
 
 
 def _fake_provider(table):
@@ -21,3 +26,16 @@ def test_declared_candidates_for_identity_import():
 
 def test_declared_candidates_empty_when_no_coverage():
     assert declared_candidates("fastapi", {}) == []
+
+
+def test_declared_coverage_emits_canonical_dist_name():
+    # A NON-canonical declared spelling must surface CANONICALIZED in coverage,
+    # honoring the docstring's "module -> canonical dist names" contract. Pre-fix
+    # the original spelling "Foo_Bar" leaked through here (this asserted "foo-bar"
+    # would fail); post-fix the bucket holds the normalized name.
+    assert normalize_package_name("Foo_Bar") == "foo-bar"  # canonical form, computed not guessed
+    prov = _fake_provider({"foo_bar": {"foo_bar"}})
+    cov = declared_coverage(frozenset({"Foo_Bar"}), prov)
+    assert cov["foo_bar"] == ["foo-bar"]
+    # ...and it flows through to declared_candidates as the canonical candidate.
+    assert declared_candidates("foo_bar", cov) == [Candidate("foo-bar", "declared")]

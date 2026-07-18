@@ -290,11 +290,11 @@ def declared_coverage(
         modules = provider(dist)
         if not modules:
             continue
-        for module in modules:
+        for module in sorted(modules, key=str.lower):
             bucket = coverage.setdefault(module.lower(), [])
             canon = normalize_package_name(dist)
             if canon not in {normalize_package_name(d) for d in bucket}:
-                bucket.append(dist)
+                bucket.append(canon)
     return coverage
 
 
