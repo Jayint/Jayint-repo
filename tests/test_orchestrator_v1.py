@@ -113,7 +113,7 @@ def test_collect_only_cmd_constant_present():
 
 
 def test_termination_reason_maps_to_legacy_strings():
-    from src.orchestrate.loop.run import TerminationReason, _to_stop_reason
+    from src.orchestrate.loop.outcome import TerminationReason, _to_stop_reason
     assert _to_stop_reason(TerminationReason.DONE) == "planner_done"
     assert _to_stop_reason(TerminationReason.DONE_FLAG) == "done_flag"
     assert _to_stop_reason(TerminationReason.GIVEUP_RESIDUAL) == "planner_giveup"
