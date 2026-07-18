@@ -12,7 +12,7 @@ import re
 from graph.core.certify import certify
 from graph.python.enrich.diagnose import RepoContext, make_diagnostic_classifier
 from graph.python.lanes.install.link import normalize_package_name
-from graph.req_slice import _provider_from_command
+from graph.view.req_slice import _provider_from_command
 from graph.python.enrich.runtime_ingest import ingest_runtime_failures
 from graph.model import DepGraph, NodeType
 

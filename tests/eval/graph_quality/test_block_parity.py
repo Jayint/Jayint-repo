@@ -15,7 +15,7 @@ for _p in (_REPO_ROOT, _SRC):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from graph.graph_context import (  # noqa: E402
+from graph.view.graph_context import (  # noqa: E402
     ACTIONABLE, BLOCKED, SATISFIED_OK, UNCERTIFIED, WAITING, verdict,
 )
 from graph.model import binary_id, package_id  # noqa: E402

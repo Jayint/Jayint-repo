@@ -13,7 +13,7 @@ from graph.model import DepGraph
 from graph.compile.schedule import (
     ObligationPacket, frame_obligation, scheduler_frontier,
 )
-from graph.req_slice import render_requirement_slice
+from graph.view.req_slice import render_requirement_slice
 from src.orchestrate.loop.constants import VERIFY_TEST_CMD
 from src.orchestrate.loop.world_model import PlannerDecision, Task
 

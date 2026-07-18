@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from graph.model import DepGraph, Node, NodeType, State, EdgeType
 from graph.compile.emit import topo_order
-from graph.req_slice import RequirementSlice, build_requirement_slice
+from graph.view.req_slice import RequirementSlice, build_requirement_slice
 
 
 def _dependencies_satisfied(graph: DepGraph, node: Node) -> bool:

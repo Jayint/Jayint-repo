@@ -10,7 +10,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from graph.compile.emit import _conflicted_ids, _is_emittable
-from graph.graph_context import (
+from graph.view.graph_context import (
     ACTIONABLE, BLOCKED, SATISFIED_OK, UNCERTIFIED, WAITING, blocks, in_conflict,
     render_graph_context, verdict,
 )
@@ -20,7 +20,7 @@ from graph.graph_context import (
 # `from ... import tests_hidden` would land a 2-argument callable directly in this module's
 # namespace and pytest would try to collect IT as a test item too -- the exact false-positive
 # this module's own regex is built to mirror. Import it under a name that does not match.
-from graph.graph_context import tests_hidden as _tests_hidden
+from graph.view.graph_context import tests_hidden as _tests_hidden
 from graph.model import package_id
 from graph.model import (
     Attempt, DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,

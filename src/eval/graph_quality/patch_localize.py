@@ -176,7 +176,7 @@ for _p in (_REPO_ROOT, _SRC):
 
 from graph.python.enrich.diagnose import RepoContext  # noqa: E402
 from graph.python.enrich.discovery_expand import expand_discovery  # noqa: E402
-from graph.graph_context import in_conflict, render_graph_context  # noqa: E402
+from graph.view.graph_context import in_conflict, render_graph_context  # noqa: E402
 from graph.python.enrich.graph_enrich import certify_only, enrich  # noqa: E402
 from graph.model import TEST_NODE_ID, package_id  # noqa: E402
 from graph.python.lanes.install.link import normalize_package_name  # noqa: E402
