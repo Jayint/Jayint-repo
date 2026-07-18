@@ -1104,6 +1104,32 @@ def test_declared_package_names_for_repair_excludes_direct_reference_names():
     assert "requests" in names
 
 
+def test_soft_declared_dist_names_excludes_url_pinned_direct_references():
+    # A *soft* requirements file can carry a PEP 508 named direct reference
+    # (`acme-sdk @ git+...`): `_parse_requirement_lines` keeps it in
+    # `soft_declared_dependencies` (both `.name` and `.url` parse), but the
+    # Phase-A declared repair rung must NEVER see its public-PyPI namesake --
+    # else an unsatisfied `import acme_sdk` gets "repaired" by installing the
+    # UNRELATED public `acme-sdk` from PyPI. Mirrors the hard/uv-sourced
+    # protection `_declared_package_names_for_repair` already gives. A plain
+    # `Requirement` has `.url is None`; a direct reference carries the URL --
+    # so `if not r.url` is what drops it.
+    from packaging.requirements import Requirement
+
+    from graph.python.pipeline import _soft_declared_dist_names
+    from graph.python.models import PythonDependencyEvidence
+
+    evidence = PythonDependencyEvidence(
+        repo_path="/repo",
+        soft_declared_dependencies=[
+            Requirement("fastapi==1.0"),
+            Requirement("acme-sdk @ git+https://example.com/acme-sdk.git"),
+        ],
+    )
+    names = _soft_declared_dist_names(evidence)
+    assert names == frozenset({"fastapi"})  # url-pinned acme-sdk EXCLUDED
+
+
 def test_excluded_direct_reference_node_cannot_be_emitted():
     # Mirrors test_excluded_uv_source_node_cannot_be_emitted.
     from graph.python.pipeline import _excluded_direct_reference_node

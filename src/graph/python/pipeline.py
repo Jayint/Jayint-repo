@@ -322,6 +322,23 @@ def _declared_package_names_for_repair(evidence) -> frozenset[str]:
     )
 
 
+def _soft_declared_dist_names(evidence) -> frozenset[str]:
+    """Canonical soft-declared dist names fed to the Phase-A declared repair rung.
+
+    EXCLUDES PEP 508 direct references (``name @ <url>``): a soft file pinning a
+    dist to a git/URL source declares a NON-PyPI provider, so the rung must never
+    propose that dist's public-PyPI namesake as a repair candidate -- the same
+    protection `_declared_package_names_for_repair` gives uv-sourced names.
+    ``Requirement.url`` is None for a plain requirement, the URL for a direct
+    reference.
+    """
+    return frozenset(
+        _canon(r.name)
+        for r in evidence.soft_declared_dependencies
+        if not r.url
+    )
+
+
 def _python_package_obligations(
     repo_path: str,
     container_executor: Executor,
@@ -508,10 +525,10 @@ def _python_package_obligations(
     # repair rung so an under-declared identity-named import (e.g. `import fastapi`
     # with `fastapi` only in a soft requirements.txt) is repaired from the
     # declaration, not left to pipreqs/LLM guessing. Empty for a repo with no soft
-    # requirements -> byte-identical to the pre-rung behavior.
-    soft_declared = frozenset(
-        _canon(r.name) for r in evidence_for_resolve.soft_declared_dependencies
-    )
+    # requirements -> byte-identical to the pre-rung behavior. URL-pinned direct
+    # references are excluded (see `_soft_declared_dist_names`) so a git-pinned
+    # soft dep is never repaired into its unrelated public-PyPI namesake.
+    soft_declared = _soft_declared_dist_names(evidence_for_resolve)
 
     # V3_UV_SOURCES default-OFF path (see this function's docstring): drop
     # every [tool.uv.sources]-carrying root up front and never thread its
