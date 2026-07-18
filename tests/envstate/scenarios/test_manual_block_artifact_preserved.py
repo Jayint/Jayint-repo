@@ -26,8 +26,8 @@ from src.orchestrate.loop.trace import RunTracer
 from src.orchestrate.loop.trace import verify_artifact_consistency, verify_canonical_trace
 from src.orchestrate.loop.world_model import initial_map, merge_map
 from src.orchestrate.loop.sandbox import InstallResult
-from graph.emit.build_script import render_build_script
-from graph.mutate.patch import PatchProposal, ScriptPatch
+from graph.compile.build_script import render_build_script
+from graph.patch.proposal import PatchProposal, ScriptPatch
 from graph.model import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
 
 _BLOCK_ID = "system.manual-libfoo"

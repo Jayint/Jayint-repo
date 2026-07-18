@@ -108,7 +108,7 @@ class _FailingBuildAgent:
 def test_emit_drain_stops_re_emitting_after_backoff():
     # Fix #3: a perpetually-failing emit must stop after MAX_EMIT_ATTEMPTS passes
     # instead of re-emitting up to max_drain (=4) — and the node ends on the frontier.
-    from graph.emit.emit import MAX_EMIT_ATTEMPTS, partition
+    from graph.compile.emit import MAX_EMIT_ATTEMPTS, partition
 
     g = DepGraph(nodes=(_pkg("doomed"),))
     ba = _FailingBuildAgent()

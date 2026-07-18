@@ -50,8 +50,8 @@ for _p in (_REPO_ROOT, _SRC):
 from src.eval.language_package_eval.oracle import _TIER_KEYS, parse_oracle  # noqa: E402
 from graph.python.skeleton import _project_name  # noqa: E402
 from graph.core.orchestrate import build_dep_graph  # noqa: E402
-from graph.emit.build_script import render_build_script  # noqa: E402
-from graph.emit.emit import _apt_name  # noqa: E402
+from graph.compile.build_script import render_build_script  # noqa: E402
+from graph.compile.emit import _apt_name  # noqa: E402
 from graph.contracts.executor import CommandResult, Executor  # noqa: E402
 from graph.executors import DockerExecutor, LocalSubprocessExecutor  # noqa: E402
 from graph.model import DepGraph, NodeType  # noqa: E402

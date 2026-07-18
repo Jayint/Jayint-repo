@@ -111,7 +111,7 @@ def attribute_failure(ladder: LadderResult, *, static_ok: bool,
     return "unknown"
 
 
-from graph.emit.build_script import render_build_script  # noqa: E402
+from graph.compile.build_script import render_build_script  # noqa: E402
 from src.eval.graph_fidelity.render_fidelity import check_render  # noqa: E402
 from src.eval.language_package_eval.coverage import (  # noqa: E402
     apt_names_in_graph, base_image_for_repo, build_graph_construction_only,

@@ -5,8 +5,8 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from graph.mutate.patch import NodeSpec, PatchProposal, ScriptPatch
-from graph.mutate.patch_gate import validate_proposal
+from graph.patch.proposal import NodeSpec, PatchProposal, ScriptPatch
+from graph.patch.gate import validate_proposal
 from graph.model import DepGraph
 
 

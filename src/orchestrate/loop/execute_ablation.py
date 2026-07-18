@@ -15,9 +15,9 @@ from __future__ import annotations
 
 from typing import Callable
 
-from graph.emit.emit import EMIT_ATTEMPT_TAG, build_recipe, partition, topo_order
+from graph.compile.emit import EMIT_ATTEMPT_TAG, build_recipe, partition, topo_order
 from graph.model import Attempt
-from graph.mutate.patch_gate import compose_script
+from graph.patch.gate import compose_script
 from src.orchestrate.loop.execute import certify_refresh, run_blocks
 from src.orchestrate.loop.ledger import ActionEvent, ActionLedger
 from src.orchestrate.loop.world_model import RecipePatch, RecipeStep
@@ -152,7 +152,7 @@ def repair_failed_nodes(
 
     Returns ``(new_graph, steps_consumed, repaired_count)``.
     """
-    from graph.emit.emit import failed_reciped_nodes
+    from graph.compile.emit import failed_reciped_nodes
     from src.orchestrate.loop.world_model import Task
 
     steps = 0

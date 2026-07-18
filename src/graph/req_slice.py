@@ -6,7 +6,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from graph.mutate.action_class import ACTION_CLASSES   # pure leaf (only imports re); no cycle
+from graph.patch.action_class import ACTION_CLASSES   # pure leaf (only imports re); no cycle
 
 
 @dataclass(frozen=True)

@@ -9,10 +9,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, replace
 
-from graph.mutate.action_class import matches_action_class
-from graph.mutate.block import Block, compile_blocks
+from graph.patch.action_class import matches_action_class
+from graph.patch.block import Block, compile_blocks
 from graph.core.certify import EXECUTION_LAYER_ORDER
-from graph.mutate.patch import (
+from graph.patch.proposal import (
     PatchProposal, NodeSpec, ProviderSpec, EdgeSpec, ScriptPatch,
 )
 from graph.model import (
@@ -74,7 +74,7 @@ def _requirement_errors(graph: DepGraph, r: NodeSpec,
     voids the whole batch on any error; callers that want graceful per-node degradation
     can pre-filter with this predicate so one malformed field costs a single node rather
     than the entire proposal."""
-    from graph.mutate.check_quality import check_can_detect_absence
+    from graph.patch.check_quality import check_can_detect_absence
     if not isinstance(r.id, str) or not isinstance(r.type, str):
         return [f"malformed requirement id/type: {r.id!r} / {r.type!r}"]
     nt = _node_type(r.type)
@@ -151,7 +151,7 @@ def validate_proposal(graph: DepGraph, proposal: PatchProposal, *,
     proposed_node_ids = {r.id for r in proposal.add_requirements}
     # Lazy import (not module-level) keeps graph envstate-free; used by the
     # script-patch-check anti-weakening guard below (_requirement_errors does its own lazy import).
-    from graph.mutate.check_quality import check_can_detect_absence
+    from graph.patch.check_quality import check_can_detect_absence
 
     # within-proposal duplicate ids (nodes / providers / script blocks)
     for label, ids in (("add_requirements", [r.id for r in proposal.add_requirements]),

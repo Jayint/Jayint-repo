@@ -1,5 +1,5 @@
 import pytest
-from graph.mutate.patch import parse_patch_proposal, PatchParseError
+from graph.patch.proposal import parse_patch_proposal, PatchParseError
 
 def test_missing_required_key_raises_structured():
     with pytest.raises(PatchParseError) as ei:

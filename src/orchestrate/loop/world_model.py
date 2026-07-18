@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     # Imported only for type-checking to avoid a runtime import cycle
     # (python_deps depends on nothing here; this stays a string annotation).
-    from graph.mutate.block import Block
+    from graph.patch.block import Block
     from graph.model import DepGraph
 
 

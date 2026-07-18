@@ -1,6 +1,6 @@
 import dataclasses
 
-from graph.emit.emit import MAX_EMIT_ATTEMPTS, partition
+from graph.compile.emit import MAX_EMIT_ATTEMPTS, partition
 from graph.model import (
     Attempt, DepGraph, Edge, EdgeType, Layer, Node, NodeType, State, DiscoveredBy,
 )

@@ -24,7 +24,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from graph.emit.emit import partition
+from graph.compile.emit import partition
 from graph.model import DepGraph
 from src.orchestrate.loop.constants import VERIFY_TEST_CMD
 

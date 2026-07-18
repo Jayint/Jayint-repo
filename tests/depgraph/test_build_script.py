@@ -3,9 +3,9 @@ import re
 from graph.model import (
     DepGraph, Node, Edge, NodeType, Layer, State, DiscoveredBy, EdgeType,
 )
-from graph.emit.build_script import render_build_script, _LAYER_ORDER
-from graph.mutate.block import Block, compile_replay_blocks
-from graph.emit.emit import _is_reciped, _apt_name, _pip_spec
+from graph.compile.build_script import render_build_script, _LAYER_ORDER
+from graph.patch.block import Block, compile_replay_blocks
+from graph.compile.emit import _is_reciped, _apt_name, _pip_spec
 
 
 def test_empty_graph_emits_preamble():
@@ -308,7 +308,7 @@ def test_block_with_empty_targets_renders_and_covers_nothing():
 
 def test_block_with_unknown_wave_raises():
     import pytest
-    from graph.mutate.block import Block
+    from graph.patch.block import Block
     blk = Block(block_id="blk:x", wave="post-install", commands=("echo hi",),
                 target_node_ids=(), provider_ids=(), check_commands=(), evidence_refs=())
     with pytest.raises(ValueError, match="illegal waves"):
@@ -773,7 +773,7 @@ def test_soft_requirements_deterministic_and_sorted_regardless_of_input_order():
 # code. See build_script._EXCLUDED_CONSTRAINT_VERSION for the chosen specifier.
 # ---------------------------------------------------------------------------
 
-from graph.emit.build_script import _EXCLUDED_CONSTRAINT_VERSION
+from graph.compile.build_script import _EXCLUDED_CONSTRAINT_VERSION
 
 
 def _excluded_pkg(id_, name, version=None):

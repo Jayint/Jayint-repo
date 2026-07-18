@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from graph.emit.emit import _is_reciped
+from graph.compile.emit import _is_reciped
 from graph.model import State
 from src.orchestrate.loop.execute import certify_refresh
 

@@ -346,7 +346,7 @@ def derive_check(hc_cmd: str | None, timing: dict, port: int | None) -> Check:
     must never mutate the container. A `curl`/`wget` healthcheck fails that gate and
     falls THROUGH to the TCP rung — it never disqualifies the service.
     """
-    from graph.mutate.patch_gate import is_read_only   # local: avoids a cycle
+    from graph.patch.gate import is_read_only   # local: avoids a cycle
 
     # A whitespace-only command (`test: "   "`) carries no content; strip before the
     # truthiness test so it falls THROUGH to the TCP rung rather than being admitted as a

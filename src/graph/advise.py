@@ -20,7 +20,7 @@ from collections.abc import Callable
 from graph.core.orchestrate import build_dep_graph
 from graph.contracts.executor import Executor
 from graph.executors import DockerExecutor, LocalSubprocessExecutor
-from graph.emit.emit import partition
+from graph.compile.emit import partition
 from graph.python.lanes.install.ground import DistGuesser
 from graph.model import DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State
 

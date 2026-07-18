@@ -6,7 +6,7 @@ from graph.python.native import build_deps
 from graph.python.native.build_deps import (
     PACKAGE_TO_BUILD_NEEDS, build_env_for, seed_build_deps,
 )
-from graph.emit.emit import _is_reciped
+from graph.compile.emit import _is_reciped
 from graph.ids import (
     apt_build_id, binary_id, header_id, package_id, pkgconfig_id,
 )

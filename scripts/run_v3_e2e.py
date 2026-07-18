@@ -73,7 +73,7 @@ from graph.util import extract_json_object
 from src.orchestrate.loop.trace import RunTracer
 from src.orchestrate.loop.trace import finalize_trace
 from graph.advise import build_advisory_for_repo
-from graph.emit.build_script import (
+from graph.compile.build_script import (
     render_build_script,
     render_service_start_script,
 )

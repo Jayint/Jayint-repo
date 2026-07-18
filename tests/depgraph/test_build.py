@@ -931,7 +931,7 @@ def test_build_dep_graph_excludes_uv_sourced_root_by_default(tmp_path):
     # (`_is_reciped`, version=None + uninstallable=True) independently keeps
     # it out, but assert the observable artifact directly rather than trust
     # that gate by inference.
-    from graph.emit.build_script import render_build_script
+    from graph.compile.build_script import render_build_script
 
     script = render_build_script(graph, ())
     assert "hogli" not in script
@@ -1008,7 +1008,7 @@ def test_excluded_uv_source_node_cannot_be_emitted():
     (`if not node.version: return False`) before that blind spot is ever
     reached."""
     from graph.python.pipeline import _excluded_uv_source_node
-    from graph.emit.emit import next_deterministic_wave
+    from graph.compile.emit import next_deterministic_wave
     from graph.model import DepGraph
 
     node = _excluded_uv_source_node("hogli", ({"workspace": True},))
@@ -1107,7 +1107,7 @@ def test_declared_package_names_for_repair_excludes_direct_reference_names():
 def test_excluded_direct_reference_node_cannot_be_emitted():
     # Mirrors test_excluded_uv_source_node_cannot_be_emitted.
     from graph.python.pipeline import _excluded_direct_reference_node
-    from graph.emit.emit import next_deterministic_wave
+    from graph.compile.emit import next_deterministic_wave
     from graph.model import DepGraph
 
     node = _excluded_direct_reference_node(
@@ -1203,7 +1203,7 @@ def test_build_dep_graph_excludes_direct_reference_root_by_default(tmp_path):
     assert kivymd.data.get("uninstallable") is True
     assert kivymd.evidence and "git+https://github.com/kivymd/KivyMD@5ff9d0d" in kivymd.evidence
 
-    from graph.emit.build_script import render_build_script
+    from graph.compile.build_script import render_build_script
 
     script = render_build_script(graph, ())
     assert "kivymd" not in script

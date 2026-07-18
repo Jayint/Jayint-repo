@@ -42,7 +42,7 @@ for _p in (_REPO_ROOT, _SRC):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from graph.emit.build_script import render_build_script  # noqa: E402
+from graph.compile.build_script import render_build_script  # noqa: E402
 from graph.model import NodeType  # noqa: E402
 from src.agent.prompt import RepairScope  # noqa: E402
 from src.agent.prompt import render_repair_scope as _render_repair_scope  # noqa: E402

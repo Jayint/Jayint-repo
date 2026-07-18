@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from graph.emit.emit import partition, topo_order
-from graph.emit.emit import _apt_name, _pip_spec, _is_reciped
+from graph.compile.emit import partition, topo_order
+from graph.compile.emit import _apt_name, _pip_spec, _is_reciped
 from graph.model import DepGraph, Node, NodeType
 
 

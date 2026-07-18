@@ -1442,7 +1442,7 @@ def test_parse_uv_lock_virtual_root_is_skipped_but_editable_and_directory_become
     nodes carrying evidence of their real source, never installed by bare
     ``name==version`` (see ``emit._is_reciped`` / the ``data['uninstallable']``
     gate this reuses)."""
-    from graph.emit.emit import _is_reciped
+    from graph.compile.emit import _is_reciped
 
     nodes, _edges = parse_uv_lock(LOCAL_SOURCES_LOCK)
     by_name = _node_by_name(nodes)
@@ -1980,7 +1980,7 @@ def test_resolve_closure_budget_exhausted_node_is_never_emittable_or_certifiable
     carries no version and no check_command (the two independent belts that
     keep it out of ``emit.next_deterministic_wave()`` and out of reach of
     ``certify()``'s "any rc-0 check flips MISSING -> SATISFIED" rule)."""
-    from graph.emit import emit
+    from graph.compile import emit
     from graph.model import DepGraph
     from graph.python.lanes.install.resolve import _budget_exhausted_node
 

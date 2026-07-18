@@ -31,7 +31,7 @@ from src.orchestrate.loop.trace import verify_canonical_trace
 from src.orchestrate.loop.world_model import initial_map, merge_map
 from src.orchestrate.loop.sandbox import InstallResult
 from graph.diagnose import Mode, RepoContext, diagnose
-from graph.mutate.patch import PatchProposal, ProviderSpec
+from graph.patch.proposal import PatchProposal, ProviderSpec
 from graph.model import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
 
 

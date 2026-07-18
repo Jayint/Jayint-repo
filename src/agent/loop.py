@@ -6,8 +6,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from graph.emit.build_script import render_build_script
-from graph.mutate.patch_gate import admit_proposal, compose_script, is_read_only
+from graph.compile.build_script import render_build_script
+from graph.patch.gate import admit_proposal, compose_script, is_read_only
 from src.constants import VERIFY_TEST_CMD          # the canonical `python -m pytest -q` (neutral leaf)
 from src.agent.actions import apply_edit
 from src.agent.gate import added_self_install_reason, narrowing_reason

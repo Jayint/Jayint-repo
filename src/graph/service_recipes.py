@@ -12,7 +12,7 @@ from __future__ import annotations
 # longer imports this module, so ``is_read_only`` can be a plain top-level import
 # (the former cycle band-aid, a lazy import inside normalize_probe, is dissolved).
 # ``render_probe_poll`` is re-exported here for existing service-side callers/tests.
-from graph.mutate.patch_gate import is_read_only, render_probe_poll  # noqa: F401
+from graph.patch.gate import is_read_only, render_probe_poll  # noqa: F401
 
 
 def normalize_probe(probe: str | None, port: int | None, kind: str | None = None) -> str:

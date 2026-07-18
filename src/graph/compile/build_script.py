@@ -13,7 +13,7 @@ import re
 import shlex
 from collections import Counter
 from graph.core.certify import EXECUTION_LAYER_ORDER
-from graph.emit.emit import (
+from graph.compile.emit import (
     _apt_name,
     _is_installable_project,
     _is_reciped,
@@ -22,7 +22,7 @@ from graph.emit.emit import (
     topo_order,
 )
 from graph.model import DepGraph, Layer, Node, NodeType
-from graph.mutate.block import Block  # runtime (script's render/parse folded in here, 3c-1)
+from graph.patch.block import Block  # runtime (script's render/parse folded in here, 3c-1)
 
 _BANNER = (
     "#!/usr/bin/env bash",

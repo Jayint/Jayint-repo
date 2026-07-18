@@ -160,7 +160,7 @@ def test_test_rc_backfilled_makes_canonical_success_reachable():
     back-fill the LAST replay's ``test_rc`` to 0, and ``canonical_success``
     must be reachable end-to-end.
     """
-    from graph.emit.build_script import render_build_script
+    from graph.compile.build_script import render_build_script
     from src.orchestrate.loop.trace import canonical_success
     from src.orchestrate.loop.trace import RunTracer
 
