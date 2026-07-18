@@ -509,7 +509,7 @@ def observe_cases() -> dict:
 def gate_cases() -> dict:
     """The gate verdict across the >=80% boundary + the anti-hollow guards, and the anti-gaming
     detectors (test-collection narrowing + self-install-from-index), incl. must-NOT-trip cases."""
-    from src.agent.anti_cheat import (
+    from src.agent.gate import (
         added_self_install_reason, detect_test_narrowing, narrowing_reason, self_install_reason)
     from src.agent.gate import test_verdict
 
