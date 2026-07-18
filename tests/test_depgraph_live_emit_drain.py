@@ -9,9 +9,9 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from src.envstate.depgraph_live import emit_drain  # noqa: E402
-from src.envstate.ledger import ActionLedger  # noqa: E402
-from src.envstate.world_model import TaskReport, CommandRecord  # noqa: E402
+from src.orchestrate.loop.depgraph_live import emit_drain  # noqa: E402
+from src.orchestrate.loop.ledger import ActionLedger  # noqa: E402
+from src.orchestrate.loop.world_model import TaskReport, CommandRecord  # noqa: E402
 from graph.model import (  # noqa: E402
     DepGraph, Edge, EdgeType, Layer, Node, NodeType, State, DiscoveredBy,
 )

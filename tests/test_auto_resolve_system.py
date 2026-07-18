@@ -1,5 +1,5 @@
 # tests/test_auto_resolve_system.py
-from src.envstate.world_model import _auto_resolve_system_problems, Fact, OpenProblem
+from src.orchestrate.loop.world_model import _auto_resolve_system_problems, Fact, OpenProblem
 
 
 def _sys(sig):

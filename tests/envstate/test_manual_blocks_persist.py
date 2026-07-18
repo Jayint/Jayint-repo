@@ -13,7 +13,7 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.envstate.world_model import WorldModelMap, initial_map, merge_map
+from src.orchestrate.loop.world_model import WorldModelMap, initial_map, merge_map
 from graph.mutate.block import Block
 from graph.emit.build_script import render_build_script
 

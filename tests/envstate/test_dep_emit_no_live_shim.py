@@ -13,7 +13,7 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.envstate import orchestrator
+from src.orchestrate.loop import orchestrator
 
 
 def test_ensure_python_shim_absent_from_run_v3():

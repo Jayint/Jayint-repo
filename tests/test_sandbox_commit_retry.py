@@ -10,8 +10,8 @@ for p in (str(_ROOT), str(_ROOT / "src")):
 
 from types import SimpleNamespace
 import docker
-import src.sandbox as sandbox_mod
-from src.sandbox import _commit_with_retry
+import src.orchestrate.loop.sandbox as sandbox_mod
+from src.orchestrate.loop.sandbox import _commit_with_retry
 
 _RACE_MSG = "500 Server Error: failed to export layer: CreateDiff: mount callback failed ... no such file"
 

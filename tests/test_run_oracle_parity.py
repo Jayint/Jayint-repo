@@ -9,7 +9,7 @@ for p in (str(_ROOT), str(_SRC)):
         sys.path.insert(0, p)
 
 import pytest
-from src.synthesizer import Synthesizer
+from src.orchestrate.loop.synthesizer import Synthesizer
 from src.run_oracle import RunOracle
 
 _S = Synthesizer()

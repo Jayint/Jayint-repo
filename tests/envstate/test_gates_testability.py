@@ -7,8 +7,8 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.envstate.gates import GateResult, evaluate_testability_gate
-from src.envstate.constants import VERIFY_TEST_CMD
+from src.orchestrate.loop.gates import GateResult, evaluate_testability_gate
+from src.orchestrate.loop.constants import VERIFY_TEST_CMD
 
 
 def test_testability_passed_when_callable_true():

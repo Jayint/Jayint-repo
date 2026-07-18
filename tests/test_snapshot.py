@@ -1,4 +1,4 @@
-from src.envstate.snapshot import probe_env, EnvSnapshot
+from src.orchestrate.loop.snapshot import probe_env, EnvSnapshot
 
 
 def _fake_exec(table):

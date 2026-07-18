@@ -3,7 +3,7 @@
 Verbatim copy of the gate-related module-level items from
 ``src/envstate/maintainer.py``.  The only intentional deviation is
 ``_get_detector``, which imports ``RunOracle`` from ``src.run_oracle``
-instead of ``Synthesizer`` from ``src.synthesizer``, so the v3-only branch
+instead of ``Synthesizer`` from ``src.orchestrate.loop.synthesizer``, so the v3-only branch
 can drop synthesizer.py without touching this file.
 
 Exports consumed by v3 consumers:
@@ -15,7 +15,7 @@ from __future__ import annotations
 import re
 import shlex
 
-from src.envstate.world_model import TaskReport
+from src.orchestrate.loop.world_model import TaskReport
 
 # ---------------------------------------------------------------------------
 # Execution-aware done-gate helpers

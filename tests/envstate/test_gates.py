@@ -26,11 +26,11 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.envstate.gates import evaluate_installability_gate
-from src.envstate.ledger import ActionLedger
-from src.envstate.orchestrator import VERIFY_TEST_CMD, run_v3
-from src.envstate.world_model import initial_map, merge_map
-from src.sandbox import InstallResult
+from src.orchestrate.loop.gates import evaluate_installability_gate
+from src.orchestrate.loop.ledger import ActionLedger
+from src.orchestrate.loop.orchestrator import VERIFY_TEST_CMD, run_v3
+from src.orchestrate.loop.world_model import initial_map, merge_map
+from src.orchestrate.loop.sandbox import InstallResult
 from graph.model import DepGraph, DiscoveredBy, Layer, Node, NodeType, State
 
 
@@ -161,8 +161,8 @@ def test_test_rc_backfilled_makes_canonical_success_reachable():
     must be reachable end-to-end.
     """
     from graph.emit.build_script import render_build_script
-    from src.envstate.proof import canonical_success
-    from src.envstate.run_trace import RunTracer
+    from src.orchestrate.loop.proof import canonical_success
+    from src.orchestrate.loop.run_trace import RunTracer
 
     tracer = RunTracer(repo="acme/widget")
     result = _run_v3_to_done_with_fake_sandbox(tracer=tracer)

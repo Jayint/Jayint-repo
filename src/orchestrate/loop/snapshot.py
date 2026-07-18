@@ -10,8 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable
 
-from src.envstate.extractor import run_extractor, LIGHTWEIGHT_FIELDS
-from src.envstate.world_model import Fact
+from src.orchestrate.loop.extractor import run_extractor, LIGHTWEIGHT_FIELDS
+from src.orchestrate.loop.world_model import Fact
 
 _SNAPSHOT_FIELDS = LIGHTWEIGHT_FIELDS + (
     "which_python", "venv", "dpkg_packages", "pkg_config_modules", "system_tools", "os_release",

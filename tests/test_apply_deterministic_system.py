@@ -1,6 +1,6 @@
 # tests/test_apply_deterministic_system.py
 from types import SimpleNamespace
-from src.envstate.world_model import initial_map, merge_map, apply_deterministic, Fact, OpenProblem
+from src.orchestrate.loop.world_model import initial_map, merge_map, apply_deterministic, Fact, OpenProblem
 
 
 def _snap(installed=(), env=None, system_installed=()):

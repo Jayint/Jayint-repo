@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from src.envstate.world_model import (
+from src.orchestrate.loop.world_model import (
     initial_map,
     map_from_dict,
     map_to_dict,

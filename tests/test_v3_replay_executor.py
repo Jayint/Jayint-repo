@@ -34,11 +34,11 @@ for p in (str(_ROOT), str(_SRC)):
         sys.path.insert(0, p)
 
 import src.envstate.block_emit as be
-import src.envstate.depgraph_live as dl
-from src.envstate.orchestrator import VERIFY_TEST_CMD, run_v3
-from src.envstate.ledger import ActionLedger
-from src.envstate.world_model import TaskReport, initial_map, merge_map
-from src.sandbox import InstallResult
+import src.orchestrate.loop.depgraph_live as dl
+from src.orchestrate.loop.orchestrator import VERIFY_TEST_CMD, run_v3
+from src.orchestrate.loop.ledger import ActionLedger
+from src.orchestrate.loop.world_model import TaskReport, initial_map, merge_map
+from src.orchestrate.loop.sandbox import InstallResult
 from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )

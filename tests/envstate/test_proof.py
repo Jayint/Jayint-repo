@@ -21,14 +21,14 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.envstate.proof import (
+from src.orchestrate.loop.proof import (
     aggregate,
     canonical_success,
     finalize_trace,
     repo_row,
     trace_from_dict,
 )
-from src.envstate.run_trace import (
+from src.orchestrate.loop.run_trace import (
     DiscoverRecord,
     FreshReplayRecord,
     PatchGateRecord,
@@ -39,7 +39,7 @@ from src.envstate.run_trace import (
 
 @dataclass(frozen=True)
 class _FakeGate:
-    """Duck-typed stand-in for ``src.envstate.gates.GateResult`` — proof.py
+    """Duck-typed stand-in for ``src.orchestrate.loop.gates.GateResult`` — proof.py
     never imports the real type, only reads ``.name``/``.passed``/
     ``.provisional``/``.evidence`` off whatever the driver's gate_observer saw.
     """

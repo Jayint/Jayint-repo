@@ -18,12 +18,12 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-import src.envstate.orchestrator as orch
-from src.envstate import orchestrator
-from src.envstate.ledger import ActionLedger
+import src.orchestrate.loop.orchestrator as orch
+from src.orchestrate.loop import orchestrator
+from src.orchestrate.loop.ledger import ActionLedger
 from src.agent.repair_loop import RepairOutcome
-from src.envstate.world_model import TaskReport, initial_map, merge_map
-from src.sandbox import InstallResult
+from src.orchestrate.loop.world_model import TaskReport, initial_map, merge_map
+from src.orchestrate.loop.sandbox import InstallResult
 from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )

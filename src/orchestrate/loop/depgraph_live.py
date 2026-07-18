@@ -14,7 +14,7 @@ from graph.core.certify import certify_all
 from graph.emit.emit import EMIT_ATTEMPT_TAG, build_recipe, partition, topo_order
 from graph.contracts.executor import CommandResult
 from graph.model import Attempt
-from src.envstate.world_model import RecipePatch, RecipeStep
+from src.orchestrate.loop.world_model import RecipePatch, RecipeStep
 
 if TYPE_CHECKING:
     from graph.model import DepGraph
@@ -215,7 +215,7 @@ def repair_failed_nodes(
     Returns ``(new_graph, steps_consumed, repaired_count)``.
     """
     from graph.emit.emit import failed_reciped_nodes
-    from src.envstate.world_model import Task
+    from src.orchestrate.loop.world_model import Task
 
     steps = 0
     repaired = 0

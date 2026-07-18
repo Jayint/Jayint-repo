@@ -7,12 +7,12 @@ every time (never leaves a stale MISSING node uncertified).
 
 Harness mirrors tests/test_v3_replay_executor.py's package-install scenario.
 Counts physical ``certify_refresh`` calls by monkeypatching
-``src.envstate.depgraph_live.certify_refresh`` with a counting spy — it is
+``src.orchestrate.loop.depgraph_live.certify_refresh`` with a counting spy — it is
 imported *inside* ``_dep_emit_phase`` on every call, so patching the module
 attribute is intercepted by each fresh ``from ... import certify_refresh``.
 
-Note: ``src.envstate.install_localizer`` also does
-``from src.envstate.depgraph_live import certify_refresh`` — but at MODULE
+Note: ``src.orchestrate.loop.install_localizer`` also does
+``from src.orchestrate.loop.depgraph_live import certify_refresh`` — but at MODULE
 import time (once), inside ``certify_reciped_only`` (called every
 ``_binding_emit``, i.e. once per cycle regardless of Change 2). That is a
 SEPARATE, always-unconditional certify pass this design does not gate — it is
@@ -32,12 +32,12 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-import src.envstate.install_localizer  # noqa: F401 — force real import before patching (see module docstring)
-import src.envstate.depgraph_live as dl
-from src.envstate.orchestrator import VERIFY_TEST_CMD, run_v3
-from src.envstate.ledger import ActionLedger
-from src.envstate.world_model import TaskReport, initial_map, merge_map
-from src.sandbox import InstallResult
+import src.orchestrate.loop.install_localizer  # noqa: F401 — force real import before patching (see module docstring)
+import src.orchestrate.loop.depgraph_live as dl
+from src.orchestrate.loop.orchestrator import VERIFY_TEST_CMD, run_v3
+from src.orchestrate.loop.ledger import ActionLedger
+from src.orchestrate.loop.world_model import TaskReport, initial_map, merge_map
+from src.orchestrate.loop.sandbox import InstallResult
 from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )

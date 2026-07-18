@@ -1,5 +1,5 @@
 # tests/test_world_model_env.py
-from src.envstate.world_model import (
+from src.orchestrate.loop.world_model import (
     initial_map, merge_map, map_to_dict, map_from_dict, Fact,
 )
 

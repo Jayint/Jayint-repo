@@ -6,7 +6,7 @@ shared with the retired legacy planner-driven loop; ``run_v3`` is now the sole c
 """
 from __future__ import annotations
 
-from src.envstate.world_model import WorldModelMap, apply_deterministic
+from src.orchestrate.loop.world_model import WorldModelMap, apply_deterministic
 
 
 def host_refresh_facts(

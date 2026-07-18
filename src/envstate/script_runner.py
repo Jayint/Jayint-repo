@@ -11,7 +11,7 @@ from typing import Callable
 
 from graph.mutate.block import Block
 from graph.evidence_log import Evidence, EvidenceBundle
-from src.envstate.depgraph_live import certify_refresh, ensure_python_shim
+from src.orchestrate.loop.depgraph_live import certify_refresh, ensure_python_shim
 from src.envstate.text_util import truncate_output
 
 

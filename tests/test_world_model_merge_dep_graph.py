@@ -1,4 +1,4 @@
-from src.envstate.world_model import merge_map, initial_map
+from src.orchestrate.loop.world_model import merge_map, initial_map
 from graph.model import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
 
 

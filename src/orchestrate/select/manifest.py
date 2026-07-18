@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from packaging.requirements import Requirement
 
-from src.envstate.world_model import Fact
+from src.orchestrate.loop.world_model import Fact
 
 # Well-known extra names whose deps are treated as required (test/dev tooling).
 _TEST_DEV_EXTRAS: frozenset[str] = frozenset(

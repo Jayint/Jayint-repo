@@ -8,7 +8,7 @@ for p in (str(_ROOT), str(_SRC)):
 
 from graph.model import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
 from src.envstate.block_emit import block_emit
-from src.envstate.ledger import ActionLedger
+from src.orchestrate.loop.ledger import ActionLedger
 
 
 def _graph():

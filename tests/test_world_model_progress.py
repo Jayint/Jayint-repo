@@ -1,5 +1,5 @@
 # tests/test_world_model_progress.py
-from src.envstate.world_model import (
+from src.orchestrate.loop.world_model import (
     initial_map, merge_map, _derive_progress, _build_required, Fact, OpenProblem,
     _PROGRESS_LAYERS,
 )

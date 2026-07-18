@@ -12,7 +12,7 @@ class _FakeSandbox:
     def __init__(self, rc, out, lineno=None): self._rc, self._out, self._lineno = rc, out, lineno
     def reset_to_base(self): pass
     def run_install_script(self, script):
-        from src.sandbox import InstallResult
+        from src.orchestrate.loop.sandbox import InstallResult
         return InstallResult(rc=self._rc, failing_command=None if self._rc == 0 else "pip install x",
                              lineno=self._lineno, stderr=self._out)
     def exec_readonly(self, cmd): return (0, self._out)
@@ -34,7 +34,7 @@ def test_verify_test_cmd_is_lenient_on_collection_errors():
     # Align the react gate with the ratbench OFFICIAL scorer: one un-importable module must NOT abort
     # the whole run. Strict `pytest -q` zeroed repos (e.g. PerfKit) that actually had 73 passing
     # tests — hiding real progress from the agent AND scoring a different target than the benchmark.
-    from src.envstate.constants import VERIFY_TEST_CMD
+    from src.orchestrate.loop.constants import VERIFY_TEST_CMD
     assert "--continue-on-collection-errors" in VERIFY_TEST_CMD
 
 def test_run_tests_runs_the_lenient_command():

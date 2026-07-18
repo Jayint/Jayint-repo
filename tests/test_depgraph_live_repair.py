@@ -6,8 +6,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from graph.model import (  # noqa: E402
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy,
 )
-from src.envstate.depgraph_live import repair_failed_nodes  # noqa: E402
-from src.envstate.world_model import TaskReport  # noqa: E402
+from src.orchestrate.loop.depgraph_live import repair_failed_nodes  # noqa: E402
+from src.orchestrate.loop.world_model import TaskReport  # noqa: E402
 
 
 class _Ledger:                       # self-contained; the fake agent ignores it

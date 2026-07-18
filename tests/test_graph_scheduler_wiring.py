@@ -23,15 +23,15 @@ _SRC = _ROOT / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from src.envstate.ledger import ActionLedger
-from src.envstate.orchestrator import run_v3
-from src.envstate.world_model import (
+from src.orchestrate.loop.ledger import ActionLedger
+from src.orchestrate.loop.orchestrator import run_v3
+from src.orchestrate.loop.world_model import (
     TaskReport,
     WorldModelMap,
     initial_map,
     merge_map,
 )
-from src.sandbox import InstallResult
+from src.orchestrate.loop.sandbox import InstallResult
 from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )

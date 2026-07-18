@@ -2,13 +2,13 @@ import unittest
 from types import SimpleNamespace
 from unittest import mock
 
-from src.sandbox import Sandbox
-from src.synthesizer import Synthesizer
+from src.orchestrate.loop.sandbox import Sandbox
+from src.orchestrate.loop.synthesizer import Synthesizer
 
 
 class ErrTrapLineno(unittest.TestCase):
     def test_wrap_with_err_trap_reports_injected_line_count(self):
-        from src.sandbox import _wrap_with_err_trap
+        from src.orchestrate.loop.sandbox import _wrap_with_err_trap
         wrapped, n_injected = _wrap_with_err_trap("#!/usr/bin/env bash\nfalse\n")
         self.assertEqual(n_injected, 1)                 # exactly one trap line prepended
         self.assertTrue(wrapped.startswith("trap "))
@@ -17,13 +17,13 @@ class ErrTrapLineno(unittest.TestCase):
     def test_localize_failure_corrects_err_trap_off_by_one(self):
         # The ERR trap prints $LINENO in the WRAPPED script's numbering; the prepended trap line
         # makes it +1 (verified empirically in ubuntu bash: script line N reports N+1).
-        from src.sandbox import _localize_failure
+        from src.orchestrate.loop.sandbox import _localize_failure
         cmd, lineno = _localize_failure("__INSTALL_FAIL__:pip install psycopg2==2.9.9:41", n_injected=1)
         self.assertEqual(cmd, "pip install psycopg2==2.9.9")
         self.assertEqual(lineno, 40)                    # 41 reported - 1 injected = script line 40
 
     def test_localize_failure_no_marker_returns_none(self):
-        from src.sandbox import _localize_failure
+        from src.orchestrate.loop.sandbox import _localize_failure
         self.assertEqual(_localize_failure("all good\n", n_injected=1), (None, None))
 
 
@@ -560,7 +560,7 @@ class SandboxAptBootstrapTests(unittest.TestCase):
 
         self.assertEqual(resolved, "https://mirror.example.com/ubuntu")
 
-    @mock.patch("src.sandbox.docker.from_env")
+    @mock.patch("src.orchestrate.loop.sandbox.docker.from_env")
     def test_init_uses_extended_docker_client_timeout(self, mock_from_env):
         fake_container = FakeContainer()
         fake_client = FakeDockerClient(containers=[fake_container])
@@ -575,7 +575,7 @@ class SandboxAptBootstrapTests(unittest.TestCase):
         self.assertIs(sandbox.client, fake_client)
         mock_from_env.assert_called_once_with(timeout=600)
 
-    @mock.patch("src.sandbox.docker.from_env")
+    @mock.patch("src.orchestrate.loop.sandbox.docker.from_env")
     def test_setup_initial_container_bootstraps_uv(self, mock_from_env):
         fake_container = FakeContainer()
         fake_client = FakeDockerClient(containers=[fake_container])
@@ -606,7 +606,7 @@ class SandboxAptBootstrapTests(unittest.TestCase):
             class _Client:
                 containers = _Containers()
 
-            import src.sandbox as sb
+            import src.orchestrate.loop.sandbox as sb
             s = sb.Sandbox.__new__(sb.Sandbox)
             s.client = _Client()
             s.current_image = "python:3.11-slim"
@@ -640,7 +640,7 @@ class SandboxAptBootstrapTests(unittest.TestCase):
             class _Client:
                 containers = _Containers()
 
-            import src.sandbox as sb
+            import src.orchestrate.loop.sandbox as sb
             s = sb.Sandbox.__new__(sb.Sandbox)
             s.client = _Client()
             s.current_image = "python:3.11-slim"
@@ -718,7 +718,7 @@ class SandboxCacheVolumeTests(unittest.TestCase):
     repeated installs across cycles/runs reuse a warm cache instead of
     re-downloading every time; default (False) must not add them."""
 
-    @mock.patch("src.sandbox.docker.from_env")
+    @mock.patch("src.orchestrate.loop.sandbox.docker.from_env")
     def test_enable_cache_volume_true_adds_pip_and_apt_cache_binds(self, mock_from_env):
         fake_container = FakeContainer()
         fake_client = FakeDockerClient(containers=[fake_container])
@@ -739,7 +739,7 @@ class SandboxCacheVolumeTests(unittest.TestCase):
             {"bind": "/var/cache/apt/archives", "mode": "rw"},
         )
 
-    @mock.patch("src.sandbox.docker.from_env")
+    @mock.patch("src.orchestrate.loop.sandbox.docker.from_env")
     def test_enable_cache_volume_default_false_omits_cache_binds(self, mock_from_env):
         fake_container = FakeContainer()
         fake_client = FakeDockerClient(containers=[fake_container])
@@ -755,14 +755,14 @@ class CacheVolumeIsolationTests(unittest.TestCase):
     cross-repo contamination). isolate_cache gives each run a unique, self-owned volume set."""
 
     def test_build_cache_volumes_shared_uses_fixed_names(self):
-        from src.sandbox import _build_cache_volumes
+        from src.orchestrate.loop.sandbox import _build_cache_volumes
         vols, names = _build_cache_volumes(None, isolate=False)
         self.assertIn("jayint_pip_cache", vols)
         self.assertEqual(vols["jayint_uv_cache"], {"bind": "/root/.cache/uv", "mode": "rw"})
         self.assertEqual(names, ["jayint_pip_cache", "jayint_uv_cache", "jayint_apt_cache"])
 
     def test_build_cache_volumes_isolated_is_unique_per_call(self):
-        from src.sandbox import _build_cache_volumes
+        from src.orchestrate.loop.sandbox import _build_cache_volumes
         _, n1 = _build_cache_volumes(None, isolate=True)
         _, n2 = _build_cache_volumes(None, isolate=True)
         self.assertNotEqual(n1, n2)                              # two concurrent runs → different volumes
@@ -771,12 +771,12 @@ class CacheVolumeIsolationTests(unittest.TestCase):
             self.assertNotIn(name, ("jayint_pip_cache", "jayint_uv_cache", "jayint_apt_cache"))
 
     def test_build_cache_volumes_preserves_base_volumes(self):
-        from src.sandbox import _build_cache_volumes
+        from src.orchestrate.loop.sandbox import _build_cache_volumes
         base = {"/host": {"bind": "/x", "mode": "ro"}}
         vols, _ = _build_cache_volumes(base, isolate=True)
         self.assertEqual(vols["/host"], {"bind": "/x", "mode": "ro"})
 
-    @mock.patch("src.sandbox.docker.from_env")
+    @mock.patch("src.orchestrate.loop.sandbox.docker.from_env")
     def test_isolate_cache_sandbox_owns_unique_volumes(self, mock_from_env):
         mock_from_env.return_value = FakeDockerClient(containers=[FakeContainer()])
         sb = Sandbox(base_image="ubuntu:22.04", seed_dir=None,
@@ -784,7 +784,7 @@ class CacheVolumeIsolationTests(unittest.TestCase):
         self.assertNotIn("jayint_pip_cache", sb.volumes)         # no bare shared name
         self.assertEqual(len(sb._owned_cache_volumes), 3)        # owns them → removed on close
 
-    @mock.patch("src.sandbox.docker.from_env")
+    @mock.patch("src.orchestrate.loop.sandbox.docker.from_env")
     def test_shared_cache_sandbox_owns_nothing(self, mock_from_env):
         mock_from_env.return_value = FakeDockerClient(containers=[FakeContainer()])
         sb = Sandbox(base_image="ubuntu:22.04", seed_dir=None, enable_cache_volume=True)

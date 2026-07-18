@@ -15,7 +15,7 @@ This is the whole story in one driver:
                  replays the whole rendered setup.sh (Model B — run_v3's sole
                  executor, unconditional); the LATEST cycle's replay result is
                  the binding installability proof (no separate terminal-replay
-                 step — see ``src.envstate.gates.evaluate_installability_gate``).
+                 step — see ``src.orchestrate.loop.gates.evaluate_installability_gate``).
   6. TEST GATE   the done-gate runs real pytest; observability reports both gates.
   7. ARTIFACT    the final certified graph is rendered to setup.sh.
 
@@ -47,7 +47,7 @@ import os
 import platform as _platform
 import sys
 
-# repo root + src/ both on path (mirrors the test bootstrap): `src.sandbox`
+# repo root + src/ both on path (mirrors the test bootstrap): `src.orchestrate.loop.sandbox`
 # resolves from root, `python_deps.*` resolves from src/.
 _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 for _p in (_root, os.path.join(_root, "src")):
@@ -57,21 +57,21 @@ for _p in (_root, os.path.join(_root, "src")):
 # ── module-level imports so tests can monkeypatch these names on the module ──
 from openai import OpenAI
 from httpx import Timeout
-from src.sandbox import Sandbox
-from src.envstate.orchestrator import run_v3
+from src.orchestrate.loop.sandbox import Sandbox
+from src.orchestrate.loop.orchestrator import run_v3
 from src.agent.v3_build_agent import V3BuildAgent
-from src.envstate.deterministic_maintainer import DeterministicMaintainer
-from src.envstate.world_model import initial_map
-from src.envstate.ledger import ActionLedger
-from src.envstate.snapshot import probe_env
+from src.orchestrate.loop.deterministic_maintainer import DeterministicMaintainer
+from src.orchestrate.loop.world_model import initial_map
+from src.orchestrate.loop.ledger import ActionLedger
+from src.orchestrate.loop.snapshot import probe_env
 from src.orchestrate.select.manifest import parse_manifests
 from graph.python.classify_services_clean import make_construction_classifier
 from src.orchestrate.select.base_image_selection import choose_base_image
 from graph.llm_dist_guess import make_dist_guesser
 from src.llm import complete_with_retry
 from graph.util import extract_json_object
-from src.envstate.run_trace import RunTracer
-from src.envstate.proof import finalize_trace
+from src.orchestrate.loop.run_trace import RunTracer
+from src.orchestrate.loop.proof import finalize_trace
 from graph.advise import build_advisory_for_repo
 from graph.emit.build_script import (
     render_build_script,

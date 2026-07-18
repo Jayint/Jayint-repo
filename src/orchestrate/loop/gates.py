@@ -19,10 +19,10 @@ from typing import TYPE_CHECKING
 
 from graph.emit.emit import partition
 from graph.model import DepGraph
-from src.envstate.constants import VERIFY_TEST_CMD
+from src.orchestrate.loop.constants import VERIFY_TEST_CMD
 
 if TYPE_CHECKING:
-    from src.sandbox import InstallResult
+    from src.orchestrate.loop.sandbox import InstallResult
 
 _EVIDENCE_CAP = 500
 

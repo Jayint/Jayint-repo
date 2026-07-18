@@ -1,5 +1,5 @@
 # tests/test_world_model_planner_types.py
-from src.envstate.world_model import PlannerDecision, Task, TransitionProposal
+from src.orchestrate.loop.world_model import PlannerDecision, Task, TransitionProposal
 
 
 def test_task_has_grounding_defaults():

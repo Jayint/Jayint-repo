@@ -7,7 +7,7 @@ for p in (str(_ROOT), str(_SRC)):
         sys.path.insert(0, p)
 
 import inspect
-import src.envstate.orchestrator as orch
+import src.orchestrate.loop.orchestrator as orch
 
 
 def test_run_v3_has_no_apply_recipe_patch_branch():

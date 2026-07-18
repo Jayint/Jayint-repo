@@ -17,7 +17,7 @@ _SRC_DIR = _ROOT / "src"
 if str(_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(_SRC_DIR))
 
-_SRC = _ROOT / "src" / "envstate" / "orchestrator.py"
+_SRC = _ROOT / "src" / "orchestrate" / "loop" / "orchestrator.py"
 
 
 def test_residual_giveup_is_gated_and_never_sets_done_flag():
@@ -56,14 +56,14 @@ def test_llm_classifier_injected_only_under_graph_scheduler():
 
 # ── Behavioral tests (dynamic semantics) ─────────────────────────────────────
 
-from src.envstate.ledger import ActionLedger, make_action_event
-from src.envstate.orchestrator import run_v3
-from src.envstate.world_model import (
+from src.orchestrate.loop.ledger import ActionLedger, make_action_event
+from src.orchestrate.loop.orchestrator import run_v3
+from src.orchestrate.loop.world_model import (
     TaskReport,
     initial_map,
     merge_map,
 )
-from src.sandbox import InstallResult
+from src.orchestrate.loop.sandbox import InstallResult
 from graph.ids import TEST_NODE_ID
 from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
@@ -109,7 +109,7 @@ class _NoopMaintainer:
         return world_map
 
 
-from src.envstate.constants import VERIFY_TEST_CMD as _VERIFY_CMD  # match the REAL gate command,
+from src.orchestrate.loop.constants import VERIFY_TEST_CMD as _VERIFY_CMD  # match the REAL gate command,
 _PASSING_OUTPUT = "1 passed in 0.01s\n"                            # not a hardcoded copy of it
 
 
@@ -210,9 +210,9 @@ def test_out_of_scope_from_success_event_does_not_give_up_on_cycle1(monkeypatch)
     # Monkeypatch the LLM classifier import site in the orchestrator to inject a
     # fake that immediately calls note_out_of_scope (reproduces llm_classifier.py:75-78
     # on a non-env verdict). The orchestrator imports make_llm_classifier lazily
-    # inside _runtime_ingest_phase via `from src.envstate.llm_classifier import ...`,
+    # inside _runtime_ingest_phase via `from src.orchestrate.loop.llm_classifier import ...`,
     # so patching the module attribute is the correct interception point.
-    import src.envstate.llm_classifier as _llm_mod
+    import src.orchestrate.loop.llm_classifier as _llm_mod
 
     def _fake_make(complete_fn, *, note_out_of_scope=None):
         def _classify(cmd, out):
@@ -319,7 +319,7 @@ def test_out_of_scope_without_divergence_does_not_finalize_giveup(monkeypatch):
     RED (pre-fix): stop == "planner_giveup"  (buggy: _out_of_scope alone suffices)
     GREEN (post-fix): stop == "planner_done"  (gate is False; tests pass)
     """
-    import src.envstate.llm_classifier as _llm_mod
+    import src.orchestrate.loop.llm_classifier as _llm_mod
 
     def _fake_make(complete_fn, *, note_out_of_scope=None):
         def _classify(cmd, out):

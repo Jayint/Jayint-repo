@@ -15,7 +15,7 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from src.envstate.world_model import initial_map, merge_map  # noqa: E402
+from src.orchestrate.loop.world_model import initial_map, merge_map  # noqa: E402
 from graph.model import (  # noqa: E402
     DepGraph,
     DiscoveredBy,

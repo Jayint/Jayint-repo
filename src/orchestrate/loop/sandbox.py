@@ -7,7 +7,7 @@ import time
 import uuid
 import docker
 from dataclasses import dataclass
-from src.synthesizer import Synthesizer
+from src.orchestrate.loop.synthesizer import Synthesizer
 
 PIP_TRANSIENT_RETRY_ATTEMPTS = 3
 

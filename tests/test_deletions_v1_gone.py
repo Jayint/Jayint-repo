@@ -26,7 +26,7 @@ _LEGACY_TOKEN = re.compile(r"\brun_v1\b|ContractGraph|contract_graph|derive_open
 
 
 def test_run_v1_symbol_absent_from_orchestrator():
-    from src.envstate import orchestrator
+    from src.orchestrate.loop import orchestrator
     assert not hasattr(orchestrator, "run_v1"), "run_v1 must be deleted from the orchestrator"
     assert hasattr(orchestrator, "run_v3"), "run_v3 (the sole loop) must remain"
 
@@ -34,9 +34,9 @@ def test_run_v1_symbol_absent_from_orchestrator():
 def test_contract_graph_layer_and_field_are_excised():
     """The v1 ContractGraph layer is gone: the package dir, the world-model field, the
     maintainer's blocker path, and the derived view."""
-    from src.envstate import world_model
-    from src.envstate.deterministic_maintainer import DeterministicMaintainer
-    import src.envstate.deterministic_maintainer as dm
+    from src.orchestrate.loop import world_model
+    from src.orchestrate.loop.deterministic_maintainer import DeterministicMaintainer
+    import src.orchestrate.loop.deterministic_maintainer as dm
 
     assert not (_SRC / "envstate" / "contracts").exists(), "envstate/contracts/ layer must be deleted"
     m = world_model.initial_map(base_image="b", workdir="/r", language="py",

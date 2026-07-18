@@ -1,5 +1,5 @@
 # tests/test_world_model_autoresolve.py
-from src.envstate.world_model import _auto_resolve_problems, Fact, OpenProblem
+from src.orchestrate.loop.world_model import _auto_resolve_problems, Fact, OpenProblem
 
 
 def test_drops_problem_when_package_installed():

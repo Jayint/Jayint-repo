@@ -19,20 +19,20 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from src.envstate.run_trace import (
+from src.orchestrate.loop.run_trace import (
     DiscoverRecord,
     FreshReplayRecord,
     PatchGateRecord,
     RunTrace,
 )
-from src.envstate.trace_verify import (
+from src.orchestrate.loop.trace_verify import (
     verify_artifact_consistency,
     verify_canonical_trace,
     verify_local_import_guard,
 )
 
 if TYPE_CHECKING:
-    from src.envstate.run_trace import RunTracer
+    from src.orchestrate.loop.run_trace import RunTracer
 
 # stop_reason values that _to_stop_reason (orchestrator.py) maps success
 # terminations to — kept as a local tuple (not imported) so this module has

@@ -44,5 +44,5 @@ class TypesGoneTests(unittest.TestCase):
             refs, [],
             f"Surviving imports of src.envstate.types found: {refs}. "
             "Update these to use v1 types (Fact, WorldModelMap, etc.) from "
-            "src.envstate.world_model before deleting types.py.",
+            "src.orchestrate.loop.world_model before deleting types.py.",
         )

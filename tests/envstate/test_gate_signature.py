@@ -19,7 +19,7 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.envstate.gate_signature import next_stall, outcome_signature
+from src.orchestrate.loop.gate_signature import next_stall, outcome_signature
 
 # ---------------------------------------------------------------------------
 # outcome_signature

@@ -2,7 +2,7 @@
 # (Filename kept for Phase 0's no-rename constraint; this now guards run_v3's turn
 # budget. The legacy planner-driven loop it was named for was retired in Phase 0.)
 from pathlib import Path
-_SRC = Path(__file__).resolve().parents[1] / "src" / "envstate" / "orchestrator.py"
+_SRC = Path(__file__).resolve().parents[1] / "src" / "orchestrate" / "loop" / "orchestrator.py"
 
 
 def test_turn_budget_present_and_not_in_deterministic_drain():

@@ -9,7 +9,7 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from src.envstate.depgraph_live import certify_refresh, ensure_python_shim  # noqa: E402
+from src.orchestrate.loop.depgraph_live import certify_refresh, ensure_python_shim  # noqa: E402
 from graph.model import DepGraph, Node, NodeType, Layer, State, DiscoveredBy  # noqa: E402
 
 
@@ -66,8 +66,8 @@ def test_ensure_python_shim_command_passes_sandbox_preflight():
     # reset, never certifying. The emitted command must be admitted by the real
     # preflight. Built via `Sandbox.__new__` (no Docker) — preflight only needs
     # the command classifier.
-    from src.sandbox import Sandbox
-    from src.synthesizer import Synthesizer
+    from src.orchestrate.loop.sandbox import Sandbox
+    from src.orchestrate.loop.synthesizer import Synthesizer
 
     calls = []
     ensure_python_shim(lambda cmd: calls.append(cmd) or (True, ""))

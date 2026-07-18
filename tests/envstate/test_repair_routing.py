@@ -14,7 +14,7 @@ unsatisfied after a (mocked) install, which is the simplest way to hand
 the main-loop site in the same cycle, since the syslib node stays MISSING)
 never runs — isolating the main-loop site's diagnosis routing for these
 tests. Patching strategy mirrors test_v3_task_branch.py: ``next_decision`` is
-patched on the SOURCE module (``src.envstate.graph_scheduler``) because
+patched on the SOURCE module (``src.orchestrate.loop.graph_scheduler``) because
 ``run_v3`` resolves it via a local ``from ... import`` inside the function
 body.
 """
@@ -29,17 +29,17 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-import src.envstate.graph_scheduler as gs_module
+import src.orchestrate.loop.graph_scheduler as gs_module
 from graph.python.read import repo_modules as repo_modules_module
-from src.envstate import orchestrator
-from src.envstate.ledger import ActionLedger
-from src.envstate.world_model import (
+from src.orchestrate.loop import orchestrator
+from src.orchestrate.loop.ledger import ActionLedger
+from src.orchestrate.loop.world_model import (
     PlannerDecision,
     Task,
     initial_map,
     merge_map,
 )
-from src.sandbox import InstallResult
+from src.orchestrate.loop.sandbox import InstallResult
 from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )

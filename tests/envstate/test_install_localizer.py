@@ -9,7 +9,7 @@ for p in (str(_ROOT), str(_ROOT / "src")):
 from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
-from src.envstate.install_localizer import (
+from src.orchestrate.loop.install_localizer import (
     LocalizedFailure, localize_install_failure, certify_reciped_only,
     assemble_install_debug_bundle,
 )
@@ -53,7 +53,7 @@ def _syslib(state: State) -> Node:
 def test_certify_reciped_only_flags_unsatisfied_reciped(monkeypatch):
     g = DepGraph().with_node(_syslib(State.MISSING))
     # Inject a fake certify_refresh that leaves the node MISSING (install "succeeded" but check fails).
-    import src.envstate.install_localizer as mod
+    import src.orchestrate.loop.install_localizer as mod
     monkeypatch.setattr(mod, "certify_refresh", lambda graph, ro, cycle: graph)
     out_graph, unsat = certify_reciped_only(g, lambda cmd: (1, ""), cycle=1)
     assert "syslib:libgl1" in unsat
@@ -61,7 +61,7 @@ def test_certify_reciped_only_flags_unsatisfied_reciped(monkeypatch):
 
 def test_certify_reciped_only_clean_when_satisfied(monkeypatch):
     g = DepGraph().with_node(_syslib(State.SATISFIED))
-    import src.envstate.install_localizer as mod
+    import src.orchestrate.loop.install_localizer as mod
     monkeypatch.setattr(mod, "certify_refresh", lambda graph, ro, cycle: graph)
     out_graph, unsat = certify_reciped_only(g, lambda cmd: (0, "ok"), cycle=1)
     assert unsat == ()

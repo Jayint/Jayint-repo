@@ -16,7 +16,7 @@ import json
 import pytest
 
 # ── import targets (will fail until world_model.py exists) ─────────────────
-from src.envstate.world_model import (
+from src.orchestrate.loop.world_model import (
     CommandRecord,
     Fact,
     OpenProblem,

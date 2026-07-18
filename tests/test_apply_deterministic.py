@@ -1,6 +1,6 @@
 # tests/test_apply_deterministic.py
 from types import SimpleNamespace
-from src.envstate.world_model import (
+from src.orchestrate.loop.world_model import (
     initial_map, merge_map, apply_deterministic, Fact, OpenProblem,
 )
 

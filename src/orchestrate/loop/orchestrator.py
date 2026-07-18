@@ -14,14 +14,14 @@ import enum
 import os
 from typing import TYPE_CHECKING, Any, Callable, Tuple
 
-from src.envstate._loop_common import host_refresh_facts
-from src.envstate.constants import VERIFY_TEST_CMD  # re-exported for back-compat
-from src.envstate.constants import NO_PROGRESS_CYCLES, RESIDUAL_GIVEUP_CYCLES
-from src.envstate.gate_signature import outcome_signature, next_stall
-from src.envstate.ledger import ActionLedger, make_action_event
-from src.envstate.done_gate import _verified_test_run_passed as _gate_passed
+from src.orchestrate.loop._loop_common import host_refresh_facts
+from src.orchestrate.loop.constants import VERIFY_TEST_CMD  # re-exported for back-compat
+from src.orchestrate.loop.constants import NO_PROGRESS_CYCLES, RESIDUAL_GIVEUP_CYCLES
+from src.orchestrate.loop.gate_signature import outcome_signature, next_stall
+from src.orchestrate.loop.ledger import ActionLedger, make_action_event
+from src.orchestrate.loop.done_gate import _verified_test_run_passed as _gate_passed
 from src.agent.repair_loop import run_structured_repair
-from src.envstate.world_model import (
+from src.orchestrate.loop.world_model import (
     CommandRecord,
     PlannerDecision,
     TaskReport,
@@ -30,7 +30,7 @@ from src.envstate.world_model import (
 )
 
 if TYPE_CHECKING:
-    from src.sandbox import InstallResult
+    from src.orchestrate.loop.sandbox import InstallResult
 
 # Sentinel type aliases (readable names only, no runtime cost).
 Executor = Callable[[str], Tuple[bool, str]]
@@ -40,7 +40,7 @@ MAX_CYCLES: int = 12
 # Canonical collect-only command — kept for back-compat (some tests/modules import it).
 COLLECT_ONLY_CMD: str = "pytest --collect-only -q --disable-warnings"
 
-# VERIFY_TEST_CMD now lives in src.envstate.constants and is imported above; it is
+# VERIFY_TEST_CMD now lives in src.orchestrate.loop.constants and is imported above; it is
 # re-exported from this module so existing ``from ...orchestrator import VERIFY_TEST_CMD``
 # call sites keep working.
 
@@ -216,13 +216,13 @@ def run_v3(
     retried. ``repo_path`` (optional) seeds the router's ``RepoContext.local_names``
     so a repo-local import is never mistaken for a missing PyPI package.
     """
-    from src.envstate.graph_scheduler import (
+    from src.orchestrate.loop.graph_scheduler import (
         next_decision, unsatisfied_provisionable_services,
     )
     # Task 8: pure record-type imports (no behavior). Cheap/unconditional — only
     # the actual ``tracer.record_*``/``tracer.set_*`` CALLS below are guarded by
     # ``if tracer is not None:``, not this import.
-    from src.envstate.run_trace import DiscoverRecord, FreshReplayRecord, PatchGateRecord
+    from src.orchestrate.loop.run_trace import DiscoverRecord, FreshReplayRecord, PatchGateRecord
     # run_v3 has exactly one executor: fresh full-script replay from base. The
     # executor callables are therefore mandatory (there is no fallback branch
     # to silently drop into anymore).
@@ -239,7 +239,7 @@ def run_v3(
     # and the discover gate (`_run_discover_gate`) share ONE pytest run when
     # nothing mutated the container between them, while any mutation
     # invalidates the memo so a stale pass/fail can never be served.
-    from src.envstate.verify_cache import VerifyTestCache
+    from src.orchestrate.loop.verify_cache import VerifyTestCache
     _container_gen: int = 0
 
     def _bump_gen() -> None:
@@ -380,7 +380,7 @@ def run_v3(
         # Stage 1 two-gate observability: fires once on the way out (any exit path).
         # Reads existing signals, writes nothing. OFF -> no-op (byte-identical result).
         if enable_gate_observability:
-            from src.envstate.gates import evaluate_gates
+            from src.orchestrate.loop.gates import evaluate_gates
             # Phase 7: thread the latest per-cycle fresh-replay result so the
             # installability gate is BINDING on the canonical path (Model B
             # guarantees `_last_replay_result` is set by the time any `_finish`
@@ -409,7 +409,7 @@ def run_v3(
 
         IMPORTANT — this guard's success (a ``stop_reason`` of ``done`` /
         ``planner_done`` / ``done_flag``) is a WEAKER signal than
-        ``src.envstate.proof.canonical_success``. This guard only checks that
+        ``src.orchestrate.loop.proof.canonical_success``. This guard only checks that
         the latest fresh replay's install rc was 0; ``canonical_success`` is
         strictly stronger — it also requires the replay's ``test_rc == 0``,
         no unsatisfied reciped nodes (a reciped node's ``check_command`` can
@@ -453,7 +453,7 @@ def run_v3(
         nonlocal _last_replay_result
         from graph.emit.build_script import render_build_script
         from graph.emit.emit import _is_reciped
-        from src.envstate.install_localizer import localize_install_failure, certify_reciped_only
+        from src.orchestrate.loop.install_localizer import localize_install_failure, certify_reciped_only
         # Defense-in-depth: a repair proposal must not add a reciped node that can't be certified.
         _missing = [n.id for n in graph.nodes if _is_reciped(n) and not n.check_command]
         if _missing:
@@ -662,8 +662,8 @@ def run_v3(
         if exec_readonly is None:                      # R3(c): no certify path -> no emit
             return
         from graph.model import NodeType, State
-        from src.envstate.world_model import Fact
-        from src.envstate.depgraph_live import certify_refresh
+        from src.orchestrate.loop.world_model import Fact
+        from src.orchestrate.loop.depgraph_live import certify_refresh
         from graph.emit.emit import partition
         graph = certify_refresh(current_map.dep_graph, exec_readonly, cycle)
         # Snapshot: was the graph already fully certified BEFORE this cycle's
@@ -749,7 +749,7 @@ def run_v3(
             # LLM tier is appended when a client exists (spec §6 cascade).
             classifiers = (make_diagnostic_classifier(_repo_ctx()),)
             if getattr(build_agent, "client", None) is not None:
-                from src.envstate.llm_classifier import make_llm_classifier
+                from src.orchestrate.loop.llm_classifier import make_llm_classifier
                 from src.llm import complete_with_retry
                 from graph.util import extract_json_object
 
@@ -807,7 +807,7 @@ def run_v3(
             # as import_probe, collapsing onto syslib:<soname> so the dlopen-tail
             # need becomes renderable into setup.sh. ldd+import remain the PARTIAL
             # backstop (DT_NEEDED + eager module-init); the test run owns the rest.
-            from src.envstate.depgraph_live import test_gate_soname_refresh
+            from src.orchestrate.loop.depgraph_live import test_gate_soname_refresh
             new_graph = test_gate_soname_refresh(
                 new_graph, exec_readonly, obs, VERIFY_TEST_CMD
             )

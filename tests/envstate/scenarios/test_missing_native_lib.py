@@ -24,12 +24,12 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.envstate import orchestrator
-from src.envstate.ledger import ActionLedger
-from src.envstate.run_trace import RunTracer
-from src.envstate.trace_verify import verify_canonical_trace
-from src.envstate.world_model import initial_map, merge_map
-from src.sandbox import InstallResult
+from src.orchestrate.loop import orchestrator
+from src.orchestrate.loop.ledger import ActionLedger
+from src.orchestrate.loop.run_trace import RunTracer
+from src.orchestrate.loop.trace_verify import verify_canonical_trace
+from src.orchestrate.loop.world_model import initial_map, merge_map
+from src.orchestrate.loop.sandbox import InstallResult
 from graph.diagnose import Mode, RepoContext, diagnose
 from graph.mutate.patch import PatchProposal, ProviderSpec
 from graph.model import DepGraph, DiscoveredBy, Layer, Node, NodeType, State

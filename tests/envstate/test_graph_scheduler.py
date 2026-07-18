@@ -17,7 +17,7 @@ if str(_SRC) not in sys.path:
 
 def test_done_unchanged_for_non_service_graph():
     from graph.model import DepGraph
-    from src.envstate.graph_scheduler import next_decision
+    from src.orchestrate.loop.graph_scheduler import next_decision
     decision, _ = next_decision(DepGraph(), run_tests=lambda: True, allow_services=True)
     assert decision.action == "done"
 
@@ -28,7 +28,7 @@ def test_packet_to_task_no_service_facts_for_non_service():
         DepGraph, Node, NodeType, Layer, DiscoveredBy, State,
     )
     from graph.schedule import frame_obligation
-    from src.envstate.graph_scheduler import packet_to_task
+    from src.orchestrate.loop.graph_scheduler import packet_to_task
     node = Node(id="pkg:requests", type=NodeType.PACKAGE, name="requests",
                 layer=Layer.PIP, discovered_by=DiscoveredBy.STATIC_SCAN,
                 state=State.MISSING, check_command="python -c 'import requests'")
@@ -45,7 +45,7 @@ def test_packet_to_task_no_binding_facts_without_setup():
         DepGraph, Node, NodeType, Layer, DiscoveredBy, State,
     )
     from graph.schedule import frame_obligation
-    from src.envstate.graph_scheduler import packet_to_task
+    from src.orchestrate.loop.graph_scheduler import packet_to_task
     node = Node(id="pkg:requests", type=NodeType.PACKAGE, name="requests",
                 layer=Layer.PIP, discovered_by=DiscoveredBy.STATIC_SCAN,
                 state=State.MISSING, check_command="python -c 'import requests'")

@@ -11,7 +11,7 @@ for p in (str(_ROOT), str(_SRC)):
 
 from graph.ids import syslib_id
 from graph.model import DepGraph
-from src.envstate.depgraph_live import test_gate_soname_refresh
+from src.orchestrate.loop.depgraph_live import test_gate_soname_refresh
 
 TEST_CMD = "python -m pytest -q"
 

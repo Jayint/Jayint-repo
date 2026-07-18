@@ -24,7 +24,7 @@ for p in (str(_ROOT), str(_SRC)):
 
 import pytest
 
-from src.envstate.run_trace import (
+from src.orchestrate.loop.run_trace import (
     DiscoverRecord,
     FreshReplayRecord,
     PatchGateRecord,

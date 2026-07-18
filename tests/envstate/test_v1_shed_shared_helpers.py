@@ -26,8 +26,8 @@ for _p in (str(_ROOT), str(_SRC)):
 
 def test_shared_helpers_are_importable():
     """The shared helpers survive the shed as first-class, importable functions."""
-    from src.envstate._loop_common import host_refresh_facts
-    from src.envstate.world_model import apply_deterministic, merge_map
+    from src.orchestrate.loop._loop_common import host_refresh_facts
+    from src.orchestrate.loop.world_model import apply_deterministic, merge_map
     assert callable(host_refresh_facts) and callable(merge_map) and callable(apply_deterministic)
 
 
@@ -35,7 +35,7 @@ def test_run_v3_still_uses_the_shared_helpers():
     """Source-guard: ``run_v3`` must keep calling BOTH shared helpers. This is the tripwire the
     shed protects — deleting the legacy loop must not strip ``host_refresh_facts``/``merge_map``
     from the surviving loop (a whole-file-delete of a mixed helper would do exactly that)."""
-    from src.envstate import orchestrator
+    from src.orchestrate.loop import orchestrator
     v3_src = inspect.getsource(orchestrator.run_v3)
     assert "host_refresh_facts(" in v3_src, "run_v3 must keep calling host_refresh_facts"
     assert "merge_map(" in v3_src, "run_v3 must keep calling merge_map"
@@ -44,8 +44,8 @@ def test_run_v3_still_uses_the_shared_helpers():
 def test_host_refresh_facts_noop_contract_is_stable():
     """A compact co-located re-pin of the no-op contract both loops relied on (probe/manifest None
     -> same object unchanged). Full behavioral coverage is in tests/test_loop_common.py."""
-    from src.envstate._loop_common import host_refresh_facts
-    from src.envstate.world_model import initial_map
+    from src.orchestrate.loop._loop_common import host_refresh_facts
+    from src.orchestrate.loop.world_model import initial_map
     m = initial_map(base_image="python:3.11", workdir="/repo", language="python",
                     build_system="pip", repo_layout=())
     assert host_refresh_facts(m, None, None) is m

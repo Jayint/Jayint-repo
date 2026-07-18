@@ -18,7 +18,7 @@ mutates a graph, a trace, or any other state.
 """
 from __future__ import annotations
 
-from src.envstate.run_trace import RunTrace
+from src.orchestrate.loop.run_trace import RunTrace
 
 
 def verify_canonical_trace(t: RunTrace) -> list[str]:

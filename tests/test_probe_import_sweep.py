@@ -1,4 +1,4 @@
-from src.envstate.world_model import apply_deterministic, initial_map, merge_map, Fact
+from src.orchestrate.loop.world_model import apply_deterministic, initial_map, merge_map, Fact
 
 
 def _base():

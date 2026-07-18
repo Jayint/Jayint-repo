@@ -15,8 +15,8 @@ _SRC = _ROOT / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from src.envstate._loop_common import host_refresh_facts
-from src.envstate.world_model import WorldModelMap, Fact, initial_map, merge_map
+from src.orchestrate.loop._loop_common import host_refresh_facts
+from src.orchestrate.loop.world_model import WorldModelMap, Fact, initial_map, merge_map
 
 
 # ---------------------------------------------------------------------------

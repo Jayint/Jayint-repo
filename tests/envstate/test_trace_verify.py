@@ -18,8 +18,8 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.envstate.run_trace import DiscoverRecord, FreshReplayRecord, RunTrace
-from src.envstate.trace_verify import (
+from src.orchestrate.loop.run_trace import DiscoverRecord, FreshReplayRecord, RunTrace
+from src.orchestrate.loop.trace_verify import (
     verify_artifact_consistency,
     verify_canonical_trace,
     verify_local_import_guard,

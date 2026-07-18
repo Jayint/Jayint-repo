@@ -2,7 +2,7 @@
 
 All methods are verbatim copies of the corresponding members of
 ``Synthesizer`` in src/synthesizer.py.  This file carries NO imports from
-src.synthesizer or any other src.* module so that the v3-only branch can
+src.orchestrate.loop.synthesizer or any other src.* module so that the v3-only branch can
 delete synthesizer.py without touching anything that imports RunOracle.
 """
 from __future__ import annotations
