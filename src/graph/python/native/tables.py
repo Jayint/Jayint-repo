@@ -36,6 +36,8 @@ CLI_TOOL_TO_APT: dict[str, str] = {
     "unzip": "unzip",
     "gpg": "gnupg",
     "openssl": "openssl",
+    "dot": "graphviz",
+    "pdftoppm": "poppler-utils",
 }
 
 # Distributions whose import may need a system lib (whom to deep-probe).
@@ -56,6 +58,30 @@ NATIVE_RISK_PACKAGES: frozenset[str] = frozenset(
         "selenium",
     }
 )
+
+from graph.python.util.import_mapping import normalize_package_name
+
+# Curated dist -> runtime CLI tools the package ITSELF shells out to, keyed by
+# canonical (PEP 503) distribution name. The RUN-time analogue of
+# PACKAGE_TO_BUILD_NEEDS: a universal, package-intrinsic fact that no sensor can
+# observe (GitPython invokes git through a variable executable path; a source
+# scan sees no literal). Minted via apt_for_cli_tool (NOT the resolve path,
+# which lacks ("binary","git") in PROVIDER_TABLE). Deliberately SMALL — every
+# entry must be a universal package fact, and every tool a CLI_TOOL_TO_APT key.
+PACKAGE_TO_RUNTIME_TOOLS: dict[str, tuple[str, ...]] = {
+    "gitpython": ("git",),      # git.Git shells out to the git binary
+    "pre-commit": ("git",),     # a git-hook manager; core function IS git
+    "dvc": ("git",),            # data VCS layered on git
+    "copier": ("git",),         # clones template repos via git
+    "pypandoc": ("pandoc",),    # thin wrapper over the pandoc binary
+    "graphviz": ("dot",),       # renders via the dot binary
+    "pdf2image": ("pdftoppm",), # calls poppler's pdftoppm/pdfinfo
+}
+
+
+def runtime_tools_for(pkg_name: str) -> tuple[str, ...]:
+    """Runtime CLI tools a distribution shells out to (``()`` when none)."""
+    return PACKAGE_TO_RUNTIME_TOOLS.get(normalize_package_name(pkg_name), ())
 
 
 def apt_for_cli_tool(tool: str) -> str | None:
