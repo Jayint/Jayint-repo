@@ -33,6 +33,14 @@ import os
 import re
 from dataclasses import dataclass
 
+from graph.contracts.executor import Executor
+from graph.model import syslib_id, TEST_NODE_ID
+from graph.model import (
+    DepGraph, DiscoveredBy, Edge, EdgeType, Node, NodeType, State,
+)
+from graph.python.native.apt import ObservedNeed, resolve
+from graph.python.native.system_libs import make_syslib_node
+
 # The call shapes that take a runtime library name as a STRING LITERAL. A
 # variable argument (``CDLL(path_var)``) captures nothing and is skipped. Kept
 # host-side and unit-tested; the container step (A3) is a plain grep that does
@@ -154,3 +162,65 @@ def canonical_soname(lib: str) -> str:
     if base.startswith("lib"):
         return f"{base}.so"
     return f"lib{base}.so"
+
+
+# Bounded grep over the standard slim-image site-packages roots. ``-I`` skips
+# binary files; ``|| true`` keeps grep's rc1 (no match) from looking like a
+# failure. head-cap bounds the cost for a giant closure. The wiring reads
+# stdout regardless of rc.
+CTYPES_GREP_CMD = (
+    "grep -rInE --include='*.py' "
+    "-e 'find_library' -e 'CDLL' -e 'LoadLibrary' -e 'dlopen' "
+    "/usr/local/lib/python*/site-packages /usr/lib/python*/dist-packages "
+    "2>/dev/null | head -n 2000 || true"
+)
+
+
+def _anchor_id(graph: DepGraph) -> str | None:
+    """Node the discovered libs hang off: prefer the Project hub, else the Test
+    goal (both legal ``requires`` sources), else None."""
+    proj = next((n for n in graph.nodes if n.type is NodeType.PROJECT), None)
+    if proj is not None:
+        return proj.id
+    if graph.get(TEST_NODE_ID) is not None:
+        return TEST_NODE_ID
+    return None
+
+
+def add_ctypes_runtime_libs(graph: DepGraph, executor: Executor) -> DepGraph:
+    """Scan the installed closure's source for ctypes/cffi library literals and
+    mint a ``SystemLib`` node (apt fix via PROVIDER_TABLE) for each, anchored to
+    the Project (or Test) with a ``requires`` edge. Returns a NEW graph; a no-op
+    when no literals are found or no anchor exists. Idempotent: an existing
+    ``syslib:<soname>`` node is kept (only the edge is added)."""
+    result = executor.run(CTYPES_GREP_CMD)
+    hits = parse_ctypes_grep(result.stdout or "")
+    if not hits:
+        return graph
+    anchor = _anchor_id(graph)
+    if anchor is None:
+        return graph
+
+    new = graph
+    seen: set[str] = set()
+    for hit in hits:
+        soname = canonical_soname(hit.lib)
+        sid = syslib_id(soname)
+        if sid in seen:
+            continue
+        seen.add(sid)
+        if new.get(sid) is None:
+            cands = resolve(ObservedNeed("soname", soname, context="runtime"), executor)
+            apt = cands[0].package if cands else None
+            new = new.with_node(make_syslib_node(
+                soname,
+                discovered_by=DiscoveredBy.STATIC_SCAN,
+                state=State.UNKNOWN,
+                apt=apt,
+                evidence=hit.evidence,
+                provenance="ctypes-scan (installed source)",
+            ))
+        new = new.with_edge(Edge(
+            src=anchor, dst=sid, relation=EdgeType.REQUIRES, origin="ctypes-scan"
+        ))
+    return new

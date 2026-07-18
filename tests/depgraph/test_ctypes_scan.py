@@ -1,6 +1,13 @@
-from graph.python.native.ctypes_scan import (
-    LibHit, canonical_soname, parse_ctypes_grep,
+from graph.model import (
+    DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State,
+    package_id, project_id, syslib_id,
 )
+from graph.python.native.ctypes_scan import (
+    CTYPES_GREP_CMD, LibHit, add_ctypes_runtime_libs, canonical_soname,
+    parse_ctypes_grep,
+)
+from graph.python.native.system_libs import make_syslib_node
+from conftest import FakeExecutor, make_result  # type: ignore
 
 _GREP = (
     "/usr/local/lib/python3.11/site-packages/magic/__init__.py:44:"
@@ -133,3 +140,57 @@ def test_real_call_after_earlier_string_on_same_line_is_a_hit():
         "/x/site-packages/a/v.py:4:    path = \"/x\"; lib = CDLL(\"libz.so\")\n"
     )
     assert {h.lib for h in hits} == {"libz.so"}
+
+
+def _graph_with_project_and_pkg():
+    proj = Node(id=project_id("app"), type=NodeType.PROJECT, name="app",
+                layer=Layer.PIP, discovered_by=DiscoveredBy.STATIC_SCAN,
+                state=State.UNKNOWN, data={"installable": True})
+    pkg = Node(id=package_id("python-magic", "0.4.27"), type=NodeType.PACKAGE,
+               name="python-magic", layer=Layer.PIP,
+               discovered_by=DiscoveredBy.RESOLVER, version="0.4.27")
+    return DepGraph(nodes=(proj, pkg))
+
+
+_GREP_OUT = (
+    "/usr/local/lib/python3.11/site-packages/magic/__init__.py:44:"
+    "    _lib = ctypes.util.find_library('magic')\n"
+)
+
+
+def test_mints_syslib_node_with_apt_fix_and_anchor_edge():
+    ex = FakeExecutor(responses={"grep -rInE": make_result(stdout=_GREP_OUT)})
+    out = add_ctypes_runtime_libs(_graph_with_project_and_pkg(), ex)
+    node = out.get(syslib_id("libmagic.so"))
+    assert node is not None
+    assert node.type is NodeType.SYSTEM_LIB
+    assert node.layer is Layer.SYSTEM
+    assert node.discovered_by is DiscoveredBy.STATIC_SCAN
+    assert node.state is State.UNKNOWN
+    assert node.chosen_fix == "apt:libmagic1"
+    assert node.check_command == "ldconfig -p | grep libmagic.so"
+    assert "magic/__init__.py:44" in (node.evidence or "")
+    assert any(
+        e.src == project_id("app") and e.dst == syslib_id("libmagic.so")
+        and e.relation is EdgeType.REQUIRES for e in out.edges
+    )
+
+
+def test_noop_when_no_ctypes_literals():
+    ex = FakeExecutor(responses={"grep -rInE": make_result(stdout="")})
+    g = _graph_with_project_and_pkg()
+    assert add_ctypes_runtime_libs(g, ex) is g
+
+
+def test_does_not_overwrite_existing_syslib_node():
+    # An ldd-discovered PROBE node for the same soname must survive; only the
+    # anchor edge is added.
+    g = _graph_with_project_and_pkg()
+    existing = make_syslib_node(
+        "libmagic.so", discovered_by=DiscoveredBy.PROBE, state=State.MISSING,
+        apt="libmagic1", provenance="ldd (observed)",
+    )
+    g = g.with_node(existing)
+    ex = FakeExecutor(responses={"grep -rInE": make_result(stdout=_GREP_OUT)})
+    out = add_ctypes_runtime_libs(g, ex)
+    assert out.get(syslib_id("libmagic.so")).discovered_by is DiscoveredBy.PROBE
