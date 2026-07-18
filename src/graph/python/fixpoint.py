@@ -22,6 +22,8 @@ from graph.python.lanes.install.ground import (
     RecordProvider,
     Verdict,
     choose_provider,
+    declared_candidates,
+    declared_coverage,
     generate_candidates,
     resolved_record_coverage,
 )
@@ -66,6 +68,7 @@ def _phase_a_fixpoint(
     exclude_newer: str | None,
     needed_extras: frozenset[str],
     declared_package_names: frozenset[str] = frozenset(),
+    declared_dists: frozenset[str] = frozenset(),
     uv_sourced_names: frozenset[str] = frozenset(),
     uv_sources=MappingProxyType({}),
     uv_indexes: tuple[dict, ...] = (),
@@ -81,8 +84,9 @@ def _phase_a_fixpoint(
     the FULL runtime import set against the resolved closure's RECORD-union
     coverage (Correction 3 — never ``packages_distributions``). A non-optional
     import that no resolved dist provides is repaired by grounding candidate dists
-    (from the vendored pipreqs map, else an injected LLM guesser on a map miss,
-    each RECORD-grounded via ``record_provider``) and, on an unambiguous ACCEPT,
+    (repo-DECLARED soft-requirement dists that RECORD-cover the import first, then
+    the vendored pipreqs map, else an injected LLM guesser on a map miss, each
+    RECORD-grounded via ``record_provider``) and, on an unambiguous ACCEPT,
     adding the dist as an AUDIT root
     (``audit_root_names`` threads the repaired set into the resolve retry so a
     declared root is never evicted — Correction 2a) and re-resolving.
@@ -99,6 +103,13 @@ def _phase_a_fixpoint(
     prev_pkg_ids: set[str] = set()
     bound: int | None = None
     iteration = 0
+    # Declared-rung coverage: module -> declared dists whose RECORD ships it. Built
+    # LAZILY (at most once, cached) and ONLY after a round finds missing imports, so
+    # a HEALTHY repo makes ZERO ``record_provider`` calls for it — the provider
+    # fetches candidate wheels (network), and an eager pre-loop build would hit the
+    # network even when nothing is missing, breaking the "purely additive on healthy
+    # repos / byte-identical" guarantee.
+    _declared_cov: dict[str, list[str]] | None = None
 
     while True:
         pkg_nodes, pkg_edges = resolve_closure(
@@ -127,15 +138,26 @@ def _phase_a_fixpoint(
         if not missing:
             break
 
+        # Demand-gated declared-rung coverage: build on the FIRST round that finds
+        # missing imports, then cache (an empty map when nothing was declared).
+        if _declared_cov is None:
+            _declared_cov = (
+                declared_coverage(declared_dists, record_provider) if declared_dists else {}
+            )
+
         new_pair = False
         for imp in missing:
-            # Candidate generation: the vendored pipreqs import->dist table first
-            # (deterministic); ONLY on a map miss does the injected ``llm`` guesser
-            # propose, fed this import's used-symbols (``data["symbols"]``). When
-            # ``llm`` is None (the default), the path stays purely deterministic.
-            # Either way every candidate is still RECORD-grounded by
-            # ``choose_provider`` -- this only proposes names, never accepts them.
-            candidates = generate_candidates(
+            # Candidate generation, highest trust first: repo-DECLARED dists whose
+            # RECORD covers this import (the soft-requirements rung) are PREPENDED
+            # ahead of the vendored pipreqs import->dist table (deterministic) and,
+            # ONLY on a pipreqs miss, the injected ``llm`` guesser fed this import's
+            # used-symbols (``data["symbols"]``). When ``llm`` is None (the default)
+            # and nothing was declared, the path stays purely deterministic. Every
+            # candidate -- declared included -- is still RECORD-grounded by
+            # ``choose_provider`` (this only proposes names, never accepts them), so a
+            # lone declared confirm ACCEPTs while a declared + a differing pipreqs
+            # confirm stays AMBIGUOUS: a declaration must NOT break a variant tie.
+            candidates = declared_candidates(imp.name, _declared_cov) + generate_candidates(
                 imp.name, symbols=tuple(imp.data.get("symbols", ())), llm=llm
             )
             decision = choose_provider(imp.name, candidates, record_provider)

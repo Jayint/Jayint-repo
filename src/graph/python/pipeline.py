@@ -503,6 +503,15 @@ def _python_package_obligations(
     evidence_for_resolve = collect_python_dependency_evidence(repo_path)
     declared_package_names = _declared_package_names_for_repair(evidence_for_resolve)
     uv_sourced_names = _uv_sourced_dist_names(evidence_for_resolve)
+    # Soft-declared dist names (canonical): deps the repo declared in a *soft*
+    # requirements file (no matching pyproject entry). Fed to Phase A's declared
+    # repair rung so an under-declared identity-named import (e.g. `import fastapi`
+    # with `fastapi` only in a soft requirements.txt) is repaired from the
+    # declaration, not left to pipreqs/LLM guessing. Empty for a repo with no soft
+    # requirements -> byte-identical to the pre-rung behavior.
+    soft_declared = frozenset(
+        _canon(r.name) for r in evidence_for_resolve.soft_declared_dependencies
+    )
 
     # V3_UV_SOURCES default-OFF path (see this function's docstring): drop
     # every [tool.uv.sources]-carrying root up front and never thread its
@@ -543,6 +552,7 @@ def _python_package_obligations(
         exclude_newer=exclude_newer,
         needed_extras=needed_extras,
         declared_package_names=declared_package_names,
+        declared_dists=soft_declared,
         uv_sourced_names=uv_sourced_names,
         uv_sources=uv_sources,
         uv_indexes=uv_indexes,
