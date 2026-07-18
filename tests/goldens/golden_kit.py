@@ -438,3 +438,97 @@ def gate_cases() -> dict:
     cases["self_install/normalized_match"] = str(
         self_install_reason("pip install Flask_Foo", "flask-foo"))
     return cases
+
+
+# --------------------------------------------------------------------------------------
+# P0-a (actions): the agent's MOVE parse + apply. Pins the pure functions the future
+# `agent/actions/` SPLIT (actions + script_prep + v3_build_agent -> actions/{base,script,
+# graph}.py, R9) must preserve byte-for-byte: the native tool-call path
+# (`action_from_tool_call`), the text fallback (`parse_action`, incl. the mis-wrapped-explore
+# recovery), the line-splice (`apply_edit`), and the thought/reasoning extractors. Parsing is
+# env-independent (no REACT_* lever), so the table is naturally hermetic — no pinning.
+# --------------------------------------------------------------------------------------
+_ACTIONS_SCRIPT = (
+    "#!/usr/bin/env bash\n"
+    "set -e\n"
+    "apt-get update\n"
+    "pip install -e .\n"
+    "pip install psycopg2\n"
+)
+
+
+def _fmt_action(a) -> str:
+    """A frozen Action -> a stable, faithful one-block string (every field shown)."""
+    e = a.edit
+    edit = (f"EditOp(verb={e.verb!r} start={e.start} end={e.end} content={e.content!r})"
+            if e is not None else "None")
+    return (f"kind={a.kind!r}\ncommand={a.command!r}\nnew_script={a.new_script!r}\nedit={edit}")
+
+
+def actions_cases() -> dict:
+    """The move-parse table: raw model output / tool call -> parsed Action, and EditOp -> spliced
+    script. Ordered by family so the fixture is stable and a diff is legible."""
+    from src.agent.actions import (
+        EditOp, action_from_tool_call, apply_edit, extract_reasoning, extract_thought, parse_action)
+
+    cases: dict = {}
+
+    # -- parse_action: the TEXT fallback (no native tool call this turn) --
+    _EDIT_REPLACE = "Thought: swap to the binary wheel\nEdit: replace 5\n```bash\npip install psycopg2-binary\n```"
+    _EDIT_INSERT = "Edit: insert after 4\n```bash\napt-get install -y libpq-dev\n```"
+    _EDIT_DELETE = "Edit: delete 3-4"
+    _EDIT_MARKDOWN = "**Edit:** replace 5\n```\npip install psycopg2-binary\n```"
+    _EDIT_NO_BLOCK = "Edit: replace 5"                       # replace w/o a following fence -> invalid
+    _EXPLORE_ACTION = "Action: cat pyproject.toml"
+    _EXPLORE_FENCE = "```bash\nfind . -name '*.cfg' | head\n```"     # mis-wrapped read probe -> explore
+    _EXPLORE_COMPOUND = "```bash\ncd /app && cat setup.py\n```"      # readonly compound -> explore
+    _INSTALL_FENCE = "```bash\npip install psycopg2\n```"           # install, not read-only -> invalid
+    _PROSE = "I think the libpq headers are missing; we should add the -dev package."
+    parse_inputs = {
+        "parse/edit_replace_with_thought": _EDIT_REPLACE,
+        "parse/edit_insert_after": _EDIT_INSERT,
+        "parse/edit_delete_range": _EDIT_DELETE,
+        "parse/edit_markdown_label": _EDIT_MARKDOWN,
+        "parse/edit_replace_no_block_invalid": _EDIT_NO_BLOCK,
+        "parse/explore_action_line": _EXPLORE_ACTION,
+        "parse/explore_recovered_fence": _EXPLORE_FENCE,
+        "parse/explore_recovered_compound": _EXPLORE_COMPOUND,
+        "parse/install_fence_invalid": _INSTALL_FENCE,
+        "parse/prose_invalid": _PROSE,
+    }
+    for name, text in parse_inputs.items():
+        cases[name] = _fmt_action(parse_action(text))
+
+    # -- action_from_tool_call: the PRIMARY native path (JSON args) --
+    tool_inputs = {
+        "tool/explore": ("explore", '{"command": "ls -la /app"}'),
+        "tool/edit_replace": ("edit", '{"verb":"replace","start":5,"end":5,"content":"pip install psycopg2-binary"}'),
+        "tool/edit_insert_no_end": ("edit", '{"verb":"insert","start":4,"content":"apt-get install -y libpq-dev"}'),
+        "tool/edit_delete_span": ("edit", '{"verb":"delete","start":3,"end":4}'),
+        "tool/edit_missing_content_invalid": ("edit", '{"verb":"replace","start":5}'),
+        "tool/edit_bad_json_invalid": ("edit", "{not valid json"),
+        "tool/unknown_fn_invalid": ("frobnicate", "{}"),
+    }
+    for name, (fn, args) in tool_inputs.items():
+        cases[name] = _fmt_action(action_from_tool_call(fn, args))
+
+    # -- apply_edit: the pure line-splice (result script text, or "None" out of range) --
+    apply_inputs = {
+        "apply/insert_top": EditOp("insert", 0, 0, "set -x"),
+        "apply/insert_after_line": EditOp("insert", 4, 4, "apt-get install -y libpq-dev"),
+        "apply/replace_single": EditOp("replace", 5, 5, "pip install psycopg2-binary"),
+        "apply/replace_span_multiline": EditOp("replace", 3, 4, "apt-get update\napt-get install -y libpq-dev"),
+        "apply/delete_span": EditOp("delete", 3, 4, ""),
+        "apply/out_of_range_none": EditOp("replace", 99, 99, "x"),
+    }
+    for name, op in apply_inputs.items():
+        cases[name] = str(apply_edit(_ACTIONS_SCRIPT, op))
+
+    # -- extract_thought / extract_reasoning --
+    cases["thought/labeled"] = extract_thought("Thought: the libpq headers are missing\nAction: ls")
+    cases["thought/leading_prose"] = extract_thought(
+        "The headers are missing.\nEdit: replace 4\n```\napt-get install -y libpq-dev\n```")
+    cases["thought/bare_directive_empty"] = repr(extract_thought("Edit: delete 3"))
+    cases["reasoning/think_block"] = extract_reasoning("<think>weighing the binary wheel</think>")
+    cases["reasoning/plain_content"] = extract_reasoning("just fix the headers")
+    return cases

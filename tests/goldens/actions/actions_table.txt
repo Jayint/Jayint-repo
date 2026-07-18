@@ -1,0 +1,159 @@
+########## CASE: parse/edit_replace_with_thought ##########
+kind='edit'
+command=None
+new_script=None
+edit=EditOp(verb='replace' start=5 end=5 content='pip install psycopg2-binary')
+
+########## CASE: parse/edit_insert_after ##########
+kind='edit'
+command=None
+new_script=None
+edit=EditOp(verb='insert' start=4 end=4 content='apt-get install -y libpq-dev')
+
+########## CASE: parse/edit_delete_range ##########
+kind='edit'
+command=None
+new_script=None
+edit=EditOp(verb='delete' start=3 end=4 content='')
+
+########## CASE: parse/edit_markdown_label ##########
+kind='edit'
+command=None
+new_script=None
+edit=EditOp(verb='replace' start=5 end=5 content='pip install psycopg2-binary')
+
+########## CASE: parse/edit_replace_no_block_invalid ##########
+kind='invalid'
+command=None
+new_script=None
+edit=None
+
+########## CASE: parse/explore_action_line ##########
+kind='explore'
+command='cat pyproject.toml'
+new_script=None
+edit=None
+
+########## CASE: parse/explore_recovered_fence ##########
+kind='explore'
+command="find . -name '*.cfg' | head"
+new_script=None
+edit=None
+
+########## CASE: parse/explore_recovered_compound ##########
+kind='explore'
+command='cd /app && cat setup.py'
+new_script=None
+edit=None
+
+########## CASE: parse/install_fence_invalid ##########
+kind='invalid'
+command=None
+new_script=None
+edit=None
+
+########## CASE: parse/prose_invalid ##########
+kind='invalid'
+command=None
+new_script=None
+edit=None
+
+########## CASE: tool/explore ##########
+kind='explore'
+command='ls -la /app'
+new_script=None
+edit=None
+
+########## CASE: tool/edit_replace ##########
+kind='edit'
+command=None
+new_script=None
+edit=EditOp(verb='replace' start=5 end=5 content='pip install psycopg2-binary')
+
+########## CASE: tool/edit_insert_no_end ##########
+kind='edit'
+command=None
+new_script=None
+edit=EditOp(verb='insert' start=4 end=4 content='apt-get install -y libpq-dev')
+
+########## CASE: tool/edit_delete_span ##########
+kind='edit'
+command=None
+new_script=None
+edit=EditOp(verb='delete' start=3 end=4 content='')
+
+########## CASE: tool/edit_missing_content_invalid ##########
+kind='invalid'
+command=None
+new_script=None
+edit=None
+
+########## CASE: tool/edit_bad_json_invalid ##########
+kind='invalid'
+command=None
+new_script=None
+edit=None
+
+########## CASE: tool/unknown_fn_invalid ##########
+kind='invalid'
+command=None
+new_script=None
+edit=None
+
+########## CASE: apply/insert_top ##########
+set -x
+#!/usr/bin/env bash
+set -e
+apt-get update
+pip install -e .
+pip install psycopg2
+
+
+########## CASE: apply/insert_after_line ##########
+#!/usr/bin/env bash
+set -e
+apt-get update
+pip install -e .
+apt-get install -y libpq-dev
+pip install psycopg2
+
+
+########## CASE: apply/replace_single ##########
+#!/usr/bin/env bash
+set -e
+apt-get update
+pip install -e .
+pip install psycopg2-binary
+
+
+########## CASE: apply/replace_span_multiline ##########
+#!/usr/bin/env bash
+set -e
+apt-get update
+apt-get install -y libpq-dev
+pip install psycopg2
+
+
+########## CASE: apply/delete_span ##########
+#!/usr/bin/env bash
+set -e
+pip install psycopg2
+
+
+########## CASE: apply/out_of_range_none ##########
+None
+
+########## CASE: thought/labeled ##########
+the libpq headers are missing
+
+########## CASE: thought/leading_prose ##########
+The headers are missing.
+
+########## CASE: thought/bare_directive_empty ##########
+''
+
+########## CASE: reasoning/think_block ##########
+weighing the binary wheel
+
+########## CASE: reasoning/plain_content ##########
+just fix the headers
