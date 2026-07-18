@@ -59,7 +59,7 @@ from openai import OpenAI
 from httpx import Timeout
 from src.sandbox import Sandbox
 from src.envstate.orchestrator import run_v3
-from src.envstate.v3_build_agent import V3BuildAgent
+from src.agent.v3_build_agent import V3BuildAgent
 from src.envstate.deterministic_maintainer import DeterministicMaintainer
 from src.envstate.world_model import initial_map
 from src.envstate.ledger import ActionLedger
@@ -350,7 +350,7 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     #     image, dep-graph, sandbox); --graph-context feeds certified graph
     #     state into the planner (the graph-guided variant). ─────────────────
     if args.arm == "react":
-        from src.react_repair.entry import run_react_arm
+        from src.agent.entry import run_react_arm
         if args.graph_context:
             print("[react] WARNING: --graph-context is not yet implemented; "
                   "running BASELINE (no graph guidance). The run is identical to omitting the flag.")

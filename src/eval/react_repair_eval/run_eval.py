@@ -9,9 +9,9 @@ _SRC = Path(__file__).resolve().parents[2]
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from src.react_repair.history import History          # noqa: E402
-from src.react_repair.log import DESIGN, ReactLog     # noqa: E402
-from src.react_repair.loop import run_react           # noqa: E402
+from src.agent.history import History          # noqa: E402
+from src.agent.log import DESIGN, ReactLog     # noqa: E402
+from src.agent.loop import run_react           # noqa: E402
 from src.eval.react_repair_eval import scenarios as S  # noqa: E402
 
 

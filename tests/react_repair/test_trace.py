@@ -4,10 +4,10 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-import src.react_repair.planner as planner_mod
-from src.react_repair.log import ReactLog
-from src.react_repair.planner import ReactPlanner
-from src.react_repair.history import History
+import src.agent.planner as planner_mod
+from src.agent.log import ReactLog
+from src.agent.planner import ReactPlanner
+from src.agent.history import History
 
 
 def test_trace_kept_and_written(tmp_path):

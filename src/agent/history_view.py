@@ -23,8 +23,8 @@ from __future__ import annotations
 import os
 import re
 
-from src.react_repair.history import safety_truncate
-from src.react_repair.observation import safety_compress_observation
+from src.agent.history import safety_truncate
+from src.agent.observation import safety_compress_observation
 
 # Distinguishing failure tokens, most-specific first. Vocabulary widened from the radical
 # baseline's SAFETY_ERROR_PATTERNS / select_failure_lines so service/tool/permission/timeout

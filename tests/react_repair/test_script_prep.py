@@ -4,7 +4,7 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.react_repair.script_prep import strip_graph_framing
+from src.agent.script_prep import strip_graph_framing
 
 # A representative render_build_script() artifact (graph-primary framing + #@ annotations).
 _RENDERED = '''#!/usr/bin/env bash

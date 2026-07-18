@@ -8,8 +8,8 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.envstate.v3_build_agent import V3BuildAgent
-from src.envstate.repair_scope import RepairScope
+from src.agent.v3_build_agent import V3BuildAgent
+from src.agent.repair_scope import RepairScope
 
 
 class _Msg:
@@ -44,7 +44,7 @@ def _scope():
 def test_module_imports_without_legacy_drag():
     # If v3_build_agent re-imported build_agent/synthesizer/world_model at module
     # load, this would have failed at the top-of-file import already.
-    import src.envstate.v3_build_agent as m
+    import src.agent.v3_build_agent as m
     assert not hasattr(m, "Synthesizer") and not hasattr(m, "WorldModelMap")
 
 

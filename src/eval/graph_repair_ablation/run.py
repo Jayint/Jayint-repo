@@ -1,7 +1,7 @@
 """Runner core for the graph-repair-ablation pilot (Task 5, part 1).
 
 Wires the injection oracle (`oracle.py`) + context treatments (`context.py`) +
-the real repair agent (`src.envstate.v3_build_agent.V3BuildAgent`) into one
+the real repair agent (`src.agent.v3_build_agent.V3BuildAgent`) into one
 `run_one(inj, arm, ...)` call per (injection, arm) cell. The only thing that
 differs between arms is the context string appended to the agent's rendered
 repair scope (`arm_context`); everything else -- same agent, model,
@@ -16,16 +16,16 @@ not accept pre-rendered text, so string-concatenating into its public API is
 not possible without this patch (see `scratchpad/task5-recon-report.md` §1).
 
 DEVIATION FROM THE RECON/PLAN'S PATCH TARGET (verified by actually running the
-agent-wiring test, not just reading): `propose()`'s `from src.envstate.repair_scope
+agent-wiring test, not just reading): `propose()`'s `from src.agent.repair_scope
 import render_repair_scope` is a LOCAL import inside the method body (v3_build_agent.py
 line 150), not a module-level one. A local import never adds an attribute to the
 importing module's namespace -- it looks the name up on the SOURCE module
-(`src.envstate.repair_scope`) fresh on every call and binds it as a function-local
-variable. So `src.envstate.v3_build_agent` has no `render_repair_scope` attribute at
-all, and `mock.patch("src.envstate.v3_build_agent.render_repair_scope", ...)` (the
+(`src.agent.repair_scope`) fresh on every call and binds it as a function-local
+variable. So `src.agent.v3_build_agent` has no `render_repair_scope` attribute at
+all, and `mock.patch("src.agent.v3_build_agent.render_repair_scope", ...)` (the
 plan's literal target) raises `AttributeError` -- confirmed by running the test.
 The correct patch target is the SOURCE module's attribute,
-`src.envstate.repair_scope.render_repair_scope`: since `propose()` re-resolves the
+`src.agent.repair_scope.render_repair_scope`: since `propose()` re-resolves the
 name from that module at call time, patching it there is picked up transparently.
 This is still reuse-by-import + runtime `mock.patch` only; `v3_build_agent.py` is
 untouched.
@@ -44,9 +44,9 @@ for _p in (_REPO_ROOT, _SRC):
 
 from graph.emit.build_script import render_build_script  # noqa: E402
 from graph.model import NodeType  # noqa: E402
-from src.envstate.repair_scope import RepairScope  # noqa: E402
-from src.envstate.repair_scope import render_repair_scope as _render_repair_scope  # noqa: E402
-from src.envstate.v3_build_agent import V3BuildAgent  # noqa: E402
+from src.agent.repair_scope import RepairScope  # noqa: E402
+from src.agent.repair_scope import render_repair_scope as _render_repair_scope  # noqa: E402
+from src.agent.v3_build_agent import V3BuildAgent  # noqa: E402
 from src.eval.graph_repair_ablation.context import graph_context  # noqa: E402
 from src.eval.graph_repair_ablation.grade import grade_localization  # noqa: E402
 from src.eval.graph_repair_ablation.inject import apply_injection  # noqa: E402
@@ -166,9 +166,9 @@ def normalize_patch(proposal, inj: Injection) -> dict | None:
 
 
 def _augmented_render(scope, arm: str, graph) -> str:
-    """What gets monkeypatched in (as `src.envstate.repair_scope.render_repair_scope`
+    """What gets monkeypatched in (as `src.agent.repair_scope.render_repair_scope`
     -- see the module docstring's DEVIATION note for why that's the target and not
-    `src.envstate.v3_build_agent.render_repair_scope`) for the duration of the
+    `src.agent.v3_build_agent.render_repair_scope`) for the duration of the
     `propose()` call. Renders the real scope, then appends the arm's context
     treatment -- never string-concatenated into `propose()`'s public API (it takes
     the `scope` object and renders it internally)."""
@@ -256,7 +256,7 @@ def run_one(inj: Injection, arm: str, *, agent_client, model: str, smoke_root,
         def _aug(s, _arm=arm, _graph=graph):
             return _augmented_render(s, _arm, _graph)
 
-        with _mock.patch("src.envstate.repair_scope.render_repair_scope", _aug):
+        with _mock.patch("src.agent.repair_scope.render_repair_scope", _aug):
             proposal = V3BuildAgent(agent_client, model).propose(
                 scope, rec, max_diag_turns=max_diag_turns)
 

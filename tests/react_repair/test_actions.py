@@ -4,7 +4,7 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.react_repair.actions import parse_action, extract_thought, apply_edit, EditOp
+from src.agent.actions import parse_action, extract_thought, apply_edit, EditOp
 
 
 def test_parse_explore():

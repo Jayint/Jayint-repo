@@ -34,7 +34,7 @@ import src.envstate.orchestrator as orch
 from src.envstate import orchestrator
 from src.envstate.constants import NO_PROGRESS_CYCLES
 from src.envstate.ledger import ActionLedger
-from src.envstate.repair_loop import RepairOutcome
+from src.agent.repair_loop import RepairOutcome
 from src.envstate.world_model import PlannerDecision, Task, initial_map, merge_map
 from src.sandbox import InstallResult
 from graph.model import DepGraph

@@ -4,7 +4,7 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.react_repair.gate import test_verdict
+from src.agent.gate import test_verdict
 
 
 def test_all_pass_is_ok():

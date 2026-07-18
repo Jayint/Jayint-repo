@@ -20,7 +20,7 @@ from src.envstate.constants import NO_PROGRESS_CYCLES, RESIDUAL_GIVEUP_CYCLES
 from src.envstate.gate_signature import outcome_signature, next_stall
 from src.envstate.ledger import ActionLedger, make_action_event
 from src.envstate.done_gate import _verified_test_run_passed as _gate_passed
-from src.envstate.repair_loop import run_structured_repair
+from src.agent.repair_loop import run_structured_repair
 from src.envstate.world_model import (
     CommandRecord,
     PlannerDecision,

@@ -7,8 +7,8 @@ for p in (str(_ROOT), str(_SRC)):
         sys.path.insert(0, p)
 
 from graph.mutate.patch import PatchProposal, ProviderSpec
-from src.envstate.repair_loop import run_structured_repair, RepairOutcome
-from src.envstate.repair_scope import RepairScope
+from src.agent.repair_loop import run_structured_repair, RepairOutcome
+from src.agent.repair_scope import RepairScope
 
 def _scope_builder(graph, *, target_node_id, failed_block, bundle, known_invalid, constraints):
     # deterministic fake scope; carries the avoid-list so the memory test can observe it
@@ -23,7 +23,7 @@ class _Graph:  # minimal stand-in: admit_proposal is monkeypatched in these test
     pass
 
 def test_recovers_when_emit_passes_after_patch(monkeypatch):
-    import src.envstate.repair_loop as rl
+    import src.agent.repair_loop as rl
     monkeypatch.setattr(rl, "admit_proposal", lambda g, p, **k:
         type("R", (), {"accepted": True, "errors": (), "graph": g, "manual_blocks": ()})())
     monkeypatch.setattr(rl, "compose_script", lambda g, mb: ())
@@ -37,7 +37,7 @@ def test_recovers_when_emit_passes_after_patch(monkeypatch):
     assert out.still_failing_id is None and out.turns_spent == 1
 
 def test_budget_exhaustion(monkeypatch):
-    import src.envstate.repair_loop as rl
+    import src.agent.repair_loop as rl
     monkeypatch.setattr(rl, "compose_script", lambda g, mb: ())
     out = run_structured_repair(_Graph(), "system.x", object(), 1,
                                 propose=lambda s, **k: None, emit=lambda g, mb: (g, object(), "system.x"),
@@ -45,7 +45,7 @@ def test_budget_exhaustion(monkeypatch):
     assert out.budget_exhausted is True and out.still_failing_id == "system.x"
 
 def test_known_invalid_grows_and_convergence_guard(monkeypatch):
-    import src.envstate.repair_loop as rl
+    import src.agent.repair_loop as rl
     monkeypatch.setattr(rl, "admit_proposal", lambda g, p, **k:
         type("R", (), {"accepted": True, "errors": (), "graph": g, "manual_blocks": ()})())
     monkeypatch.setattr(rl, "compose_script", lambda g, mb: ())
@@ -59,7 +59,7 @@ def test_known_invalid_grows_and_convergence_guard(monkeypatch):
     assert out.turns_spent <= 2
 
 def test_gate_reject_then_reprompt_then_skip(monkeypatch):
-    import src.envstate.repair_loop as rl
+    import src.agent.repair_loop as rl
     calls = {"n": 0}
     def admit(g, p, **k):
         calls["n"] += 1

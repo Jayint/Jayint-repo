@@ -281,7 +281,7 @@ def complete_with_tools(
     the call is retried (up to *max_attempts*). Transport backoff and usage accumulation mirror
     :func:`complete_with_retry`; MiniMax thinking-off is applied by ``_create_with_backoff``. The
     caller's *messages* list is never mutated. Structured args mean the react planner needs no
-    text parsing — see :func:`src.react_repair.actions.action_from_tool_call`.
+    text parsing — see :func:`src.agent.actions.action_from_tool_call`.
     """
     nudge = retry_nudge if retry_nudge is not None else _DEFAULT_TOOL_NUDGE
     accumulated = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}

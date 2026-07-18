@@ -1,7 +1,7 @@
 """Scenarios: (initial_script, FakeSandbox, ScriptedPlanner, expected_outcome)."""
 from __future__ import annotations
 
-from src.react_repair.actions import Action
+from src.agent.actions import Action
 from src.eval.react_repair_eval.fake_sandbox import FakeSandbox
 
 _INIT = "pip install app\n"

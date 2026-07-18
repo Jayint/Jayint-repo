@@ -35,7 +35,7 @@ from graph.python.native.ldd_probe import ldd_probe
 from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
-from src.react_repair.loop import RunResult
+from src.agent.loop import RunResult
 
 IMAGE = "python:3.11-slim"
 PKG = "opencv-python"

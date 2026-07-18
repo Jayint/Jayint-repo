@@ -6,9 +6,9 @@ for p in (str(_ROOT), str(_ROOT / "src")):
 
 import pytest
 
-import src.react_repair.history_view as HV
-from src.react_repair.history import Step
-from src.react_repair.history_view import extract_blocker, render_history
+import src.agent.history_view as HV
+from src.agent.history import Step
+from src.agent.history_view import extract_blocker, render_history
 
 
 @pytest.fixture(autouse=True)
@@ -76,8 +76,8 @@ def test_extract_blocker_generic_python_exception():
 
 def test_extract_blocker_widened_sigs_are_specific_enough_to_split():
     # a module blocker → a connection-refused blocker is a CONFIDENT change (both specific): 2 blocks.
-    from src.react_repair.history_view import render_history
-    from src.react_repair.history import Step
+    from src.agent.history_view import render_history
+    from src.agent.history import Step
     steps = [
         Step(0, "", "baseline → 1/3", "BUILD OK. TESTS 1/3 passed:\nNo module named 'redis'", ""),
         Step(1, "", "patch v1 (+pip install redis) → 1/3",
@@ -230,7 +230,7 @@ def _stubborn_three():
             _edit(3, "insert@7 +pip install lxml4", "BUILD FAILED", _LXML_HDR)]
 
 def test_render_flat_mode_drops_blocker_headers_and_ledger(monkeypatch):
-    import src.react_repair.history_view as HV
+    import src.agent.history_view as HV
     monkeypatch.setattr(HV, "_HISTORY_MODE", "flat")
     out = render_history(_stubborn_three())
     assert "### BLOCKER" not in out                     # no grouping headers
@@ -397,14 +397,14 @@ def test_render_single_failed_edit_stays_a_passive_note():
 
 def test_render_stuck_directive_mode_opt_in(monkeypatch):
     # The old prescriptive coaching is available behind REACT_STUCK_MODE=directive for A/B.
-    import src.react_repair.history_view as HV
+    import src.agent.history_view as HV
     monkeypatch.setattr(HV, "_STUCK_MODE", "directive")
     low = render_history(_three_failed_same_blocker()).lower()
     assert "change your approach" in low and "stuck" in low
 
 def test_render_stuck_off_mode_ledger_only(monkeypatch):
     # REACT_STUCK_MODE=off → the factual ledger stays, but no escalation line at all.
-    import src.react_repair.history_view as HV
+    import src.agent.history_view as HV
     monkeypatch.setattr(HV, "_STUCK_MODE", "off")
     low = render_history(_three_failed_same_blocker()).lower()
     assert "already tried" in low

@@ -330,7 +330,7 @@ def test_collision_evidence_reaches_the_repair_prompt(tmp_path, monkeypatch):
     """The LLM MUST be told the name collides with a repo file, or it will
     happily `pip install items` — a real PyPI package that must never be
     installed. patch_gate validates structure only; it will admit it."""
-    from src.envstate.repair_scope import render_repair_scope
+    from src.agent.repair_scope import render_repair_scope
 
     monkeypatch.setattr(gs_module, "next_decision", _harmless_decision)
 
@@ -367,7 +367,7 @@ def test_collision_evidence_reaches_the_repair_prompt(tmp_path, monkeypatch):
 def test_plain_external_gets_no_collision_constraint(tmp_path, monkeypatch):
     """A genuine external-package failure must get NO collision constraint —
     the constraint is only for names that classify as Locality.STEM_COLLISION."""
-    from src.envstate.repair_scope import render_repair_scope
+    from src.agent.repair_scope import render_repair_scope
 
     monkeypatch.setattr(gs_module, "next_decision", _harmless_decision)
     (tmp_path / "pkg").mkdir()

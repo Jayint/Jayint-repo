@@ -10,8 +10,8 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.react_repair.history import History
-from src.react_repair.message_view import build_messages
+from src.agent.history import History
+from src.agent.message_view import build_messages
 
 _SCRIPT = "1| #!/usr/bin/env bash\n2| apt-get install -y libpq-dev"
 _CLOSE = "Turn 6/25 (19 left). Reason briefly, then call one tool — explore or edit."
@@ -153,7 +153,7 @@ def test_explore_shows_command_and_full_stdout():
 def test_history_view_defaults_to_flat():
     # The blob's history default flipped to flat (message list is the default arm; blob+flat fallback).
     import os
-    import src.react_repair.history_view as HV
+    import src.agent.history_view as HV
     if "REACT_HISTORY" not in os.environ:
         assert HV._HISTORY_MODE == "flat"
 
@@ -194,7 +194,7 @@ def test_immediate_run_shown_fuller_than_recent_runs():
 
 def test_immediate_cap_lever_widens_the_full_view(monkeypatch):
     # REACT_MSG_IMMEDIATE_CAP controls how much of the current run is shown in full.
-    import src.react_repair.message_view as MV
+    import src.agent.message_view as MV
     assert MV._immediate_cap() >= MV._OBS_COMPRESS_CAP     # never below the recent-tier cap
     monkeypatch.setenv("REACT_MSG_IMMEDIATE_CAP", "12000")
     assert MV._immediate_cap() == 12000

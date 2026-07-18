@@ -4,11 +4,11 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.react_repair.loop import run_react, RunResult, _observation, _emit_tokens
-from src.react_repair.gate import TestOutcome
-from src.react_repair.history import History
-from src.react_repair.log import ReactLog
-from src.react_repair.actions import Action, EditOp
+from src.agent.loop import run_react, RunResult, _observation, _emit_tokens
+from src.agent.gate import TestOutcome
+from src.agent.history import History
+from src.agent.log import ReactLog
+from src.agent.actions import Action, EditOp
 
 
 def test_emit_tokens_prints_runlog_format(capsys):
@@ -45,7 +45,7 @@ def test_observation_small_output_untouched():
 def test_observation_renders_error_breakdown_in_histogram_mode(monkeypatch):
     # The ranked cause histogram is now OPT-IN (REACT_OBS_MODE=histogram): a ranked breakdown of what
     # the tests fail on, so the agent can target the dominant blocker. Kept for the ablation.
-    import src.react_repair.loop as L
+    import src.agent.loop as L
     monkeypatch.setattr(L, "_OBS_MODE", "histogram")
     out = ("==================================== ERRORS ====================================\n"
            "___ ERROR collecting a/test_x.py ___\n"
@@ -69,7 +69,7 @@ def test_observation_falls_back_to_tail_when_no_failure_summary():
 
 def test_obs_mode_default_is_compress():
     # The default (env unset) is the REAL pytest output, safety_compress'd — no synthesized histogram.
-    import os, src.react_repair.loop as L
+    import os, src.agent.loop as L
     if "REACT_OBS_MODE" not in os.environ:
         assert L._OBS_MODE == "compress"
 
@@ -86,16 +86,16 @@ def test_observation_default_compresses_raw_no_histogram():
     assert "250 collected" in obs                           # skip gap surfaced (250 collected vs 200 executed)
 
 def test_test_verdict_parses_collected():
-    from src.react_repair.gate import test_verdict
+    from src.agent.gate import test_verdict
     v = test_verdict("collected 200 items\n=================== 40 passed, 160 failed in 5s ===================")
     assert v.collected == 200 and v.executed == 200 and v.passed == 40
 
 def test_test_header_hides_collected_when_equal_to_executed():
-    from src.react_repair.loop import _test_header
+    from src.agent.loop import _test_header
     assert _test_header(TestOutcome(False, 40, 200, collected=200)) == "BUILD OK. TESTS 40/200 passed."
 
 def test_obs_mode_histogram_renders_breakdown(monkeypatch):
-    import src.react_repair.loop as L
+    import src.agent.loop as L
     monkeypatch.setattr(L, "_OBS_MODE", "histogram")
     out = ("=================================== FAILURES ===================================\n"
            "___ test_t ___\nc/test_z.py:2: AssertionError\n=== 3 passed, 1 failed in 1s ===\n")
@@ -109,22 +109,22 @@ def test_observation_includes_failing_line_number():
 
 
 def test_added_lines_shows_meaningful_additions_order_free():
-    from src.react_repair.loop import _added_lines
+    from src.agent.loop import _added_lines
     s = _added_lines("pip install app\n",
                      "pip install app\napt-get install -y libpq-dev\npip install psycopg2\n")
     assert "+apt-get install -y libpq-dev" in s and "+pip install psycopg2" in s
     assert "pip install app" not in s               # unchanged line not shown
 
 def test_added_lines_skips_blank_and_comment_lines():
-    from src.react_repair.loop import _added_lines
+    from src.agent.loop import _added_lines
     assert _added_lines("a\n", "a\n\n# a comment\nb\n") == "+b"
 
 def test_added_lines_collapses_big_rewrite_to_a_count():
-    from src.react_repair.loop import _added_lines
+    from src.agent.loop import _added_lines
     assert _added_lines("a\nb\nc\n", "x\ny\nz\nw\n") == "rewrote +4/-3 lines"   # 4 added > cap 3
 
 def test_added_lines_empty_when_no_change():
-    from src.react_repair.loop import _added_lines
+    from src.agent.loop import _added_lines
     assert _added_lines("a\nb\n", "a\nb\n") == ""
 
 
@@ -266,7 +266,7 @@ def test_invalid_move_retried_in_place_not_recorded_when_corrected():
         object(), reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
         run_tests=run_tests, planner=_ScriptedPlanner([bad, good]), history=hist,
         log=ReactLog(silent=True), max_steps=5, _initial_script="pip install app\n")
-    from src.react_repair.history_view import render_history
+    from src.agent.history_view import render_history
     assert "invalid move" not in render_history(hist.steps)   # corrected in-place → not in history
     assert outcome == "DONE" and "libpq-dev" in script         # the retried edit applied
 
@@ -310,7 +310,7 @@ def test_non_readonly_explore_is_invalid_and_surfaces_edit_guidance():
               run_tests=run_tests,
               planner=_ScriptedPlanner([Action("explore", command="pip install libpq-dev")]),
               history=hist, log=log, max_steps=1, _initial_script="pip install app\n")
-    from src.react_repair.history_view import render_history
+    from src.agent.history_view import render_history
     view = render_history(hist.steps)
     assert "invalid move" in view.lower()
     assert "edit()" in view and "won't persist" in view
@@ -353,8 +353,8 @@ def test_gaming_edit_reprompts_with_narrowing_hint_then_legit_edit_reaches_done(
     assert outcome == "DONE" and "libpq-dev" in script             # the retried legit edit applied
 
 def test_classify_action_rejects_narrowing_edit_directly():
-    from src.react_repair.loop import _classify_action
-    from src.react_repair.actions import Action, EditOp
+    from src.agent.loop import _classify_action
+    from src.agent.actions import Action, EditOp
     gaming = Action("edit", edit=EditOp("insert", 1, 1, "pytest --deselect tests/test_x.py::t"))
     kind, hint = _classify_action(gaming, "pip install app\n")
     assert kind == "invalid" and "collect" in hint.lower()
@@ -363,7 +363,7 @@ def test_classify_action_rejects_narrowing_edit_directly():
 
 
 def test_edit_summary_describes_the_op():
-    from src.react_repair.loop import _edit_summary
+    from src.agent.loop import _edit_summary
     assert _edit_summary(EditOp("insert", 23, 23, "pip install hiredis")) == "insert@23 +pip install hiredis"
     assert _edit_summary(EditOp("replace", 40, 40, "pip install redis==8.0.1")) == "replace@40 pip install redis==8.0.1"
     assert _edit_summary(EditOp("delete", 55, 55, "")) == "delete@55"                 # deletes ARE captured
@@ -504,8 +504,8 @@ def test_prompt_style_lever_flows_loop_to_message_list_byte_exact(monkeypatch):
     # planner builds a growing message list, and the edit made on turn 1 appears on turn 2 as a REAL
     # assistant turn rendered BYTE-EXACT from the structured op threaded through the loop onto
     # Step.action — content that the ~60-char action_summary preview would have truncated shows in full.
-    import src.react_repair.planner as planner_mod
-    from src.react_repair.planner import ReactPlanner
+    import src.agent.planner as planner_mod
+    from src.agent.planner import ReactPlanner
     monkeypatch.setenv("REACT_PROMPT_STYLE", "messages")
     long_content = "apt-get install -y libpq-dev build-essential pkg-config libssl-dev zlib1g-dev libffi-dev"
     captured: list = []
@@ -566,20 +566,20 @@ def test_self_install_edit_is_rejected_and_keeps_seed():
     assert outcome == "GIVEUP" and script == "pip install app\n"   # never shipped the shortcut
 
 def test_self_install_rejection_hint_names_the_real_fix():
-    from src.react_repair.loop import _classify_action
+    from src.agent.loop import _classify_action
     cheat = Action("edit", edit=EditOp("insert", 1, 1, "pip install itsdangerous"))
     kind, hint = _classify_action(cheat, "pip install app\n", "itsdangerous")
     assert kind == "invalid"
     assert "pip install -e ." in hint and "shadow" in hint.lower()
 
 def test_editable_install_of_the_project_is_allowed():
-    from src.react_repair.loop import _classify_action
+    from src.agent.loop import _classify_action
     legit = Action("edit", edit=EditOp("insert", 1, 1, "pip install -e .[test]"))
     assert _classify_action(legit, "pip install app\n", "itsdangerous")[0] == "edit"
 
 def test_self_install_gate_off_without_project_name():
     # No parseable project name -> gate disabled (never blocks a legitimate dep of the same name).
-    from src.react_repair.loop import _classify_action
+    from src.agent.loop import _classify_action
     a = Action("edit", edit=EditOp("insert", 1, 1, "pip install itsdangerous"))
     assert _classify_action(a, "pip install app\n", None)[0] == "edit"
 
@@ -628,7 +628,7 @@ def test_explore_step_has_no_outcome():
 def test_loop_end_to_end_renders_a_valid_agentic_prompt(monkeypatch):
     """The real chain: loop → Step.outcome → message_view(agentic). No hand-built History."""
     monkeypatch.setenv("REACT_MSG_STYLE", "agentic")
-    from src.react_repair.message_view import build_messages
+    from src.agent.message_view import build_messages
     h = _history_of([], installed_needs=("libpq-dev",))
     msgs = build_messages(h.steps, system_prompt="SYS", numbered_script="1| pip install app",
                           closing_line="Turn 1/10.")

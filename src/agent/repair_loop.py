@@ -7,7 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from graph.mutate.patch_gate import admit_proposal, compose_script
-from src.envstate.repair_scope import build_repair_scope
+from src.agent.repair_scope import build_repair_scope
 
 
 @dataclass(frozen=True)

@@ -4,7 +4,7 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.react_repair.pytest_blocks import compact_pytest_blocks
+from src.agent.pytest_blocks import compact_pytest_blocks
 
 # The real thing, from the live itsdangerous run: 5 test modules, ONE cause, 62 lines.
 FIVE_COLLECTION_ERRORS = """\

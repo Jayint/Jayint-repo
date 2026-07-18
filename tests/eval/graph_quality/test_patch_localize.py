@@ -37,8 +37,8 @@ from src.eval.graph_quality.patch_localize import (
     scenario_for, stars,
 )
 from src.eval.graph_repair_ablation.oracle import FAILURE_CLASSES, PILOT_INJECTIONS
-from src.react_repair.loop import RunResult
-from src.react_repair.pytest_summary import summarize
+from src.agent.loop import RunResult
+from src.agent.pytest_summary import summarize
 
 
 def _inj(injection_id: str):

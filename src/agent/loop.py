@@ -9,13 +9,13 @@ from dataclasses import dataclass
 from graph.emit.build_script import render_build_script
 from graph.mutate.patch_gate import is_read_only
 from src.constants import VERIFY_TEST_CMD          # the canonical `python -m pytest -q` (neutral leaf)
-from src.react_repair.actions import apply_edit
-from src.react_repair.anti_cheat import added_self_install_reason, narrowing_reason
-from src.react_repair.observation import safety_compress_observation, strip_pip_progress
-from src.react_repair.pytest_blocks import compact_pytest_blocks
-from src.react_repair.pytest_summary import format_breakdown, summarize
-from src.react_repair.script_prep import strip_graph_framing
-from src.react_repair.style import agentic
+from src.agent.actions import apply_edit
+from src.agent.anti_cheat import added_self_install_reason, narrowing_reason
+from src.agent.observation import safety_compress_observation, strip_pip_progress
+from src.agent.pytest_blocks import compact_pytest_blocks
+from src.agent.pytest_summary import format_breakdown, summarize
+from src.agent.script_prep import strip_graph_framing
+from src.agent.style import agentic
 
 # Shown to the agent when a move is rejected (a non-read-only "explore", or an otherwise unusable
 # action). Tool-calling aware — the old text referenced the retired `Action:`/`Script:` free-text

@@ -4,8 +4,8 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.react_repair.entry import docker_adapters
-from src.react_repair.log import ReactLog
+from src.agent.entry import docker_adapters
+from src.agent.log import ReactLog
 
 
 class _FakeSandbox:
@@ -94,7 +94,7 @@ def test_run_tests_does_not_parallelize_with_xdist():
     assert "-n auto" not in sb.last_cmd and "xdist" not in sb.last_cmd
 
 def test_per_test_timeout_default_matches_scorer():
-    import os, src.react_repair.entry as entry_mod
+    import os, src.agent.entry as entry_mod
     if "REACT_PER_TEST_TIMEOUT" not in os.environ:
         assert entry_mod._PER_TEST_TIMEOUT_S == 120     # == the ratbench scorer's --timeout=120
 
@@ -124,7 +124,7 @@ def test_run_tests_timeout_banner_warns_against_stripping():
 def test_default_test_timeout_matches_eval_cap():
     # Raised 600 -> 1800 to match the eval harness, so a working-but-slow seed is not read as false-0
     # by a HARSHER internal cap than the eval will apply.
-    import os, src.react_repair.entry as entry_mod
+    import os, src.agent.entry as entry_mod
     if "REACT_TEST_TIMEOUT" not in os.environ:
         assert entry_mod._TEST_TIMEOUT_S == 1800
 
@@ -147,7 +147,7 @@ class _EnvSandbox:
         return (0, self._os_out)
 
 def test_gather_env_info_includes_base_dir_and_layout(tmp_path):
-    from src.react_repair.entry import _gather_env_info
+    from src.agent.entry import _gather_env_info
     (tmp_path / "pyproject.toml").write_text("[project]\nname='x'\n")
     (tmp_path / "rq").mkdir(); (tmp_path / "rq" / "__init__.py").write_text("")
     (tmp_path / "tests").mkdir()
@@ -162,19 +162,19 @@ def test_gather_env_info_includes_base_dir_and_layout(tmp_path):
 def test_gather_env_info_surfaces_monorepo_manifest_paths(tmp_path):
     # a nested package manifest (monorepo) must show its PATH, not just the name — this is what
     # lets the agent target the right editable-install dir instead of guessing `pip install -e .`.
-    from src.react_repair.entry import _gather_env_info
+    from src.agent.entry import _gather_env_info
     sub = tmp_path / "premium" / "backend"; sub.mkdir(parents=True)
     (sub / "pyproject.toml").write_text("[project]\nname='p'\n")
     info = _gather_env_info(_EnvSandbox(), str(tmp_path))
     assert "premium/backend/pyproject.toml" in info
 
 def test_gather_env_info_survives_probe_failure(tmp_path):
-    from src.react_repair.entry import _gather_env_info
+    from src.agent.entry import _gather_env_info
     info = _gather_env_info(_EnvSandbox(raise_probe=True), str(tmp_path))
     assert "python:3.10-slim" in info and "/app" in info    # base+dir kept; OS omitted, no crash
 
 def test_run_react_arm_strips_and_forwards_seed(monkeypatch):
-    import src.react_repair.entry as entry_mod
+    import src.agent.entry as entry_mod
     captured = {}
     def fake_run_react(graph, **kw):
         captured.update(kw)
@@ -193,7 +193,7 @@ def test_run_react_arm_strips_and_forwards_seed(monkeypatch):
 def test_run_react_arm_injects_no_llm_compressor(monkeypatch):
     # The grouped history view IS the compaction; the old Tier-2 LLM compressor's output is never
     # rendered, so injecting it only burns wasted LLM calls. Lock that the arm builds no compressor.
-    import src.react_repair.entry as entry_mod
+    import src.agent.entry as entry_mod
     captured = {}
     class FakeHistory:
         def __init__(self, *a, compressor=None, **k):
@@ -205,7 +205,7 @@ def test_run_react_arm_injects_no_llm_compressor(monkeypatch):
     assert captured["compressor"] is None
 
 def test_run_react_arm_without_seed_forwards_none(monkeypatch):
-    import src.react_repair.entry as entry_mod
+    import src.agent.entry as entry_mod
     captured = {}
     monkeypatch.setattr(entry_mod, "run_react",
                         lambda graph, **kw: captured.update(kw) or ("DONE", None, graph))
@@ -216,7 +216,7 @@ def test_run_react_arm_without_seed_forwards_none(monkeypatch):
 
 # ── the ablation rungs (spec §2) ─────────────────────────────────────────────
 
-from src.react_repair.entry import rung_flags
+from src.agent.entry import rung_flags
 
 
 def test_G0_and_G1_do_not_touch_the_graph(monkeypatch):

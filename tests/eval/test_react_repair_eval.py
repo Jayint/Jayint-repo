@@ -6,7 +6,7 @@ for p in (str(_ROOT), str(_ROOT / "src")):
 
 from src.eval.react_repair_eval.run_eval import run_one
 from src.eval.react_repair_eval import scenarios as S
-from src.react_repair.log import DESIGN
+from src.agent.log import DESIGN
 
 
 def test_all_scenarios_pass_and_cover_design():

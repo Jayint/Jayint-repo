@@ -4,7 +4,7 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.react_repair.history import History
+from src.agent.history import History
 
 
 def test_old_large_observation_compressed_after_delay():

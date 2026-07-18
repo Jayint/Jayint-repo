@@ -6,7 +6,7 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.envstate.repair_loop import run_structured_repair, RepairOutcome
+from src.agent.repair_loop import run_structured_repair, RepairOutcome
 
 
 class _Res:
@@ -16,7 +16,7 @@ class _Res:
 
 
 def _fixture(monkeypatch):
-    import src.envstate.repair_loop as rl
+    import src.agent.repair_loop as rl
     # admit always accepts; compose_script / compose_replay_script returns one block matching failed id.
     class _Block:
         def __init__(self, bid): self.block_id = bid; self.target_node_ids = (bid,)

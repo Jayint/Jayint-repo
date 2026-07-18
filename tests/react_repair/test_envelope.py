@@ -4,7 +4,7 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.react_repair.envelope import edit_result, run_envelope, strip_legacy_header
+from src.agent.envelope import edit_result, run_envelope, strip_legacy_header
 
 
 # --- the command envelope: `$ cmd → result`, the atom of an agent transcript ---------------

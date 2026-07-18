@@ -16,7 +16,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import golden_kit as gk  # noqa: E402
-from src.envstate.repair_scope import render_repair_scope  # noqa: E402
+from src.agent.repair_scope import render_repair_scope  # noqa: E402
 
 PROMPT_DIR = gk.GOLDEN_DIR / "prompt"
 _STYLES = ("messages", "blob")

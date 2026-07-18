@@ -4,7 +4,7 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.react_repair.actions import action_from_tool_call, extract_reasoning, EditOp, TOOLS_SCHEMA
+from src.agent.actions import action_from_tool_call, extract_reasoning, EditOp, TOOLS_SCHEMA
 
 
 # --- explore ---------------------------------------------------------------

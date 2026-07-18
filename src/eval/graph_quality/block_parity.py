@@ -80,7 +80,7 @@ from graph.model import (  # noqa: E402
 
 from src.eval.graph_quality.graph_cache import load_graphs  # noqa: E402
 from src.eval.graph_quality.patch_localize import stars  # noqa: E402
-from src.react_repair.loop import RunResult  # noqa: E402
+from src.agent.loop import RunResult  # noqa: E402
 
 # --------------------------------------------------------------------------- #
 # Check 1 — EMIT PARITY

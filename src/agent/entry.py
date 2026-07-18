@@ -16,12 +16,12 @@ from graph.graph_context import render_graph_context
 from graph.graph_enrich import certify_only, enrich
 from graph.model import Layer
 from src.constants import VERIFY_TEST_CMD           # shared canonical "python -m pytest -q" (neutral leaf)
-from src.react_repair.gate import test_verdict
-from src.react_repair.history import History
-from src.react_repair.log import ReactLog
-from src.react_repair.loop import RunResult, run_react
-from src.react_repair.planner import ReactPlanner
-from src.react_repair.script_prep import strip_graph_framing
+from src.agent.gate import test_verdict
+from src.agent.history import History
+from src.agent.log import ReactLog
+from src.agent.loop import RunResult, run_react
+from src.agent.planner import ReactPlanner
+from src.agent.script_prep import strip_graph_framing
 
 # Install-tier layers only — drop TESTS so certify never re-runs the suite (spec §5).
 _INSTALL_LAYERS = tuple(l for l in EXECUTION_LAYER_ORDER if l is not Layer.TESTS)

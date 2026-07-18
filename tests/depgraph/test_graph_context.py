@@ -452,17 +452,17 @@ def test_tests_hidden_falls_back_to_the_regex_when_the_module_does_not_parse(tmp
 
 # ── render_graph_context — the subgraph edge-list + per-node records (Task 5) ───────────────
 #
-# `Cause` lives in `src/react_repair/pytest_summary.py`. `tests/depgraph/conftest.py` puts only
+# `Cause` lives in `src/agent/pytest_summary.py`. `tests/depgraph/conftest.py` puts only
 # `src/` on sys.path (for the bare `python_deps....` imports above), not the repo ROOT, so
-# `from src.react_repair...` needs the two-parent form used by tests/react_repair/*.py.
+# `from src.agent...` needs the two-parent form used by tests/react_repair/*.py.
 
 try:
-    from src.react_repair.pytest_summary import Cause
+    from src.agent.pytest_summary import Cause
 except ImportError:                       # tests/depgraph/ does not add the repo root
     _ROOT = Path(__file__).resolve().parents[2]
     if str(_ROOT) not in sys.path:
         sys.path.insert(0, str(_ROOT))
-    from src.react_repair.pytest_summary import Cause
+    from src.agent.pytest_summary import Cause
 
 
 class _Result:

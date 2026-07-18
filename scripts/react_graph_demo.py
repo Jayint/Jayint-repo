@@ -22,17 +22,18 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "tests" / "react_repair"))  # FakeSandbox test double
 
 from graph.ids import TEST_NODE_ID, package_id
 from graph.model import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )
-from src.react_repair.entry import build_graph_hooks, docker_adapters, rung_flags
-from src.react_repair.fake_sandbox import FakeSandbox
-from src.react_repair.history import History
-from src.react_repair.log import ReactLog
-from src.react_repair.loop import run_react
-from src.react_repair.actions import Action
+from src.agent.entry import build_graph_hooks, docker_adapters, rung_flags
+from fake_sandbox import FakeSandbox
+from src.agent.history import History
+from src.agent.log import ReactLog
+from src.agent.loop import run_react
+from src.agent.actions import Action
 
 BAR = "━" * 78
 

@@ -3,8 +3,8 @@ once the script contains every `install_token`; tests pass once it also contains
 `test_token`. A read-only probe returns scripted output."""
 from __future__ import annotations
 
-from src.react_repair.gate import TestOutcome
-from src.react_repair.loop import RunResult
+from src.agent.gate import TestOutcome
+from src.agent.loop import RunResult
 
 
 class FakeSandbox:

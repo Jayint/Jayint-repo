@@ -26,14 +26,14 @@ import json
 import os
 import re
 
-from src.react_repair.envelope import edit_result, run_envelope, strip_legacy_header
-from src.react_repair.history_view import (
+from src.agent.envelope import edit_result, run_envelope, strip_legacy_header
+from src.agent.history_view import (
     _EXPLORE_FULL_CAP, _OBS_COMPRESS_CAP, _PAT_BASE, _PAT_EXPLORE, _PAT_MUTATION,
     _STUCK_MODE, _STUCK_THRESHOLD, _specific, extract_blocker)
-from src.react_repair.history import safety_truncate
-from src.react_repair.observation import safety_compress_observation, strip_pip_progress
-from src.react_repair.pytest_blocks import compact_pytest_blocks
-from src.react_repair.style import agentic
+from src.agent.history import safety_truncate
+from src.agent.observation import safety_compress_observation, strip_pip_progress
+from src.agent.pytest_blocks import compact_pytest_blocks
+from src.agent.style import agentic
 
 # Render style (lever, read per-call so a VM run can flip it via env).
 #

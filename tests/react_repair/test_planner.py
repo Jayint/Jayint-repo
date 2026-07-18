@@ -4,9 +4,9 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-import src.react_repair.planner as planner_mod
-from src.react_repair.planner import ReactPlanner
-from src.react_repair.history import History
+import src.agent.planner as planner_mod
+from src.agent.planner import ReactPlanner
+from src.agent.history import History
 
 _USAGE = {"input_tokens": 1, "output_tokens": 1, "total_tokens": 2}
 
@@ -36,7 +36,7 @@ def _capture_all():
 
 
 def _one_step_history():
-    from src.react_repair.history import History
+    from src.agent.history import History
     h = History()
     h.record(0, "", "baseline → BUILD FAILED", "BUILD FAILED at `pip install x` (line 1):\nboom\n")
     return h
@@ -114,7 +114,7 @@ def test_graph_context_is_absent_for_the_baseline(monkeypatch):
 
 # --- trace -----------------------------------------------------------------
 def test_plan_traces_the_edit_op(monkeypatch):
-    from src.react_repair.log import ReactLog
+    from src.agent.log import ReactLog
     monkeypatch.setattr(planner_mod, "complete_with_tools",
         _fake_tools([("edit", '{"verb":"insert","start":54,"content":"redis-server --daemonize yes"}')]))
     log = ReactLog(silent=True)
@@ -198,22 +198,22 @@ def test_planner_bakes_env_info_into_system_prompt():
 
 # --- failure-line anchoring in the numbered script ------------------------
 def test_numbered_marks_the_failing_line():
-    from src.react_repair.planner import _numbered, _HALT_MARKER
+    from src.agent.planner import _numbered, _HALT_MARKER
     lines = _numbered("aa\nbb\ncc", fail_lineno=2).splitlines()
     assert _HALT_MARKER in lines[1] and "bb" in lines[1]     # the failing line is tagged where it's edited
     assert _HALT_MARKER not in lines[0] and _HALT_MARKER not in lines[2]
 
 def test_numbered_no_marker_without_fail_lineno():
-    from src.react_repair.planner import _numbered, _HALT_MARKER
+    from src.agent.planner import _numbered, _HALT_MARKER
     assert _HALT_MARKER not in _numbered("aa\nbb", fail_lineno=None)
 
 def test_numbered_ignores_out_of_range_fail_lineno():
-    from src.react_repair.planner import _numbered, _HALT_MARKER
+    from src.agent.planner import _numbered, _HALT_MARKER
     out = _numbered("aa\nbb", fail_lineno=99)                 # stale/OOB line: don't crash, don't tag
     assert _HALT_MARKER not in out and "1| aa" in out
 
 def test_plan_marks_failing_line_in_rendered_user_message(monkeypatch):
-    from src.react_repair.planner import _HALT_MARKER
+    from src.agent.planner import _HALT_MARKER
     seen, fn = _capture(); monkeypatch.setattr(planner_mod, "complete_with_tools", fn)
     ReactPlanner(client=object(), model="m").plan(
         History(), "aa\nbb\ncc", "BUILD FAILED at `x` (line 2)", graph=None, fail_lineno=2)
@@ -224,7 +224,7 @@ def test_plan_marks_failing_line_in_rendered_user_message(monkeypatch):
 # --- prompt-style lever (growing message list = default; blob = opt-in) ---
 def test_prompt_style_defaults_to_growing_message_list(monkeypatch):
     # DEFAULT (env unset): the model's own moves become real assistant turns; the live obs is last.
-    from src.react_repair.history import History
+    from src.agent.history import History
     monkeypatch.delenv("REACT_PROMPT_STYLE", raising=False)
     h = History()                                              # needs an ACTION for an assistant turn
     h.record(0, "", "baseline → BUILD FAILED", "BUILD FAILED at `x` (line 1):\nboom\n")

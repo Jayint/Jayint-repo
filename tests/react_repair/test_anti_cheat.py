@@ -4,7 +4,7 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.react_repair.anti_cheat import detect_test_narrowing, narrowing_reason
+from src.agent.anti_cheat import detect_test_narrowing, narrowing_reason
 
 
 # --- pytest config exclusion directives (the podman-compose mechanism) -----
@@ -119,7 +119,7 @@ def test_narrowing_reason_none_for_no_change():
 # `pip install -e .`, went 297/297 green, and never installed the repo. The published package shadows
 # the source under test, so the suite passed against code that is not in this repo. The collection
 # gate cannot see it (collection GREW 68 -> 297) and the pass-rate gate is fully satisfied.
-from src.react_repair.anti_cheat import self_install_reason
+from src.agent.anti_cheat import self_install_reason
 
 
 def test_self_install_from_index_is_rejected():
@@ -160,18 +160,18 @@ def test_comments_do_not_trip_the_gate():
 def test_preexisting_self_install_does_not_block_unrelated_edits():
     # Scoping rule (mirrors narrowing_reason): only the edit that INTRODUCES the shortcut is punished.
     # Whole-script scanning would deadlock the agent if the seed already carried a self-install.
-    from src.react_repair.anti_cheat import added_self_install_reason
+    from src.agent.anti_cheat import added_self_install_reason
     seed = "pip install itsdangerous\n"                       # already there (e.g. from the seed)
     unrelated = seed + "pip install freezegun\n"              # adds something else entirely
     assert added_self_install_reason(seed, unrelated, "itsdangerous") is None
 
 def test_edit_that_introduces_self_install_is_rejected():
-    from src.react_repair.anti_cheat import added_self_install_reason
+    from src.agent.anti_cheat import added_self_install_reason
     assert added_self_install_reason("pip install pytest\n",
                                      "pip install pytest\npip install itsdangerous\n", "itsdangerous")
 
 def test_delete_that_removes_a_self_install_is_allowed():
-    from src.react_repair.anti_cheat import added_self_install_reason
+    from src.agent.anti_cheat import added_self_install_reason
     before = "pip install itsdangerous\npip install pytest\n"
     after = "pip install -e .\npip install pytest\n"          # swaps the shortcut for the real fix
     assert added_self_install_reason(before, after, "itsdangerous") is None

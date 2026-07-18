@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from typing import Any, Callable
 
-from src.envstate.diagnostics import log_llm_exchange
+from src.agent.diagnostics import log_llm_exchange
 from src.llm import complete_with_retry
 
 # --- output truncation (keep head tracebacks AND tail pytest summary) ---------
@@ -147,7 +147,7 @@ class V3BuildAgent:
 
     def propose(self, scope, exec_readonly, *, max_diag_turns: int = 4, rejection_errors=()):
         """v3 typed-patch path (inv #6): read-only ReAct -> one PatchProposal, or None."""
-        from src.envstate.repair_scope import render_repair_scope
+        from src.agent.repair_scope import render_repair_scope
         from graph.util import extract_json_object
         from graph.mutate.patch import parse_patch_proposal, PatchParseError
 

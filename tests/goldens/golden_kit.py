@@ -27,12 +27,12 @@ for _p in (str(_ROOT), str(_ROOT / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import src.react_repair.history_view as history_view  # noqa: E402
-import src.react_repair.message_view as message_view  # noqa: E402
-import src.react_repair.planner as planner_mod  # noqa: E402
-from src.envstate.repair_scope import RepairScope  # noqa: E402
-from src.react_repair.history import History  # noqa: E402
-from src.react_repair.planner import ReactPlanner  # noqa: E402
+import src.agent.history_view as history_view  # noqa: E402
+import src.agent.message_view as message_view  # noqa: E402
+import src.agent.planner as planner_mod  # noqa: E402
+from src.agent.repair_scope import RepairScope  # noqa: E402
+from src.agent.history import History  # noqa: E402
+from src.agent.planner import ReactPlanner  # noqa: E402
 
 GOLDEN_DIR = pathlib.Path(__file__).resolve().parent
 
@@ -347,10 +347,10 @@ _APT_NOISY = (
 def observe_cases() -> dict:
     """The observe cluster's pure renders: the `$ cmd -> result` envelope, edit tool-results,
     the ranked pytest cause histogram, block dedup, and the noise-strip compression."""
-    from src.react_repair.envelope import edit_result, run_envelope
-    from src.react_repair.observation import safety_compress_observation, strip_pip_progress
-    from src.react_repair.pytest_blocks import compact_pytest_blocks
-    from src.react_repair.pytest_summary import format_breakdown, summarize
+    from src.agent.envelope import edit_result, run_envelope
+    from src.agent.observation import safety_compress_observation, strip_pip_progress
+    from src.agent.pytest_blocks import compact_pytest_blocks
+    from src.agent.pytest_summary import format_breakdown, summarize
 
     outcomes = {
         "envelope/build_fail": {"build_ok": False, "failing_command": "pip install psycopg2", "lineno": 5},
@@ -389,9 +389,9 @@ def observe_cases() -> dict:
 def gate_cases() -> dict:
     """The gate verdict across the >=80% boundary + the anti-hollow guards, and the anti-gaming
     detectors (test-collection narrowing + self-install-from-index), incl. must-NOT-trip cases."""
-    from src.react_repair.anti_cheat import (
+    from src.agent.anti_cheat import (
         added_self_install_reason, detect_test_narrowing, narrowing_reason, self_install_reason)
-    from src.react_repair.gate import test_verdict
+    from src.agent.gate import test_verdict
 
     verdict_inputs = {
         "verdict/boundary_exactly_80": "8 passed, 2 failed",

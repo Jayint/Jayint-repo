@@ -20,8 +20,8 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import golden_kit as gk  # noqa: E402
-import src.react_repair.history_view as history_view  # noqa: E402
-from src.react_repair.history_view import render_history  # noqa: E402
+import src.agent.history_view as history_view  # noqa: E402
+from src.agent.history_view import render_history  # noqa: E402
 
 HIST_DIR = gk.GOLDEN_DIR / "history"
 
