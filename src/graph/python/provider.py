@@ -12,8 +12,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from graph.contracts.provider import CertifyMode, ClosureMode
-from graph.core.build import (
-    _project_build_manifest,
+from graph.python.skeleton import _project_build_manifest
+from graph.python.pipeline import (
     _python_native_obligations,
     _python_package_obligations,
 )

@@ -17,7 +17,7 @@ import logging
 import re
 from collections.abc import Callable
 
-from graph.core.build import build_dep_graph
+from graph.core.orchestrate import build_dep_graph
 from graph.contracts.executor import Executor
 from graph.executors import DockerExecutor, LocalSubprocessExecutor
 from graph.emit.emit import partition
@@ -329,7 +329,7 @@ def build_advisory_for_repo(
 
     ``uv_sources_enabled`` (V3_UV_SOURCES, default OFF) is passed straight
     through to :func:`build_dep_graph` — see
-    ``graph.core.build._python_package_obligations``'s docstring
+    ``graph.python.pipeline._python_package_obligations``'s docstring
     for the false-green rationale. This module never reads the environment
     itself; the flag is read once at ``scripts/run_v3_e2e.py``'s
     ``_uv_sources_enabled`` (the impure orchestration boundary) and passed in

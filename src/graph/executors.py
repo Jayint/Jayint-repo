@@ -1,7 +1,7 @@
 """Concrete Executor implementations — host subprocess + Docker container.
 
 Split out of ``graph/contracts/executor.py`` (Phase 2 T6) so the seam file stays a
-pure protocol. These remain graph-internal: ``graph.core.build`` and ``graph.advise``
+pure protocol. These remain graph-internal: ``graph.python.pipeline`` and ``graph.advise``
 construct them (``LocalSubprocessExecutor`` as the host-probe default;
 ``DockerExecutor`` for the scratch-container advisory). ``LocalSubprocessExecutor``
 uses ``subprocess`` (no Docker), so graph stays Docker-free.

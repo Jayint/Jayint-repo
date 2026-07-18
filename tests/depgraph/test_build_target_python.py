@@ -3,7 +3,7 @@ not a hardcoded 3.11 — otherwise the closure pins wheels for the wrong python
 (a 3.11-resolved ``pyarrow==2.0.0`` cannot build on a 3.13 container)."""
 from __future__ import annotations
 
-from graph.core.build import _detect_target_python
+from graph.python.skeleton import _detect_target_python
 from graph.contracts.executor import CommandResult
 
 

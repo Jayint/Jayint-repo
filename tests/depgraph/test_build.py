@@ -22,7 +22,7 @@ documented coverage tradeoff.
 
 from __future__ import annotations
 
-from graph.core.build import build_dep_graph
+from graph.core.orchestrate import build_dep_graph
 from graph.contracts.executor import CommandResult
 from graph.ids import (
     TEST_NODE_ID,
@@ -262,7 +262,7 @@ def test_build_empty_repo_yields_only_test_node(tmp_path):
 def test_project_node_hubs_runtime_deps_and_routes_test_deps(tmp_path):
     """Project node: runtime declared deps hang off Project; test/optional deps
     hang off the Test goal; certifi gains a parent (the no-parent observation)."""
-    from graph.core.build import _add_project_node
+    from graph.python.skeleton import _add_project_node
     from graph.ids import project_id
     from graph.model import (
         DepGraph,
@@ -314,7 +314,7 @@ def test_project_node_hubs_runtime_deps_and_routes_test_deps(tmp_path):
 def test_project_node_not_installable_without_build_manifest(tmp_path):
     """A repo with neither pyproject.toml nor setup.py is NOT editable-installable
     (no `pip install -e .` line should be rendered for it)."""
-    from graph.core.build import _add_project_node
+    from graph.python.skeleton import _add_project_node
     from graph.ids import project_id
     from graph.model import DepGraph, DiscoveredBy, Layer, Node
 
@@ -330,7 +330,7 @@ def test_project_node_not_installable_without_build_manifest(tmp_path):
 
 def test_project_node_installable_with_setup_py_only(tmp_path):
     """A legacy repo with only setup.py (no pyproject.toml) is still installable."""
-    from graph.core.build import _add_project_node
+    from graph.python.skeleton import _add_project_node
     from graph.ids import project_id
     from graph.model import DepGraph, DiscoveredBy, Layer, Node
 
@@ -347,7 +347,7 @@ def test_project_node_installable_with_setup_py_only(tmp_path):
 def _project_installable(tmp_path):
     """Helper: run _add_project_node on a bare repo and return the PROJECT node's
     installable flag."""
-    from graph.core.build import _add_project_node
+    from graph.python.skeleton import _add_project_node
     from graph.ids import project_id
     from graph.model import DepGraph, DiscoveredBy, Layer, Node
 
@@ -519,12 +519,13 @@ def test_no_provisional_3a_link_in_build(tmp_path):
 def test_build_dep_graph_threads_needed_extras_into_roots_and_resolve(tmp_path):
     from unittest.mock import patch
 
-    import graph.core.build as build_mod
+    import graph.python.pipeline as _pl_mod
+    import graph.python.fixpoint as _fp_mod
 
     ex = _make_executor()
     calls: dict = {}
-    orig_select_roots = build_mod.select_roots
-    orig_resolve_closure = build_mod.resolve_closure
+    orig_select_roots = _pl_mod.select_roots  # select_roots' caller (_python_package_obligations) lives in pipeline
+    orig_resolve_closure = _fp_mod.resolve_closure  # resolve_closure's caller (_phase_a_fixpoint) lives in fixpoint
 
     def spy_select_roots(repo_path, graph, needed_extras=frozenset(), **kwargs):
         calls["select_roots_needed_extras"] = needed_extras
@@ -536,8 +537,8 @@ def test_build_dep_graph_threads_needed_extras_into_roots_and_resolve(tmp_path):
         calls["resolve_closure_extras"] = kwargs.get("extras")
         return orig_resolve_closure(*args, **kwargs)
 
-    with patch.object(build_mod, "select_roots", side_effect=spy_select_roots), patch.object(
-        build_mod, "resolve_closure", side_effect=spy_resolve_closure
+    with patch.object(_pl_mod, "select_roots", side_effect=spy_select_roots), patch.object(
+        _fp_mod, "resolve_closure", side_effect=spy_resolve_closure
     ):
         build_dep_graph(
             _make_repo(tmp_path), ex, host_executor=ex, needed_extras=frozenset({"test"})
@@ -556,7 +557,7 @@ def test_build_dep_graph_default_needed_extras_is_runtime_only(tmp_path):
     # is still empty, which is exactly what this test checks.
     from unittest.mock import patch
 
-    import graph.core.build as build_mod
+    import graph.python.pipeline as build_mod  # select_roots' caller lives in pipeline
 
     ex = _make_executor()
     calls: dict = {}
@@ -641,7 +642,7 @@ def test_fixpoint_uses_pipreqs_candidate_via_grounding():
     unresolved import whose pipreqs dist RECORD-confirms is accepted. (End-to-end
     coverage that build_dep_graph actually drives the guesser through the fixpoint
     lives in test_python_provider.py::test_build_dep_graph_reaches_fixpoint_llm_end_to_end.)"""
-    from graph.core import build as build_mod
+    from graph.python import fixpoint as build_mod  # generate_candidates/choose_provider/Verdict live in fixpoint
 
     # stub record provider: opencv-python's wheel provides top-level "cv2"
     def fake_provider(dist):
@@ -676,7 +677,7 @@ def test_declared_package_names_for_repair_excludes_uv_sourced_names():
     as a bare-PyPI repair candidate -- that would let an unsatisfied `import
     acme_sdk` be "repaired" by installing the unrelated PUBLIC `acme-sdk`
     from PyPI instead of the git-pinned fork the repo actually declared."""
-    from graph.core.build import _declared_package_names_for_repair
+    from graph.python.pipeline import _declared_package_names_for_repair
     from graph.python.models import PythonDependencyEvidence, PythonRequirement
 
     evidence = PythonDependencyEvidence(
@@ -705,7 +706,7 @@ def test_declared_package_names_for_repair_keys_off_uv_sources_not_kind():
     longer sets any retag sentinel at all; this placeholder kind stands in
     for "any kind value whatsoever" to prove the exclusion never inspects
     it)."""
-    from graph.core.build import _declared_package_names_for_repair
+    from graph.python.pipeline import _declared_package_names_for_repair
     from graph.python.models import PythonDependencyEvidence, PythonRequirement
 
     evidence = PythonDependencyEvidence(
@@ -1006,7 +1007,7 @@ def test_excluded_uv_source_node_cannot_be_emitted():
     hold regardless, because `version=None` trips its FIRST check
     (`if not node.version: return False`) before that blind spot is ever
     reached."""
-    from graph.core.build import _excluded_uv_source_node
+    from graph.python.pipeline import _excluded_uv_source_node
     from graph.emit.emit import next_deterministic_wave
     from graph.model import DepGraph
 
@@ -1028,7 +1029,7 @@ def test_excluded_uv_source_node_cannot_be_certified_by_successful_pip_show():
     flip SATISFIED. The excluded node must never be vulnerable to this: it
     carries no `check_command` at all, so `certify` must never even invoke
     the executor for it, regardless of what that executor would have said."""
-    from graph.core.build import _excluded_uv_source_node
+    from graph.python.pipeline import _excluded_uv_source_node
     from graph.core.certify import certify
     from graph.contracts.executor import CommandResult
     from graph.model import DepGraph, State
@@ -1071,7 +1072,7 @@ def test_excluded_uv_source_node_cannot_be_certified_by_successful_pip_show():
 # (`build_dep_graph` -> `_python_package_obligations`).
 # --------------------------------------------------------------------------- #
 def test_uv_sourced_dist_names_includes_direct_reference_sources():
-    from graph.core.build import _uv_sourced_dist_names
+    from graph.python.pipeline import _uv_sourced_dist_names
     from graph.python.models import PythonDependencyEvidence
 
     evidence = PythonDependencyEvidence(
@@ -1087,7 +1088,7 @@ def test_declared_package_names_for_repair_excludes_direct_reference_names():
     # above, but for a PEP 508 direct reference instead of a
     # `[tool.uv.sources]` table entry: a git-pinned `kivymd` must never be
     # "repaired" into the unrelated PUBLIC PyPI `kivymd`.
-    from graph.core.build import _declared_package_names_for_repair
+    from graph.python.pipeline import _declared_package_names_for_repair
     from graph.python.models import PythonDependencyEvidence, PythonRequirement
 
     evidence = PythonDependencyEvidence(
@@ -1105,7 +1106,7 @@ def test_declared_package_names_for_repair_excludes_direct_reference_names():
 
 def test_excluded_direct_reference_node_cannot_be_emitted():
     # Mirrors test_excluded_uv_source_node_cannot_be_emitted.
-    from graph.core.build import _excluded_direct_reference_node
+    from graph.python.pipeline import _excluded_direct_reference_node
     from graph.emit.emit import next_deterministic_wave
     from graph.model import DepGraph
 
@@ -1122,7 +1123,7 @@ def test_excluded_direct_reference_node_cannot_be_emitted():
 
 def test_excluded_direct_reference_node_cannot_be_certified_by_successful_pip_show():
     # Mirrors test_excluded_uv_source_node_cannot_be_certified_by_successful_pip_show.
-    from graph.core.build import _excluded_direct_reference_node
+    from graph.python.pipeline import _excluded_direct_reference_node
     from graph.core.certify import certify
     from graph.contracts.executor import CommandResult
     from graph.model import DepGraph, State
@@ -1331,7 +1332,7 @@ def test_project_node_certifies_by_import_when_name_matches_local_module(tmp_pat
     pkg = tmp_path / "frappe"
     pkg.mkdir()
     (pkg / "__init__.py").write_text("")
-    from graph.core.build import _add_project_node
+    from graph.python.skeleton import _add_project_node
     from graph.model import NodeType
     graph = _add_project_node(_seed_graph_with_test_goal(), str(tmp_path))
     proj = next(n for n in graph.nodes if n.type is NodeType.PROJECT)
@@ -1346,7 +1347,7 @@ def test_project_node_no_import_check_when_dist_name_differs_from_import(tmp_pat
     pkg = tmp_path / "sklearn"
     pkg.mkdir()
     (pkg / "__init__.py").write_text("")
-    from graph.core.build import _add_project_node
+    from graph.python.skeleton import _add_project_node
     from graph.model import NodeType
     graph = _add_project_node(_seed_graph_with_test_goal(), str(tmp_path))
     proj = next(n for n in graph.nodes if n.type is NodeType.PROJECT)

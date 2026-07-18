@@ -8,7 +8,7 @@ Debian/Ubuntu provider mappings.
 
 from __future__ import annotations
 
-from graph.core.build import build_dep_graph
+from graph.core.orchestrate import build_dep_graph
 from graph.core.certify import certify, certify_all
 from graph.contracts.executor import CommandResult, Executor
 from graph.executors import DockerExecutor, LocalSubprocessExecutor

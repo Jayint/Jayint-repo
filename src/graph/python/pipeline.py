@@ -1,510 +1,82 @@
-"""Stage orchestrator — repo path in, host-certified ``DepGraph`` out.
+"""Two-phase Python dependency obligations + resolve-root exclusion.
 
-Wires the pipeline of
-``docs/DESIGN-static-probe-certified-dependency-graph.md`` /
-``docs/superpowers/specs/2026-06-23-uv-enriched-depgraph.md`` as TWO phases with
-TWO distinct oracles (P2.1):
+Split (3c-5) from the former ``core/build.py`` — carries its full staged-pipeline
+module docstring:
 
     scan/map   static import scan + declared-ONLY roots -> Import/Test  (cycle 1)
 
-    Phase A -- "is it PROVIDED?"  oracle = RECORD-union coverage.
-       A bounded resolve (HOST uv) -> install (CONTAINER) -> look -> repair
-       FIXPOINT (:func:`_phase_a_fixpoint`). Each round audits the runtime imports
-       against the RESOLVED closure's RECORD-union coverage
-       (:func:`coverage.resolved_record_coverage`) and repairs an under-declared
-       import by grounding + adding an AUDIT root, re-resolving until coverage is
-       stable. The loop condition is the RECORD-union oracle, NEVER a per-round
-       ``packages_distributions()`` probe — so a resolved-but-failed-to-build dist
-       counts PROVIDED here (its wheel RECORDs the module) and its native gap is a
-       Phase-B concern, not a Phase-A under-declaration.                (cycle 2)
+    Phase A -- "is it PROVIDED?"  oracle = RECORD-union coverage. A bounded resolve
+       (HOST uv) -> install (CONTAINER) -> look -> repair FIXPOINT
+       (``fixpoint._phase_a_fixpoint``). Each round audits the runtime imports
+       against the RESOLVED closure's RECORD-union coverage and repairs an
+       under-declared import by grounding + adding an AUDIT root, re-resolving until
+       coverage is stable.                                                 (cycle 2)
 
     Phase B -- "does it LOAD / who PROVIDES it?"  oracle = the live CONVERGED
-    container. A single tier descent over the converged closure, "look then
-    derive":
-       relink   certified Import->Package edges + honest ``unresolved`` flags
-                (packages_distributions, CONTAINER) -- Phase B's LOOK           (cycle 3)
-       ldd      ldd ext .so ``=> not found`` -> run-time SystemLib (DT_NEEDED)   (cycle 3)
-       probe    import backstop -> dlopen'd SystemLib not in NEEDED             (cycle 3)
-       apt      reconcile predicted apt names against the target image
-       certify  host check_commands (CONTAINER) -> node ``state``              (cycle 4)
+    container. A single tier descent "look then derive": relink -> ldd -> probe ->
+    apt.                                                                    (cycle 3)
 
-**Executor split (spec "Architecture change"):** resolution is HOST-side — ``uv``
-cross-platform resolves the container target without a container interpreter — so
-it runs through ``host_executor``.  Install/probe/certify must observe the real
-target environment, so they run through ``container_executor``.  Both default-safe
-for unit tests (a single ``FakeExecutor`` can be injected for both).
-
-Phase B's discovery order and the later execution order differ (design 3.3 /
-10.10): the descent LOOKS (relink) then DERIVES system deps (ldd/probe) on the
-converged closure, but certification then runs in execution layer order (system
-before pip).  Every stage returns a NEW immutable graph; this function only ever
-rebinds ``graph``.
+**Executor split:** resolution is HOST-side (``host_executor``); install/probe/
+certify observe the real target env (``container_executor``). Both default-safe for
+unit tests. ``_python_package_obligations`` (Phase 1) and ``_python_native_obligations``
+(Phase 2) are the ``EcosystemProvider`` seam bodies; ``select_roots`` and the
+record-provider constructors are module-level imports here so a test patch reaches
+their call site.
 """
 
 from __future__ import annotations
 
 import logging
-import os
-import re
 from dataclasses import replace
 from types import MappingProxyType
 
-try:  # tomllib is stdlib on 3.11+; fall back to the tomli backport on 3.10.
-    import tomllib
-except ModuleNotFoundError:  # pragma: no cover - exercised on Python < 3.11
-    import tomli as tomllib
-
-from graph.python.native.apt import reconcile_apt_names
-from graph.python.native.build_deps import seed_build_deps
-from graph.core.certify import certify_all
-from graph.python.lanes.install.ground import (
-    composite_record_provider,
-    default_record_provider,
-    pypi_record_provider,
-    resolved_record_coverage,
-)
 from graph.contracts.executor import Executor
 from graph.executors import LocalSubprocessExecutor
-from graph.ids import TEST_NODE_ID, package_id, project_id
-from graph.python.native.system_libs import ldd_probe
-from graph.python.lanes.install.resolve_lock import compute_exclude_newer
-from graph.python.native.system_libs import import_probe
-from graph.python.lanes.install.closure import install_closure
-from graph.python.native.project_native import project_native_obligations
-from graph.python.lanes.install.link import certified_import_links
-from graph.python.lanes.install.ground import (
-    DistGuesser,
-    RecordProvider,
-    Verdict,
-    choose_provider,
-    generate_candidates,
-)
-from graph.python.lanes.install.resolve import (
-    _req_name,
-    resolve_closure,
-)
-from graph.python.lanes.install.roots import select_roots
-from graph.python.read.scan import scan_to_nodes
+from graph.ids import package_id
 from graph.model import (
     DepGraph,
     DiscoveredBy,
-    Edge,
-    EdgeType,
     Layer,
     Node,
     NodeType,
     State,
 )
-from graph.python.native.build_deps import seed_wheel_oracle_prior
-from graph.python.read.subprocess_scan import add_subprocess_tool_nodes
-from graph.python.read.target_env import detect_target_env
+from graph.python.fixpoint import _phase_a_fixpoint
+from graph.python.lanes.install.ground import (
+    DistGuesser,
+    RecordProvider,
+    composite_record_provider,
+    default_record_provider,
+    pypi_record_provider,
+)
+from graph.python.lanes.install.link import certified_import_links
+from graph.python.lanes.install.resolve import _req_name
+from graph.python.lanes.install.resolve_lock import compute_exclude_newer
+from graph.python.lanes.install.roots import select_roots
+from graph.python.native.apt import reconcile_apt_names
+from graph.python.native.build_deps import seed_build_deps, seed_wheel_oracle_prior
+from graph.python.native.project_native import project_native_obligations
+from graph.python.native.system_libs import import_probe, ldd_probe
 from graph.python.native.wheel import wheel_preflight_probe
 from graph.python.read.evidence import collect_python_dependency_evidence
-from graph.python.util.import_mapping import normalize_package_name, top_level_import_name
+from graph.python.read.scan import scan_to_nodes
+from graph.python.read.subprocess_scan import add_subprocess_tool_nodes
+from graph.python.read.target_env import detect_target_env
+from graph.python.skeleton import (
+    _PROBE_CYCLE,
+    _RESOLVER_CYCLE,
+    _SCAN_CYCLE,
+    _add_project_node,
+    _pad_python_full,
+    _restamp,
+)
+from graph.python.util.import_mapping import normalize_package_name
 
 logger = logging.getLogger(__name__)
 
-# Numeric backstop on Phase-A repair rounds (Correction 2b): the attempted-set is
-# the honest terminator; this caps pathological non-convergence.
-_MAX_REPAIR_ROUNDS = 5
-
-# discovered_cycle stamps, one per discovery stage (design 5.2 example uses 3 for
-# probe-discovered SystemLibs).
-_SCAN_CYCLE = 1
-_RESOLVER_CYCLE = 2
-_PROBE_CYCLE = 3
-_CERTIFY_CYCLE = 4
-
-
-def _restamp(graph: DepGraph, node_ids: set[str], cycle: int) -> DepGraph:
-    """Return a new graph with ``discovered_cycle = cycle`` on the named nodes."""
-    new = graph
-    for node_id in node_ids:
-        node = new.get(node_id)
-        if node is not None:
-            new = new.with_node(replace(node, discovered_cycle=cycle))
-    return new
-
-
-# PEP-503 canonicalizer. Was a build-local def byte-identical to
-# import_mapping.normalize_package_name; aliased to that util-natured owner (not
-# duplicated) so the fixpoint/skeleton/pipeline split files import one shared
-# canonicalizer from util rather than a build-local copy.
+# PEP-503 canonicalizer, aliased to its util-natured owner (one shared
+# canonicalizer, not a build-local copy) — see the split note in git history.
 _canon = normalize_package_name
-
-
-def _project_name(repo_path: str) -> str:
-    """Project name from ``[project].name`` in pyproject.toml, else dir basename."""
-    pyproject = os.path.join(repo_path, "pyproject.toml")
-    try:
-        with open(pyproject, "rb") as fh:
-            data = tomllib.load(fh)
-        name = (data.get("project") or {}).get("name")
-        if isinstance(name, str) and name.strip():
-            return name.strip()
-    except (OSError, tomllib.TOMLDecodeError):
-        pass
-    return os.path.basename(repo_path.rstrip("/\\")) or "project"
-
-
-def _project_build_manifest(repo_path: str) -> str | None:
-    """The build manifest that makes the repo editable-installable, or None.
-
-    A ``pip install -e .`` needs DECLARED packaging intent, not merely a file
-    named ``pyproject.toml``: many repos ship a ``pyproject.toml`` purely for tool
-    config (``[tool.black]``, ``[tool.ruff]``, …) alongside a flat multi-module
-    layout that ``pip install -e .`` cannot build (setuptools aborts with
-    "Multiple top-level modules discovered in a flat-layout"). Under the rendered
-    script's ``set -Eeuo pipefail`` that one line would abort the whole setup.sh —
-    a NEW first-pass failure on a repo that never needed the editable install.
-
-    So a ``pyproject.toml`` counts only when it declares ``[project]`` (PEP 621
-    metadata) or ``[build-system]`` (PEP 517 backend); a bare ``setup.py`` is the
-    legacy installable signal. A tool-config-only pyproject with no ``setup.py``,
-    or an unparseable pyproject we cannot confirm, yields None — the renderer then
-    emits no editable install (never a command we cannot stand behind).
-    """
-    pyproject = os.path.join(repo_path, "pyproject.toml")
-    if os.path.isfile(pyproject):
-        try:
-            with open(pyproject, "rb") as fh:
-                data = tomllib.load(fh)
-        except (OSError, tomllib.TOMLDecodeError):
-            data = {}
-        if "project" in data or "build-system" in data:
-            return pyproject
-    setup_py = os.path.join(repo_path, "setup.py")
-    if os.path.isfile(setup_py):
-        return setup_py
-    return None
-
-
-def _project_import_target(project_name: str, evidence) -> str | None:
-    """The project's own top-level import module to certify-by-import, or None.
-
-    Maps the distribution name to an import name (dash->underscore, lowercased)
-    and returns it ONLY when that exact name is one of the repo's own top-level
-    modules (``evidence.project_local_modules``). When the import name differs
-    from the dist name (``scikit-learn`` -> ``sklearn``) there is no
-    tripwire-safe static match, so we return None and leave the Project UNKNOWN
-    rather than certify against a guess -- the relink-based mapping (config lane,
-    a later task) covers that case with a certified source. ``build.py`` must not
-    import ``repo_modules`` (construction-boundary tripwire), so the source here
-    is the already-collected ``project_local_modules``.
-    """
-    canon = project_name.lower().replace("-", "_")
-    return canon if canon in set(evidence.project_local_modules) else None
-
-
-def _add_project_node(graph: DepGraph, repo_path: str) -> DepGraph:
-    """Add a Project hub node and connect declared direct deps to it.
-
-    The repo under test is otherwise only reachable through the Test->Import
-    chain, so its declared direct dependencies have no shared parent (e.g.
-    ``certifi`` had no incoming Package->Package edge).  This node makes "what
-    does the project directly require" a single explorable subtree:
-
-    * ``Test --requires--> Project``
-    * ``Project --requires--> <runtime declared dep Package>``  (kind=dependency)
-    * ``Test --requires--> <test/optional declared dep Package>`` (kind=optional)
-
-    Runtime vs test classification reuses ``evidence`` (kind ``dependency`` vs
-    ``optional_dependency``); no new parsing.  Transitive deps still hang off
-    their parents, and Import->Package reconciliation is unchanged.
-    """
-    name = _project_name(repo_path)
-    proj_id = project_id(name)
-    manifest = _project_build_manifest(repo_path)
-    # Collected BEFORE node construction (not after, as before) so
-    # soft_requirements_files is available for the node's data at creation time.
-    evidence = collect_python_dependency_evidence(repo_path)
-    import_target = _project_import_target(name, evidence)
-    project_check = f'python -c "import {import_target}"' if import_target else None
-    graph = graph.with_node(
-        Node(
-            id=proj_id,
-            type=NodeType.PROJECT,
-            name=name,
-            layer=Layer.PIP,
-            discovered_by=DiscoveredBy.STATIC_SCAN,
-            state=State.UNKNOWN,
-            check_command=project_check,
-            provenance=manifest or repo_path,
-            data={
-                # installable => the renderer emits `pip install -e .` as the final,
-                # post-dependency step (populate/build_script read this flag).
-                "installable": manifest is not None,
-                # Nested (non-hard-root) requirements files the recursive walk found
-                # (see evidence.py / models.PythonDependencyEvidence). Rendered as
-                # best-effort, closure-constrained installs by build_script.py — a
-                # tuple because Node.data is immutable (MappingProxyType).
-                "soft_requirements_files": tuple(evidence.soft_requirements_files),
-            },
-        )
-    )
-    graph = graph.with_edge(
-        Edge(src=TEST_NODE_ID, dst=proj_id, relation=EdgeType.REQUIRES, origin="project")
-    )
-
-    canon_to_pkg = {
-        _canon(n.name): n.id for n in graph.nodes if n.type is NodeType.PACKAGE
-    }
-    for req in evidence.declared_dependencies:
-        if getattr(req, "kind", "dependency") == "constraint":
-            continue
-        pkg_id = canon_to_pkg.get(_canon(normalize_package_name(req.name)))
-        if pkg_id is None:
-            continue
-        # runtime deps hang off the Project; test/optional deps off the Test goal.
-        src = (
-            TEST_NODE_ID
-            if getattr(req, "kind", "dependency") == "optional_dependency"
-            else proj_id
-        )
-        graph = graph.with_edge(
-            Edge(src=src, dst=pkg_id, relation=EdgeType.REQUIRES, origin="project")
-        )
-    return graph
-
-
-def _pad_python_full(target_python: str) -> str:
-    """``"3.13"`` -> ``"3.13.0"`` (padding for a caller-supplied override).
-
-    Mirrors the padding ``resolve_lock._target_env_for`` applies so an
-    overridden ``target_python`` still produces a valid ``python_full_version``
-    for marker evaluation (``python_full_version < '3.12'`` style forks).
-    """
-    parts = [p for p in target_python.split(".") if p]
-    return ".".join((parts + ["0", "0"])[:3]) if parts else target_python
-
-
-# Minor-version token in a ``Python 3.13.14`` banner.
-_PY_VER_RE = re.compile(r"(\d+\.\d+)")
-# Last-resort interpreter version when the container probe yields nothing.
-_DEFAULT_TARGET_PYTHON = "3.11"
-
-
-def _detect_target_python(
-    container_executor: Executor, default: str = _DEFAULT_TARGET_PYTHON
-) -> str:
-    """Probe the container's interpreter minor version (e.g. ``"3.13"``).
-
-    The resolve MUST target the python the container actually runs, or it pins
-    versions that have no wheel for that interpreter (observed: a
-    3.11-resolved ``pyarrow==2.0.0`` cannot build on a 3.13 container). Tries
-    ``python3`` then ``python``, reading both streams (``--version``
-    historically printed to stderr). Falls back to ``default`` when nothing
-    parses, so a fake/empty executor preserves the legacy 3.11 target.
-
-    Superseded in :func:`build_dep_graph` by :func:`target_env.detect_target_env`
-    (Task 7, one combined probe covering python + platform); kept standalone
-    (directly unit-tested) as it captures a slightly different signal (a
-    ``--version`` banner rather than ``sys.version``) that some callers may
-    still want in isolation.
-    """
-    for cmd in ("python3 --version", "python --version"):
-        result = container_executor.run(cmd)
-        if not result.ok:
-            continue
-        m = _PY_VER_RE.search((result.stdout or "") + " " + (result.stderr or ""))
-        if m:
-            return m.group(1)
-    return default
-
-
-def reconcile_packages(
-    graph: DepGraph,
-    pkg_nodes: list[Node],
-    pkg_edges: list[Edge],
-    prev_pkg_ids: set[str],
-) -> DepGraph:
-    """Merge a fresh resolve round's Package nodes/edges, dropping the prior
-    round's stale ones (Phase-A Correction 2c).
-
-    Package ids bake the version (``pkg:name==version``) and ``DepGraph`` is
-    upsert-only, so a version shift between rounds would otherwise leave the old
-    ``pkg:name==v_old`` node (and its edges) orphaned. Before merging the new
-    nodes/edges, remove every Package node the PRIOR round produced
-    (``prev_pkg_ids``) that the NEW resolve no longer emits (``without_node`` also
-    drops that node's dangling edges), and every prior Package->Package
-    ``requires`` edge among still-surviving nodes the new resolve no longer emits
-    (``without_edge``). Conflict advisory edges are left untouched. Returns a NEW
-    graph; net effect: no stale Package orphan survives a version change.
-    """
-    new_ids = {n.id for n in pkg_nodes}
-    new_edge_keys = {e.key() for e in pkg_edges}
-    new = graph
-    for stale_id in prev_pkg_ids - new_ids:
-        new = new.without_node(stale_id)
-    for edge in list(new.edges):
-        if (
-            edge.relation is EdgeType.REQUIRES
-            and edge.src in prev_pkg_ids
-            and edge.dst in prev_pkg_ids
-            and edge.key() not in new_edge_keys
-        ):
-            new = new.without_edge(edge)
-    for node in pkg_nodes:
-        new = new.with_node(node)
-    for edge in pkg_edges:
-        new = new.with_edge(edge)
-    return new
-
-
-def _stamp_audit(graph: DepGraph, repaired: set[str]) -> DepGraph:
-    """Stamp ``discovered_by=AUDIT`` on Package nodes whose canon dist was repaired.
-
-    Each resolve round re-emits a repaired dist's Package as ``RESOLVER`` (fresh
-    from the lock), so this runs every round after the merge to keep the AUDIT
-    provenance; declared/transitive packages keep ``RESOLVER``.
-    """
-    new = graph
-    for node in graph.nodes:
-        if (
-            node.type is NodeType.PACKAGE
-            and _canon(node.name) in repaired
-            and node.discovered_by is not DiscoveredBy.AUDIT
-        ):
-            new = new.with_node(replace(node, discovered_by=DiscoveredBy.AUDIT))
-    return new
-
-
-def _missing_import_nodes(graph, *, provided: frozenset[str], deferred: frozenset[str]):
-    """Non-optional IMPORT nodes no resolved dist provides — LANE-AWARE: also
-    excludes Module-routed imports and deferred-collision names so first-party
-    names never inflate the repair bound nor reach the dist-guesser. Vacuous when
-    no node is Module-routed and ``deferred`` is empty (today's real construction)."""
-    return [
-        n for n in graph.nodes
-        if n.type is NodeType.IMPORT
-        and n.data.get("optional") is not True
-        and n.data.get("routed_provider") != "module"
-        and n.name.split(".", 1)[0] not in deferred
-        and top_level_import_name(n.name).lower() not in provided
-    ]
-
-
-def _phase_a_fixpoint(
-    graph: DepGraph,
-    roots: list[tuple[str | None, str]],
-    host_executor: Executor,
-    container_executor: Executor,
-    record_provider: RecordProvider,
-    *,
-    target_env,
-    exclude_newer: str | None,
-    needed_extras: frozenset[str],
-    declared_package_names: frozenset[str] = frozenset(),
-    uv_sourced_names: frozenset[str] = frozenset(),
-    uv_sources=MappingProxyType({}),
-    uv_indexes: tuple[dict, ...] = (),
-    workspace_members: tuple[str, ...] = (),
-    repo_path: str | None = None,
-    llm: DistGuesser | None = None,
-    deferred: frozenset[str] = frozenset(),
-) -> DepGraph:
-    """Bounded resolve -> install -> look -> repair fixpoint (Phase A).
-
-    Each round resolves the current roots, reconciles the Package layer (dropping
-    stale nodes/edges — Correction 2c), install-probes the closure, then audits
-    the FULL runtime import set against the resolved closure's RECORD-union
-    coverage (Correction 3 — never ``packages_distributions``). A non-optional
-    import that no resolved dist provides is repaired by grounding candidate dists
-    (from the vendored pipreqs map, else an injected LLM guesser on a map miss,
-    each RECORD-grounded via ``record_provider``) and, on an unambiguous ACCEPT,
-    adding the dist as an AUDIT root
-    (``audit_root_names`` threads the repaired set into the resolve retry so a
-    declared root is never evicted — Correction 2a) and re-resolving.
-
-    Terminates when coverage is complete, when no new ``(import, candidate)`` pair
-    can be proposed (attempted-set / fixpoint — Correction 2b), or at the numeric
-    bound ``min(initial_missing, 5)``; residue is left for P0.3 to flag
-    unresolved downstream — construction is NEVER aborted. Every round returns a
-    NEW graph; the orchestrator only rebinds ``graph``.
-    """
-    root_dists = {_canon(_req_name(dist)) for _imp, dist in roots}
-    repaired: set[str] = set()
-    attempted: set[tuple[str, str]] = set()
-    prev_pkg_ids: set[str] = set()
-    bound: int | None = None
-    iteration = 0
-
-    while True:
-        pkg_nodes, pkg_edges = resolve_closure(
-            roots,
-            host_executor,
-            target_env=target_env,
-            exclude_newer=exclude_newer,
-            extras=needed_extras,
-            audit_root_names=frozenset(repaired),
-            uv_sources=uv_sources,
-            uv_indexes=uv_indexes,
-            workspace_members=workspace_members,
-            repo_path=repo_path,
-        )
-        graph = reconcile_packages(graph, pkg_nodes, pkg_edges, prev_pkg_ids)
-        graph = _stamp_audit(graph, repaired)
-        prev_pkg_ids = {n.id for n in pkg_nodes}
-        graph = install_closure(graph, container_executor)
-
-        # Correction 3: the coverage oracle is RECORD-union over the RESOLVED
-        # closure, NOT a post-install packages_distributions() snapshot.
-        provided = resolved_record_coverage(pkg_nodes, record_provider)
-        missing = _missing_import_nodes(graph, provided=frozenset(provided), deferred=deferred)
-        if bound is None:
-            bound = min(len(missing), _MAX_REPAIR_ROUNDS)
-        if not missing:
-            break
-
-        new_pair = False
-        for imp in missing:
-            # Candidate generation: the vendored pipreqs import->dist table first
-            # (deterministic); ONLY on a map miss does the injected ``llm`` guesser
-            # propose, fed this import's used-symbols (``data["symbols"]``). When
-            # ``llm`` is None (the default), the path stays purely deterministic.
-            # Either way every candidate is still RECORD-grounded by
-            # ``choose_provider`` -- this only proposes names, never accepts them.
-            candidates = generate_candidates(
-                imp.name, symbols=tuple(imp.data.get("symbols", ())), llm=llm
-            )
-            decision = choose_provider(imp.name, candidates, record_provider)
-            if (
-                decision.verdict is Verdict.ACCEPT
-                and decision.dist is not None
-                and (imp.name, decision.dist) not in attempted
-                and _canon(decision.dist) not in root_dists
-                # Gate/Also-fix 2: `generate_candidates` proposes the pipreqs-mapped
-                # (or LLM-guessed) dist purely from the import name/symbols, with no
-                # knowledge of `_declared_package_names_for_repair`'s uv-source
-                # exclusion, so an unactivated optional uv-sourced dependency whose
-                # import happens to map to its own dist name could still be
-                # RECORD-confirmed and re-enter as a repaired root, silently
-                # resolving the unrelated public PyPI package in its place. It must
-                # therefore be rejected HERE, at acceptance, as well.
-                and _canon(decision.dist) not in uv_sourced_names
-            ):
-                roots = roots + [(None, decision.dist)]
-                repaired.add(_canon(decision.dist))
-                root_dists.add(_canon(decision.dist))
-                new_pair = True
-            # Remember every candidate tried for this import (Correction 2b), so a
-            # re-proposal of an already-attempted pair cannot re-add / oscillate.
-            attempted |= {(imp.name, candidate.dist) for candidate in candidates}
-        if not new_pair:
-            logger.warning(
-                "phase-A stopped: no new repair candidate; residue left unresolved "
-                "(fixpoint/oscillation): %s",
-                sorted(n.name for n in missing),
-            )
-            break
-        iteration += 1
-        if iteration > bound:
-            logger.warning(
-                "phase-A hit bound=%d; residue left unresolved (honest), not aborting",
-                bound,
-            )
-            break
-    return graph
 
 
 def _uv_sourced_dist_names(evidence) -> frozenset[str]:
@@ -1082,112 +654,4 @@ def _python_native_obligations(graph: DepGraph, container_executor: Executor) ->
     # step — homed here (not in build_dep_graph) so the orchestrator calls no
     # native module directly.
     graph = reconcile_apt_names(graph, container_executor)
-    return graph
-
-
-def build_dep_graph(
-    repo_path: str,
-    container_executor: Executor,
-    *,
-    host_executor: Executor | None = None,
-    target_python: str | None = None,
-    target_platform: str | None = None,
-    exclude_newer: str | None = None,
-    needed_extras: frozenset[str] = frozenset(),
-    record_provider: RecordProvider | None = None,
-    uv_sources_enabled: bool = False,
-    llm_dist_guesser: DistGuesser | None = None,
-    shadow_config_lane: bool = False,
-) -> DepGraph:
-    """Build a host-certified dependency graph for ``repo_path``.
-
-    ``container_executor`` runs install/probe/certify inside the target container;
-    ``host_executor`` (default :class:`LocalSubprocessExecutor`) runs the
-    host-side ``uv`` resolve.  A single :class:`TargetEnv` (Task 7) is detected
-    from the container (``detect_target_env`` — one probe covering interpreter
-    version, ``sys_platform``/``os_name``/``platform_machine``, and a glibc/musl
-    guess for the wheel/uv platform tag used at PARSE time -- ``uv lock`` is
-    universal and takes no platform flag of its own) so the resolve — and every
-    PEP 508 marker it evaluates — targets the CONTAINER, never the host running
-    this function.  ``target_python`` / ``target_platform`` remain accepted as
-    caller overrides that patch the detected env (a hardcoded python would pin
-    wheels for the wrong interpreter; an unset default would leak the dev host's
-    own platform into the resolve).  The detected/patched ``TargetEnv`` OBJECT is
-    passed straight into :func:`resolve_closure` (never decomposed into two
-    strings first) so its RAW ``platform_machine`` — not a normalized wheel-tag
-    stand-in — is what every marker evaluation downstream actually sees.  See
-    the module docstring for the staged pipeline.  Returns the final immutable
-    ``DepGraph``; certificates produced here are provisional (scratch-container
-    scope) per design section 4.6.
-
-    ``needed_extras`` (Task 8, targeted extras) is the set of
-    ``[project.optional-dependencies]`` / ``extras_require`` group names this
-    build actually needs (e.g. ``{"test"}`` when the goal is running the test
-    suite). It is threaded, unchanged, into both :func:`select_roots` (which
-    gates which optional groups become roots at all — fixing the prior
-    "union every group" bug) and :func:`resolve_closure` (which records the
-    chosen groups' scope in the resolver's temp pyproject). The default is
-    deliberately runtime-only (``frozenset()``), NOT a union of every declared
-    group. **Seam, not policy**: this function does not itself discover which
-    extras a repo's CI/tox/Makefile actually invokes (e.g. `pip install -e
-    .[test]`) — that discovery is separate future enrichment (cluster-1); a
-    caller that already knows the needed groups passes them here.
-
-    ``record_provider`` (P1.4/P1.5) is the RECORD-union coverage oracle the
-    Phase-A repair fixpoint audits imports against: ``dist name -> {top-level
-    modules}`` or ``None`` (no wheel to read). Injected in tests (a fake, no
-    network); when omitted the production DEFAULT is
-    :func:`coverage.composite_record_provider` over the cheap post-install
-    container reader (:func:`coverage.default_record_provider`) and the PRE-install
-    PyPI wheel reader (:func:`coverage.pypi_record_provider`) — so a not-yet-
-    installed repair candidate is grounded from PyPI (P1.5, making production
-    repair functional) while already-installed closure members stay network-free.
-
-    ``uv_sources_enabled`` (V3_UV_SOURCES, default OFF) -- see
-    :func:`_python_package_obligations`'s docstring for the full false-green
-    rationale for why this defaults OFF and what turning it on actually
-    means. Threaded straight through the ``EcosystemProvider`` seam
-    (``EcosystemProvider.package_obligations`` accepts-and-ignores it for any
-    non-Python provider); this function never reads the environment itself.
-
-    ``llm_dist_guesser`` (default ``None``) is the injected install-lane dist
-    guesser the Phase-A repair fixpoint calls on a pipreqs map MISS, fed each
-    unresolved Import's used-symbols. ``None`` keeps repair purely deterministic
-    (byte-identical to the pre-guesser behavior). It is threaded end-to-end through
-    the ``EcosystemProvider`` seam (``EcosystemProvider.package_obligations`` ->
-    ``PythonProvider.package_obligations`` -> :func:`_python_package_obligations` ->
-    :func:`_phase_a_fixpoint`), so a live guesser passed here actually reaches the
-    fixpoint; non-Python providers accept-and-ignore it.
-    """
-    # Function-local import breaks the build<->provider cycle: by the time this
-    # runs, build.py is fully loaded, so graph.python.provider (which imports
-    # build helpers) resolves cleanly.
-    from graph.contracts.registry import PROVIDERS, select_provider
-
-    # default=PROVIDERS[0] (the PythonProvider) preserves "build_dep_graph never
-    # rejects a repo": if NO provider clears the detect threshold (degenerate /
-    # manifest-less / *.py-less repo), dispatch STILL routes to Python instead of
-    # raising LookupError — zero-impact vs the pre-seam unconditional-accept path.
-    provider = select_provider(repo_path, PROVIDERS, default=PROVIDERS[0])  # dispatch
-    graph, roots, target_env, exclude_newer = provider.package_obligations(
-        repo_path,
-        container_executor,
-        host_executor=host_executor,
-        target_python=target_python,
-        target_platform=target_platform,
-        exclude_newer=exclude_newer,
-        needed_extras=needed_extras,
-        record_provider=record_provider,
-        uv_sources_enabled=uv_sources_enabled,
-        llm_dist_guesser=llm_dist_guesser,
-        shadow_config_lane=shadow_config_lane,
-    )
-    # NOTE: only `graph` flows onward; roots/target_env/exclude_newer are
-    # provider-composition / test-visibility surface (spec extraction boundary).
-
-    graph = provider.native_obligations(graph, container_executor)
-
-    # Stage 5 — host certification in the container (layer-ordered; flips state).
-    graph = certify_all(graph, container_executor, cycle=_CERTIFY_CYCLE)
-
     return graph

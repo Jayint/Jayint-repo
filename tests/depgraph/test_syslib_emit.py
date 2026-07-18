@@ -18,7 +18,7 @@ whether a source build waits on its build tool.
 from __future__ import annotations
 
 from graph.python.native import wheel as wheel_preflight
-from graph.core.build import _python_package_obligations
+from graph.python.pipeline import _python_package_obligations
 from graph.emit.build_script import render_build_script
 from graph.emit.emit import next_deterministic_wave
 from graph.contracts.executor import CommandResult

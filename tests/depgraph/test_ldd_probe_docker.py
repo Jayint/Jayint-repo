@@ -35,7 +35,7 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from graph.core.build import build_dep_graph  # noqa: E402
+from graph.core.orchestrate import build_dep_graph  # noqa: E402
 from graph.executors import DockerExecutor, LocalSubprocessExecutor  # noqa: E402
 from graph.model import DiscoveredBy, NodeType  # noqa: E402
 from graph.python.native.apt import PROVIDER_TABLE  # noqa: E402

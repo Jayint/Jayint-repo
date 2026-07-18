@@ -23,7 +23,8 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from graph.core import build
+from graph.core import orchestrate
+from graph.python import fixpoint, pipeline, skeleton
 from graph.python.lanes.install import roots
 from graph.python.read import scan
 
@@ -62,7 +63,7 @@ def _referenced_names(source: str) -> set[str]:
 
 def test_construction_never_references_the_diagnosis_only_precise_set():
     """Structural guard: no code path in construction may even reach the precise set."""
-    for module in (scan, build, roots):
+    for module in (scan, skeleton, fixpoint, pipeline, orchestrate, roots):
         referenced = _referenced_names(inspect.getsource(module))
         leaked = sorted(_FORBIDDEN & referenced)
         assert not leaked, (
