@@ -4,7 +4,7 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.agent.observation import safety_compress_observation
+from src.agent.observe import safety_compress_observation
 
 
 def test_below_threshold_returned_verbatim():
@@ -89,7 +89,7 @@ def test_truncation_cuts_on_line_boundaries_not_mid_token():
 
 
 # ── pip transport chatter (opt-in strip, bundled with REACT_MSG_STYLE=agentic) ────────────────
-from src.agent.observation import strip_pip_progress
+from src.agent.observe import strip_pip_progress
 
 
 def test_strip_pip_progress_drops_transport_noise():

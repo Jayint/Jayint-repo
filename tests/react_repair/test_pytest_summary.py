@@ -4,7 +4,7 @@ for p in (str(_ROOT), str(_ROOT / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.agent.pytest_summary import summarize, format_breakdown, Cause
+from src.agent.observe import summarize, format_breakdown, Cause
 
 
 # A REAL pytest run (python -m pytest -q --continue-on-collection-errors): two modules fail to

@@ -463,10 +463,10 @@ _LARGE_OBS = (
 def observe_cases() -> dict:
     """The observe cluster's pure renders: the `$ cmd -> result` envelope, edit tool-results,
     the ranked pytest cause histogram, block dedup, and the noise-strip + selection compression."""
-    from src.agent.envelope import edit_result, run_envelope
-    from src.agent.observation import safety_compress_observation, strip_pip_progress
-    from src.agent.pytest_blocks import compact_pytest_blocks
-    from src.agent.pytest_summary import format_breakdown, summarize
+    from src.agent.observe import edit_result, run_envelope
+    from src.agent.observe import safety_compress_observation, strip_pip_progress
+    from src.agent.observe import compact_pytest_blocks
+    from src.agent.observe import format_breakdown, summarize
 
     outcomes = {
         "envelope/build_fail": {"build_ok": False, "failing_command": "pip install psycopg2", "lineno": 5},

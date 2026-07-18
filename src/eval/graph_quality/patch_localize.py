@@ -189,7 +189,7 @@ from src.eval.graph_repair_ablation.oracle import (  # noqa: E402
     FAILURE_CLASSES, Injection, PILOT_INJECTIONS,
 )
 from src.agent.loop import RunResult  # noqa: E402
-from src.agent.pytest_summary import Cause, summarize  # noqa: E402
+from src.agent.observe import Cause, summarize  # noqa: E402
 
 
 @dataclass(frozen=True)

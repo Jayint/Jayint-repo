@@ -38,7 +38,7 @@ from src.eval.graph_quality.patch_localize import (
 )
 from src.eval.graph_repair_ablation.oracle import FAILURE_CLASSES, PILOT_INJECTIONS
 from src.agent.loop import RunResult
-from src.agent.pytest_summary import summarize
+from src.agent.observe import summarize
 
 
 def _inj(injection_id: str):

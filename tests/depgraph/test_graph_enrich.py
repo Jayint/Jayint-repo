@@ -17,7 +17,7 @@ from graph.ids import TEST_NODE_ID, package_id
 from graph.model import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )
-from src.agent.pytest_summary import Cause
+from src.agent.observe import Cause
 
 
 def _pkg(name: str, version: str | None = None) -> Node:

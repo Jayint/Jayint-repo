@@ -457,12 +457,12 @@ def test_tests_hidden_falls_back_to_the_regex_when_the_module_does_not_parse(tmp
 # `from src.agent...` needs the two-parent form used by tests/react_repair/*.py.
 
 try:
-    from src.agent.pytest_summary import Cause
+    from src.agent.observe import Cause
 except ImportError:                       # tests/depgraph/ does not add the repo root
     _ROOT = Path(__file__).resolve().parents[2]
     if str(_ROOT) not in sys.path:
         sys.path.insert(0, str(_ROOT))
-    from src.agent.pytest_summary import Cause
+    from src.agent.observe import Cause
 
 
 class _Result:

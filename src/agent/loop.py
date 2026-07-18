@@ -11,9 +11,9 @@ from graph.mutate.patch_gate import is_read_only
 from src.constants import VERIFY_TEST_CMD          # the canonical `python -m pytest -q` (neutral leaf)
 from src.agent.actions import apply_edit
 from src.agent.gate import added_self_install_reason, narrowing_reason
-from src.agent.observation import safety_compress_observation, strip_pip_progress
-from src.agent.pytest_blocks import compact_pytest_blocks
-from src.agent.pytest_summary import format_breakdown, summarize
+from src.agent.observe import safety_compress_observation, strip_pip_progress
+from src.agent.observe import compact_pytest_blocks
+from src.agent.observe import format_breakdown, summarize
 from src.agent.script_prep import strip_graph_framing
 from src.agent.style import agentic
 

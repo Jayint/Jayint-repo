@@ -53,7 +53,7 @@ from src.eval.graph_quality.corpus import (  # noqa: E402
     _APT_RE, _PIP_RE, _shell_payloads, Pair, dockerfile_installs, load_pairs,
 )
 from src.agent.loop import RunResult  # noqa: E402
-from src.agent.pytest_summary import summarize  # noqa: E402
+from src.agent.observe import summarize  # noqa: E402
 
 _DEFAULT_RESULTS_DIR = "outputs/repo2run_benchmark/results"
 _DEFAULT_ARTIFACTS_DIR = "outputs/repo2run_benchmark/eval_artifacts"
