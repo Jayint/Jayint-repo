@@ -4072,10 +4072,6 @@ class Synthesizer:
         content.extend(self._render_instruction_for_dockerfile(instruction) for instruction in self.instructions)
 
         rendered = "\n".join(content)
-        # Fix 3: final safety gate — guarantee one logical command per RUN. Repairs a
-        # RUN-concatenation; rejects (raises) genuine corruption it cannot fix.
-        from src.envstate.dockerfile_validate import validate_and_repair
-        rendered = validate_and_repair(rendered)
 
         with open(file_path, "w") as f:
             f.write(rendered)

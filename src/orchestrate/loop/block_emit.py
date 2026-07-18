@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Callable
 
 from graph.mutate.patch_gate import compose_script
-from src.envstate.script_runner import run_blocks
+from src.orchestrate.loop.script_runner import run_blocks
 from src.orchestrate.loop.ledger import ActionEvent, ActionLedger
 
 
