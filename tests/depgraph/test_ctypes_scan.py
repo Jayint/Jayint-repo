@@ -103,3 +103,12 @@ def test_hash_inside_string_literal_does_not_suppress_real_call():
         "/x/site-packages/a/z.py:5:    label = \"a#b\"; CDLL('libz.so')\n"
     )
     assert {h.lib for h in hits} == {"libz.so"}
+
+
+def test_escaped_quote_in_string_does_not_suppress_real_call():
+    # An escaped quote inside a string must not be treated as the string's end,
+    # so a '#' still inside that string doesn't truncate the later real call.
+    hits = parse_ctypes_grep(
+        '/x/site-packages/a/w.py:6:    label = "a\\"#b"; CDLL("libz.so")\n'
+    )
+    assert {h.lib for h in hits} == {"libz.so"}

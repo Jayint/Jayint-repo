@@ -72,9 +72,14 @@ def _strip_inline_comment(content: str) -> str:
     false-positive guard measures the real-corpus rate.
     """
     quote = None
+    escaped = False
     for i, ch in enumerate(content):
         if quote:
-            if ch == quote:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == quote:
                 quote = None
         elif ch in "'\"":
             quote = ch
