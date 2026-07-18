@@ -39,7 +39,7 @@ from src.orchestrate.loop.run_trace import (
 
 @dataclass(frozen=True)
 class _FakeGate:
-    """Duck-typed stand-in for ``src.orchestrate.loop.gates.GateResult`` — proof.py
+    """Duck-typed stand-in for ``src.orchestrate.loop.gate.GateResult`` — proof.py
     never imports the real type, only reads ``.name``/``.passed``/
     ``.provisional``/``.evidence`` off whatever the driver's gate_observer saw.
     """

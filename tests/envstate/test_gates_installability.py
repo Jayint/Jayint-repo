@@ -10,7 +10,7 @@ for p in (str(_ROOT), str(_SRC)):
 from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )
-from src.orchestrate.loop.gates import (
+from src.orchestrate.loop.gate import (
     GateResult, evaluate_installability_gate, evaluate_gates,
 )
 

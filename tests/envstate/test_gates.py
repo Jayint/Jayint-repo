@@ -26,7 +26,7 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.orchestrate.loop.gates import evaluate_installability_gate
+from src.orchestrate.loop.gate import evaluate_installability_gate
 from src.orchestrate.loop.ledger import ActionLedger
 from src.orchestrate.loop.orchestrator import VERIFY_TEST_CMD, run_v3
 from src.orchestrate.loop.world_model import initial_map, merge_map

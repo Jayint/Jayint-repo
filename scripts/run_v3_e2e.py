@@ -15,7 +15,7 @@ This is the whole story in one driver:
                  replays the whole rendered setup.sh (Model B — run_v3's sole
                  executor, unconditional); the LATEST cycle's replay result is
                  the binding installability proof (no separate terminal-replay
-                 step — see ``src.orchestrate.loop.gates.evaluate_installability_gate``).
+                 step — see ``src.orchestrate.loop.gate.evaluate_installability_gate``).
   6. TEST GATE   the done-gate runs real pytest; observability reports both gates.
   7. ARTIFACT    the final certified graph is rendered to setup.sh.
 

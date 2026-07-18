@@ -7,7 +7,7 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.orchestrate.loop.gates import GateResult, evaluate_testability_gate
+from src.orchestrate.loop.gate import GateResult, evaluate_testability_gate
 from src.orchestrate.loop.constants import VERIFY_TEST_CMD
 
 

@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any, Callable, Tuple
 from src.orchestrate.loop._loop_common import host_refresh_facts
 from src.orchestrate.loop.constants import VERIFY_TEST_CMD  # re-exported for back-compat
 from src.orchestrate.loop.constants import NO_PROGRESS_CYCLES, RESIDUAL_GIVEUP_CYCLES
-from src.orchestrate.loop.gate_signature import outcome_signature, next_stall
+from src.orchestrate.loop.gate import outcome_signature, next_stall
 from src.orchestrate.loop.ledger import ActionLedger, make_action_event
 from src.orchestrate.loop.done_gate import _verified_test_run_passed as _gate_passed
 from src.agent.loop import run_structured_repair
@@ -239,7 +239,7 @@ def run_v3(
     # and the discover gate (`_run_discover_gate`) share ONE pytest run when
     # nothing mutated the container between them, while any mutation
     # invalidates the memo so a stale pass/fail can never be served.
-    from src.orchestrate.loop.verify_cache import VerifyTestCache
+    from src.orchestrate.loop.gate import VerifyTestCache
     _container_gen: int = 0
 
     def _bump_gen() -> None:
@@ -380,7 +380,7 @@ def run_v3(
         # Stage 1 two-gate observability: fires once on the way out (any exit path).
         # Reads existing signals, writes nothing. OFF -> no-op (byte-identical result).
         if enable_gate_observability:
-            from src.orchestrate.loop.gates import evaluate_gates
+            from src.orchestrate.loop.gate import evaluate_gates
             # Phase 7: thread the latest per-cycle fresh-replay result so the
             # installability gate is BINDING on the canonical path (Model B
             # guarantees `_last_replay_result` is set by the time any `_finish`
