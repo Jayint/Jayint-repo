@@ -104,6 +104,22 @@ PROVIDER_TABLE: dict[tuple[str, str], str] = {
     # the pkg-config binary itself (container-verified: /usr/bin/pkg-config is
     # provided by pkgconf on both debian:bookworm and debian:trixie)
     ("binary", "pkg-config"): "pkgconf",
+    # ctypes/cffi runtime sonames observed by ctypes_scan (installed-source
+    # scan). Resolution of an OBSERVED soname -> apt (same shape as the libGL
+    # rows above); NOT a dist->syslib prediction map. Container-verified on
+    # debian:bookworm / python:3.11-slim. Both the find_library base form
+    # (libX.so) and full soname (libX.so.N) are keyed — the scanner emits
+    # whichever the source literal carried; the ldconfig check greps either.
+    ("soname", "libmagic.so"): "libmagic1",
+    ("soname", "libmagic.so.1"): "libmagic1",
+    ("soname", "libusb-1.0.so"): "libusb-1.0-0",
+    ("soname", "libusb-1.0.so.0"): "libusb-1.0-0",
+    ("soname", "libmediainfo.so"): "libmediainfo0v5",
+    ("soname", "libmediainfo.so.0"): "libmediainfo0v5",
+    ("soname", "libcairo.so"): "libcairo2",
+    ("soname", "libcairo.so.2"): "libcairo2",
+    ("soname", "libpango-1.0.so"): "libpango-1.0-0",
+    ("soname", "libpango-1.0.so.0"): "libpango-1.0-0",
 }
 
 
