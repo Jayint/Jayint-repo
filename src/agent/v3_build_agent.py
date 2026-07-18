@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from typing import Any, Callable
 
-from src.agent.diagnostics import log_llm_exchange
+from src.agent.log import log_llm_exchange
 from src.llm import complete_with_retry
 
 # --- output truncation (keep head tracebacks AND tail pytest summary) ---------

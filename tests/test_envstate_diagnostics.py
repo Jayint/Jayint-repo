@@ -32,7 +32,7 @@ class LogLlmExchangeNoOpTests(unittest.TestCase):
             os.environ.pop("ENVSTATE_LLM_LOG", None)
 
     def test_no_env_no_log_path_does_nothing(self):
-        from src.agent.diagnostics import log_llm_exchange
+        from src.agent.log import log_llm_exchange
         resp = _fake_response(content="Action: ls")
         # Must not raise, must not create any file.
         log_llm_exchange("supervisor", resp, parsed={"task_id": "t1"})
@@ -41,13 +41,13 @@ class LogLlmExchangeNoOpTests(unittest.TestCase):
         """Passing log_path=None while env is set: env wins — not a no-op."""
         # This test just verifies the path is env-derived; a real write is
         # covered by the write tests below.  Here we just confirm no crash.
-        from src.agent.diagnostics import log_llm_exchange
+        from src.agent.log import log_llm_exchange
         resp = _fake_response(content="Action: ls")
         os.environ["ENVSTATE_LLM_LOG"] = ""
         log_llm_exchange("supervisor", resp)  # empty string -> no-op
 
     def test_empty_string_log_path_is_noop(self):
-        from src.agent.diagnostics import log_llm_exchange
+        from src.agent.log import log_llm_exchange
         resp = _fake_response(content="Action: ls")
         log_llm_exchange("supervisor", resp, log_path="")
 
@@ -56,7 +56,7 @@ class LogLlmExchangeWriteTests(unittest.TestCase):
     """When a log_path is provided, a valid JSON line must be appended."""
 
     def test_appends_json_line_with_content(self):
-        from src.agent.diagnostics import log_llm_exchange
+        from src.agent.log import log_llm_exchange
         resp = _fake_response(content="Action: pip install x", finish_reason="stop")
         parsed = {"task_id": "t-42", "phase": "Language Dependency Installation"}
         with tempfile.NamedTemporaryFile(mode="r", suffix=".jsonl", delete=False) as f:
@@ -75,7 +75,7 @@ class LogLlmExchangeWriteTests(unittest.TestCase):
             os.unlink(path)
 
     def test_appends_json_line_with_reasoning(self):
-        from src.agent.diagnostics import log_llm_exchange
+        from src.agent.log import log_llm_exchange
         resp = _fake_response(content=None, reasoning="some reasoning text")
         with tempfile.NamedTemporaryFile(mode="r", suffix=".jsonl", delete=False) as f:
             path = f.name
@@ -90,7 +90,7 @@ class LogLlmExchangeWriteTests(unittest.TestCase):
             os.unlink(path)
 
     def test_usage_fields_present(self):
-        from src.agent.diagnostics import log_llm_exchange
+        from src.agent.log import log_llm_exchange
         resp = _fake_response(prompt_tokens=100, completion_tokens=50, total_tokens=150)
         with tempfile.NamedTemporaryFile(mode="r", suffix=".jsonl", delete=False) as f:
             path = f.name
@@ -104,7 +104,7 @@ class LogLlmExchangeWriteTests(unittest.TestCase):
             os.unlink(path)
 
     def test_multiple_calls_append_multiple_lines(self):
-        from src.agent.diagnostics import log_llm_exchange
+        from src.agent.log import log_llm_exchange
         resp = _fake_response(content="line one")
         with tempfile.NamedTemporaryFile(mode="r", suffix=".jsonl", delete=False) as f:
             path = f.name
@@ -120,7 +120,7 @@ class LogLlmExchangeWriteTests(unittest.TestCase):
             os.unlink(path)
 
     def test_creates_parent_dirs_if_needed(self):
-        from src.agent.diagnostics import log_llm_exchange
+        from src.agent.log import log_llm_exchange
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "nested", "dir", "llm.jsonl")
             resp = _fake_response(content="hello")
@@ -130,7 +130,7 @@ class LogLlmExchangeWriteTests(unittest.TestCase):
             self.assertEqual(len(lines), 1)
 
     def test_reads_log_path_from_env_var(self):
-        from src.agent.diagnostics import log_llm_exchange
+        from src.agent.log import log_llm_exchange
         resp = _fake_response(content="from env")
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "envstate_llm.jsonl")
@@ -149,7 +149,7 @@ class LogLlmExchangeWriteTests(unittest.TestCase):
                     os.environ["ENVSTATE_LLM_LOG"] = orig
 
     def test_explicit_log_path_takes_priority_over_env(self):
-        from src.agent.diagnostics import log_llm_exchange
+        from src.agent.log import log_llm_exchange
         resp = _fake_response(content="explicit path")
         with tempfile.TemporaryDirectory() as tmpdir:
             env_path = os.path.join(tmpdir, "env.jsonl")
@@ -167,7 +167,7 @@ class LogLlmExchangeWriteTests(unittest.TestCase):
                     os.environ["ENVSTATE_LLM_LOG"] = orig
 
     def test_parsed_is_truncated_to_500_chars(self):
-        from src.agent.diagnostics import log_llm_exchange
+        from src.agent.log import log_llm_exchange
         resp = _fake_response(content="x")
         big_parsed = {"data": "A" * 2000}
         with tempfile.NamedTemporaryFile(mode="r", suffix=".jsonl", delete=False) as f:
@@ -180,7 +180,7 @@ class LogLlmExchangeWriteTests(unittest.TestCase):
             os.unlink(path)
 
     def test_none_parsed_recorded_as_null(self):
-        from src.agent.diagnostics import log_llm_exchange
+        from src.agent.log import log_llm_exchange
         resp = _fake_response(content="y")
         with tempfile.NamedTemporaryFile(mode="r", suffix=".jsonl", delete=False) as f:
             path = f.name
@@ -196,7 +196,7 @@ class LogLlmExchangeMalformedResponseTests(unittest.TestCase):
     """Malformed / unexpected response objects must never raise."""
 
     def test_none_response_does_not_raise(self):
-        from src.agent.diagnostics import log_llm_exchange
+        from src.agent.log import log_llm_exchange
         with tempfile.NamedTemporaryFile(mode="r", suffix=".jsonl", delete=False) as f:
             path = f.name
         try:
@@ -205,7 +205,7 @@ class LogLlmExchangeMalformedResponseTests(unittest.TestCase):
             os.unlink(path)
 
     def test_response_missing_choices_does_not_raise(self):
-        from src.agent.diagnostics import log_llm_exchange
+        from src.agent.log import log_llm_exchange
         resp = types.SimpleNamespace()  # no choices attr at all
         with tempfile.NamedTemporaryFile(mode="r", suffix=".jsonl", delete=False) as f:
             path = f.name
@@ -215,7 +215,7 @@ class LogLlmExchangeMalformedResponseTests(unittest.TestCase):
             os.unlink(path)
 
     def test_response_with_empty_choices_does_not_raise(self):
-        from src.agent.diagnostics import log_llm_exchange
+        from src.agent.log import log_llm_exchange
         resp = types.SimpleNamespace(choices=[])
         with tempfile.NamedTemporaryFile(mode="r", suffix=".jsonl", delete=False) as f:
             path = f.name
@@ -226,7 +226,7 @@ class LogLlmExchangeMalformedResponseTests(unittest.TestCase):
 
     def test_model_extra_reasoning_extracted(self):
         """Reasoning in model_extra should be captured as raw_reasoning."""
-        from src.agent.diagnostics import log_llm_exchange
+        from src.agent.log import log_llm_exchange
         message = types.SimpleNamespace(
             content=None,
             reasoning=None,
