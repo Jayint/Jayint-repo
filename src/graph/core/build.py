@@ -68,7 +68,8 @@ from graph.executors import LocalSubprocessExecutor
 from graph.ids import TEST_NODE_ID, package_id, project_id
 from graph.python.native.system_libs import ldd_probe
 from graph.python.lanes.install.resolve_lock import compute_exclude_newer
-from graph.python.native.probe import import_probe, install_closure
+from graph.python.native.system_libs import import_probe
+from graph.python.lanes.install.closure import install_closure
 from graph.python.native.project_native import project_native_obligations
 from graph.python.lanes.install.link import certified_import_links
 from graph.python.lanes.install.ground import (

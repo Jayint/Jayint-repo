@@ -9,7 +9,7 @@ import shlex
 from dataclasses import dataclass, replace
 
 from graph.python.invocation_resolver import TestEnvPlan
-from graph.python.native.probe import INSTALL_TIMEOUT
+from graph.python.lanes.install.closure import INSTALL_TIMEOUT
 from graph.model import DepGraph, NodeType, State
 
 

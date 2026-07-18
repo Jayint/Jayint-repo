@@ -1,22 +1,26 @@
-"""System-library discovery: ldd runtime probe + SystemLib node shape + signatures.
+"""System-library discovery + native run-time probing (the native home).
 
-Folds three native leaves into one concept file (3c-3):
-  * ``ldd_probe`` — post-install ldd discovery of run-time ``=> not found`` sonames
-    (the primary authoritative source of run-time native-lib nodes);
-  * ``make_syslib_node`` — the single ``SystemLib`` node shape, so a pre-install
-    prediction and a post-install observation collapse onto ONE canonical-soname id;
-  * ``extract_needs`` — table-independent stderr -> ``ObservedNeed`` signature parsing.
+  * ``ldd_probe`` — post-install ldd discovery of run-time ``=> not found`` sonames;
+  * ``make_syslib_node`` — the single ``SystemLib`` node shape (pre-install prediction
+    and post-install observation collapse onto ONE canonical-soname id);
+  * ``extract_needs`` — table-independent stderr -> ``ObservedNeed`` signature parsing;
+  * ``import_probe`` / ``test_gate_probe`` — run-time gap probes (``import X`` + the
+    test-run dlopen-tail oracle), ``reconcile_predicted``, and the ``_ingest_need``
+    node builders (3c-4, from the former ``probe.py``; the install-EXECUTION half
+    ``install_closure`` moved to ``lanes/install/closure.py``).
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import shlex
+from dataclasses import replace
 
 from graph.contracts.executor import Executor
-from graph.ids import syslib_id
+from graph.ids import syslib_id, TEST_NODE_ID
 from graph.model import (
     Attempt,
     DepGraph,
@@ -28,10 +32,18 @@ from graph.model import (
     NodeType,
     State,
 )
-from graph.python.native.apt import ObservedNeed, default_context, resolve
-from graph.python.native.probe import reconcile_predicted
+from graph.python.native.apt import (
+    ObservedNeed,
+    capability_id,
+    check_command_for,
+    default_context,
+    resolve,
+)
+from graph.python.native.tables import NATIVE_RISK_PACKAGES
 from graph.python.util.failure_classifier import SONAME_RES
 from graph.python.util.import_mapping import normalize_package_name
+
+logger = logging.getLogger(__name__)
 
 
 # === ldd_probe: post-install ldd run-time native-lib discovery ===
@@ -212,17 +224,23 @@ def ldd_probe(graph: DepGraph, executor: Executor) -> DepGraph:
 # --------------------------------------------------------------------------- #
 
 def _make_syslib_node(
-    soname: str, ldd_output: str, command: str, *, apt: str | None = None
+    soname: str, text: str, command: str, *, apt: str | None = None,
+    provenance: str = "ldd (observed)",
 ) -> Node:
-    """Fresh probe-discovered SystemLib for a soname reported by ldd."""
+    """Fresh probe/ldd-discovered SystemLib for a soname (Rule-C unification).
+
+    ``provenance`` distinguishes the ldd-observed default from the import/test-probe
+    caller ("probe (observed)"); both build the identical node shape via
+    ``make_syslib_node``. Replaces the former byte-divergent probe/ldd copies.
+    """
     check = f"ldconfig -p | grep {soname}"
     node = make_syslib_node(
         soname,
         discovered_by=DiscoveredBy.PROBE,
         state=State.MISSING,
         apt=apt,
-        evidence=_first_line_with(ldd_output, soname),
-        provenance="ldd (observed)",
+        evidence=_first_line_with(text, soname),
+        provenance=provenance,
     )
     return node.with_attempt(Attempt(command=command, outcome="failed", check=check))
 
@@ -366,3 +384,305 @@ def extract_needs(stderr: str, *, context_hint: str = "build") -> list[ObservedN
             ObservedNeed(kind=kind, name=name, context=context, evidence=_line_of(text, pos))
         )
     return needs
+
+
+# === probe: run-time import + test-gate native probes (3c-4, was probe.py) ===
+
+
+# A legal Python module name (so we never shell ``import opencv-python``).
+_MODULE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def import_probe(graph: DepGraph, executor: Executor) -> DepGraph:
+    """Import-probe every Import / native-risk Package; surface run-time gaps.
+
+    For each probe target, runs ``python -c "import X"`` once, records an
+    ``Attempt`` on the affected node(s), and — on failure — surfaces every need
+    ``extract_needs`` recognises in stderr (soname, header, binary, pkgconfig),
+    each as a node with a ``requires`` edge from the owning ``Package`` (or the
+    ``Import`` itself when no package is linked). Not soname-only: a C-extension
+    import failing on a missing binary/header/pkgconfig dep is discoverable too.
+
+    2-phase preservation (HEAD): when ``extract_needs`` recognises NOTHING in a
+    failed probe's stderr, the failure is a metadata-PRESENT non-native import
+    error — a dist supplies the import name (there is an outgoing REQUIRES edge),
+    yet ``import X`` still raises for a Python-level reason. Rather than silently
+    dropping it (the third failure class), the owning Import node is honestly
+    flagged via ``flag_runtime_import_failure``. That flag only touches PROVIDED
+    Import nodes, so metadata-ABSENT imports (already flagged ``unresolved``,
+    P0.3) are left alone.
+    """
+    targets = _probe_targets(graph)
+
+    new = graph
+    for name, target in targets.items():
+        command = f'python -c "import {name}"'
+        result = executor.run(command)
+        outcome = "succeeded" if result.ok else "failed"
+        attempt = Attempt(command=command, outcome=outcome)
+        for node_id in target["attempt_nodes"]:
+            node = new.get(node_id)
+            if node is not None:
+                new = new.with_node(node.with_attempt(attempt))
+
+        if result.ok:
+            continue
+        stderr = result.stderr or ""
+        needs = extract_needs(stderr, context_hint="runtime")
+        if needs:
+            for need in needs:
+                new, node_id = _ingest_need(
+                    new, need, stderr=stderr, command=command, executor=executor
+                )
+                for src in _edge_sources(target):
+                    new = new.with_edge(
+                        Edge(src=src, dst=node_id, relation=EdgeType.REQUIRES, origin="probe")
+                    )
+        else:
+            # Non-native import failure with NO recognised need. A metadata-PRESENT
+            # import (a dist provides it, yet ``import X`` still raises) is the third
+            # failure class: honestly flag the owning Import node instead of silently
+            # dropping it. Never fabricate a SystemLib here (there is no missing
+            # soname). Metadata-ABSENT imports are already flagged ``unresolved``
+            # (P0.3) and are left alone by flag_runtime_import_failure (it only
+            # touches provided Import nodes).
+            reason = _short_import_error(stderr) or f"import {name} failed"
+            # Local import: native/ must not pull the install lane at module load.
+            # A module-level edge (probe -> install.link) re-enters a partially
+            # initialized link via resolve_lock -> native.wheel -> system_libs ->
+            # probe; deferring to call-time keeps native/ import-acyclic.
+            from graph.python.lanes.install.link import flag_runtime_import_failure
+
+            for node_id in target["attempt_nodes"]:
+                new = flag_runtime_import_failure(new, node_id, reason=reason)
+    return new
+
+
+def test_gate_probe(
+    graph: DepGraph,
+    executor: "Executor | None",
+    stderr: str,
+    *,
+    command: str = "pytest",
+    owner_id: str | None = TEST_NODE_ID,
+) -> DepGraph:
+    """Ingest runtime SystemLib sonames surfaced by the repo's own test run.
+
+    See the design spec §3 (the test run is the dlopen-tail oracle). ``ldd``
+    (DT_NEEDED) and ``import`` (eager module-init dlopen) are a PARTIAL backstop;
+    a feature-gated ``dlopen`` (onnxruntime session-create, Qt ``QApplication``,
+    GDAL reprojection) only fires when a test exercises the feature, so the
+    testability gate's stderr is the oracle for that tail. Each ``soname`` need
+    is resolved to apt and reconciled onto ``syslib:<soname>`` through the SAME
+    ``_ingest_need`` path as ``import_probe`` (so it becomes renderable). Pure.
+    """
+    new = graph
+    for need in extract_needs(stderr, context_hint="runtime"):
+        if need.kind != "soname":
+            continue  # only a runtime shared object is actionable at test time
+        new, node_id = _ingest_need(
+            new, need, stderr=stderr, command=command, executor=executor
+        )
+        node = new.get(node_id)
+        logger.info(
+            "test_gate: dlopen-tail soname=%s fix=%s (missed by ldd+import)",
+            need.name, node.chosen_fix if node else None,
+        )
+        if owner_id is not None and new.get(owner_id) is not None:
+            new = new.with_edge(
+                Edge(src=owner_id, dst=node_id, relation=EdgeType.REQUIRES, origin="test-gate")
+            )
+    return new
+
+
+# Its name matches pytest's default ``test_*`` collection pattern; mark it
+# not-a-test so importing it into tests/depgraph/test_test_gate_probe.py does
+# not make pytest try to call it as a test function (missing-fixture error).
+test_gate_probe.__test__ = False
+
+
+# --------------------------------------------------------------------------- #
+# Prediction reconciliation                                                    #
+# --------------------------------------------------------------------------- #
+def reconcile_predicted(
+    graph: DepGraph,
+    predicted_id: str,
+    *,
+    check: str,
+    evidence: str,
+    command: str,
+    chosen_fix: str | None = None,
+    fix_candidates: tuple[str, ...] = (),
+) -> Node | None:
+    """Reconcile an observed gap with a resolver *prediction* of the same id.
+
+    ``predicted_id`` is the CANONICAL id for the observed gap: capability-keyed
+    (``capability_id``) for a build-time ``Tool`` (``binary:``/``header:``),
+    soname-keyed (``syslib_id``) for a run-time ``SystemLib`` (Task 9 — the
+    soname is the SystemLib's identity, not the apt name, so callers must pass
+    ``syslib_id(soname)`` here, never ``syslib_id(apt)``).  When the resolver
+    pre-emitted a predicted node (seed
+    stage) at that same id, return a NEW node that keeps the predicted node's
+    id + discovery origin (``discovered_by`` stays RESOLVER per the spec) but
+    adopts the real observed ``check_command`` / ``evidence`` and records the
+    failing probe attempt.  ``state`` is left for the host certifier to flip —
+    discovery never certifies (design 3.1).
+
+    ``chosen_fix`` / ``fix_candidates`` carry what the OBSERVE-path resolve()
+    just learned. When the prediction resolved no provider (``chosen_fix`` is
+    falsy) but the observation did, the observed fix is adopted so the node
+    becomes renderable — the spec promises "observation fills a chosen_fix
+    that prediction left None." A prediction that already has a chosen_fix is
+    never overridden by a (possibly different) observed one.
+
+    Returns ``None`` when there is no matching prediction (caller then creates a
+    fresh probe-discovered node), so existing observed-only behavior is preserved.
+    """
+    predicted = graph.get(predicted_id)
+    if predicted is None or predicted.discovered_by is not DiscoveredBy.RESOLVER:
+        return None
+    changes: dict = {"check_command": check, "evidence": evidence}
+    if not predicted.chosen_fix and chosen_fix:
+        data = dict(predicted.data)
+        data["resolution_status"] = "resolved"
+        changes.update(
+            chosen_fix=chosen_fix,
+            fix_candidates=fix_candidates or (chosen_fix,),
+            data=data,
+        )
+    return replace(predicted, **changes).with_attempt(
+        Attempt(command=command, outcome="failed", check=check)
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Node builders                                                                #
+# --------------------------------------------------------------------------- #
+def _ingest_need(
+    graph: DepGraph,
+    need: ObservedNeed,
+    *,
+    stderr: str,
+    command: str,
+    executor: Executor,
+) -> tuple[DepGraph, str]:
+    """Resolve one observed need; reconcile with a prediction of the same
+    capability id, else create a fresh probe node. Returns (new_graph, node_id).
+
+    ``capability_id`` and ``check_command_for`` already dispatch by kind, so the
+    only kind-specific step is the fresh-node builder: ``soname`` -> SystemLib,
+    every other kind -> Tool.
+    """
+    check = check_command_for(need)
+    evidence = need.evidence or _first_line_with(stderr, need.name)
+    predicted_id = capability_id(need)
+    cands = resolve(need, executor)
+    fix = f"apt:{cands[0].package}" if cands else None
+    fixc = tuple(f"apt:{c.package}" for c in cands)
+    reconciled = reconcile_predicted(
+        graph,
+        predicted_id,
+        check=check,
+        evidence=evidence,
+        command=command,
+        chosen_fix=fix,
+        fix_candidates=fixc,
+    )
+    if reconciled is not None:
+        return graph.with_node(reconciled), reconciled.id
+    if need.kind == "soname":
+        node = _make_syslib_node(
+            need.name, stderr, command,
+            apt=cands[0].package if cands else None,
+            provenance="probe (observed)",
+        )
+    else:
+        node = _make_capability_node(need, stderr, command, executor)
+    return graph.with_node(node), node.id
+
+
+def _make_capability_node(
+    need: ObservedNeed, stderr: str, command: str, executor: Executor
+) -> Node:
+    cands = resolve(need, executor)
+    top = cands[0] if cands else None
+    fix = f"apt:{top.package}" if top else None
+    check = top.check_command if top else check_command_for(need)
+    node = Node(
+        id=capability_id(need),
+        type=NodeType.TOOL,
+        name=need.name,
+        layer=Layer.TOOLCHAIN,
+        discovered_by=DiscoveredBy.PROBE,
+        state=State.MISSING,
+        check_command=check,
+        evidence=need.evidence or _first_line_with(stderr, need.name),
+        fix_candidates=(fix,) if fix else (),
+        chosen_fix=fix,
+        provenance="probe (observed)",
+        data={
+            "kind": need.kind,
+            "context": need.context,
+            "observation_strength": "strong",
+            "resolution_status": "resolved" if fix else "unresolved",
+        },
+    )
+    return node.with_attempt(
+        Attempt(command=command, outcome="failed", check=check)
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Target selection / attribution                                              #
+# --------------------------------------------------------------------------- #
+def _probe_targets(graph: DepGraph) -> dict[str, dict]:
+    """import-name -> {owners, attempt_nodes, fallback_src}.
+
+    Aggregates each ``Import`` (owner = the ``Package`` it requires) and each
+    native-risk ``Package`` whose name is a valid module name (owner = itself).
+    Deduped by import name so each name is probed exactly once.
+    """
+    targets: dict[str, dict] = {}
+
+    for imp in (n for n in graph.nodes if n.type is NodeType.IMPORT):
+        entry = targets.setdefault(
+            imp.name, {"owners": set(), "attempt_nodes": set(), "fallback_src": None}
+        )
+        entry["attempt_nodes"].add(imp.id)
+        entry["fallback_src"] = imp.id
+        entry["owners"].update(
+            p.id for p in graph.requires_of(imp.id) if p.type is NodeType.PACKAGE
+        )
+
+    # NATIVE_RISK_PACKAGES now scopes the dlopen BACKSTOP only: DT_NEEDED run-time
+    # gaps are covered authoritatively by Stage 4.5 (ldd_probe); this list just
+    # picks packages worth import-probing for dlopen'd libs not in their NEEDED list.
+    for pkg in (n for n in graph.nodes if n.type is NodeType.PACKAGE):
+        if pkg.name not in NATIVE_RISK_PACKAGES:
+            continue
+        if not _MODULE_NAME_RE.match(pkg.name):
+            continue
+        entry = targets.setdefault(
+            pkg.name, {"owners": set(), "attempt_nodes": set(), "fallback_src": None}
+        )
+        entry["owners"].add(pkg.id)
+        entry["attempt_nodes"].add(pkg.id)
+
+    return targets
+
+
+def _edge_sources(target: dict) -> set[str]:
+    """Owning packages for a discovered SystemLib, else the Import node itself."""
+    owners = target["owners"]
+    if owners:
+        return owners
+    fallback = target["fallback_src"]
+    return {fallback} if fallback else set()
+
+
+def _short_import_error(stderr: str, max_chars: int = 200) -> str:
+    """The exception line of an import failure — the LAST non-empty stderr line
+    (a Python traceback ends with ``ExcType: message``), trimmed. Keeps the honest
+    ``import_error`` flag short instead of dumping the whole traceback."""
+    lines = [line.strip() for line in (stderr or "").splitlines() if line.strip()]
+    return lines[-1][:max_chars] if lines else ""

@@ -229,7 +229,7 @@ def test_gate_soname_refresh(graph, exec_readonly, events, test_cmd):
     """
     if graph is None or exec_readonly is None:
         return graph
-    from graph.python.native.probe import test_gate_probe
+    from graph.python.native.system_libs import test_gate_probe
     executor = _ReadonlyExecAdapter(exec_readonly)
     new = graph
     for cmd, out in events:
