@@ -37,7 +37,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from graph.python.native import wheel as wheel_preflight  # noqa: E402
-from graph.ids import package_id, syslib_id  # noqa: E402
+from graph.model import package_id, syslib_id  # noqa: E402
 from graph.model import (  # noqa: E402
     DepGraph,
     DiscoveredBy,

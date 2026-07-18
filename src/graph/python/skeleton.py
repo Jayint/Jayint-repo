@@ -18,7 +18,7 @@ except ModuleNotFoundError:  # pragma: no cover - exercised on Python < 3.11
     import tomli as tomllib
 
 from graph.contracts.executor import Executor
-from graph.ids import TEST_NODE_ID, package_id, project_id
+from graph.model import TEST_NODE_ID, project_id
 from graph.model import (
     DepGraph,
     DiscoveredBy,

@@ -20,7 +20,7 @@ import shlex
 from dataclasses import replace
 
 from graph.contracts.executor import Executor
-from graph.ids import syslib_id, TEST_NODE_ID
+from graph.model import syslib_id, TEST_NODE_ID
 from graph.model import (
     Attempt,
     DepGraph,

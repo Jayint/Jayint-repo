@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import subprocess
 
-from graph.ids import binary_id, import_id, package_id, pkgconfig_id, syslib_id
+from graph.model import binary_id, import_id, package_id, pkgconfig_id, syslib_id
 from graph.python.native.apt import ObservedNeed, check_command_for
 from graph.python.native.system_libs import import_probe, reconcile_predicted
 from graph.python.lanes.install.closure import install_closure
@@ -307,7 +307,7 @@ def test_install_closure_unknown_tool_has_empty_fix(fake_executor, make_result_f
 def test_install_closure_table_independent_unknown_header(fake_executor, make_result_fixture):
     # A header NOT in PROVIDER_TABLE is discovered anyway (via extract_needs) and
     # resolved through the apt-file fallback — the whole point of the extractor.
-    from graph.ids import header_id
+    from graph.model import header_id
     pkg = _package("hiredis", "2.3.2")
     graph = DepGraph().with_node(pkg)
     fake_executor.responses = {
@@ -335,7 +335,7 @@ def test_install_closure_table_independent_unknown_header(fake_executor, make_re
 def test_install_closure_ignores_bare_tool_mention(fake_executor, make_result_fixture):
     # The false positive the old _tool_gaps produced: a bare 'pg_config' mention in
     # a build log (no not-found signature) must NOT create a phantom tool node.
-    from graph.ids import binary_id
+    from graph.model import binary_id
     pkg = _package("psycopg2", "2.9.9")
     graph = DepGraph().with_node(pkg)
     fake_executor.responses = {
@@ -390,7 +390,7 @@ def test_install_closure_pkgconfig_gap_creates_node_via_apt_file(
 def test_install_closure_linker_lib_resolves_to_dev(fake_executor, make_result_fixture):
     # Build-time `cannot find -lssl` -> the UNVERSIONED libssl.so -> a -dev
     # package; the directional opposite of runtime soname resolution.
-    from graph.ids import linker_id
+    from graph.model import linker_id
     pkg = _package("pycrypto", "2.6.1")
     graph = DepGraph().with_node(pkg)
     fake_executor.responses = {
@@ -615,7 +615,7 @@ def test_import_probe_native_risk_package_probed_by_name(fake_executor, make_res
 def test_import_probe_widens_to_binary_gap(fake_executor, make_result_fixture):
     # A C-extension import that fails on a missing *binary* (not a .so) now
     # surfaces a binary Tool node — import_probe is no longer soname-only.
-    from graph.ids import binary_id
+    from graph.model import binary_id
     pkg = _package("somepkg", "1.0.0")
     imp = _import("somepkg")
     graph = (

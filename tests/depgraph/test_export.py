@@ -12,7 +12,7 @@ from pathlib import Path
 from xml.dom import minidom
 
 from graph.compile.export import to_graphml
-from graph.ids import TEST_NODE_ID, import_id, package_id, syslib_id
+from graph.model import TEST_NODE_ID, import_id, package_id, syslib_id
 from graph.model import (
     DepGraph,
     DiscoveredBy,

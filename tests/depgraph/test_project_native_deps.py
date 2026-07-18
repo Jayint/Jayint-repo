@@ -12,7 +12,7 @@ from __future__ import annotations
 import textwrap
 
 from graph.python.native import build_deps
-from graph.ids import (
+from graph.model import (
     apt_build_id, linker_id, package_id, project_id, tool_id,
 )
 from graph.python.native.apt import ProviderCandidate

@@ -1,7 +1,7 @@
 from conftest import FakeExecutor
 from graph.core.orchestrate import build_dep_graph
 from graph.contracts.executor import CommandResult
-from graph.ids import runtime_id
+from graph.model import runtime_id
 from graph.model import NodeType, Layer
 
 

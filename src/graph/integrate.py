@@ -10,7 +10,7 @@ from dataclasses import replace
 
 from graph.diagnose import RepoContext, is_local_import
 from graph.exec_trace import ObservationOverlay, Observation, ParsedFailure
-from graph.ids import (
+from graph.model import (
     TEST_NODE_ID, capability_id, config_id, import_id, package_id, service_id, syslib_id,
 )
 from graph.model import (

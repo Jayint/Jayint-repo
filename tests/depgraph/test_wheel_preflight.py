@@ -1,5 +1,5 @@
 from graph.python.native import wheel as wheel_preflight
-from graph.ids import package_id, syslib_id
+from graph.model import package_id, syslib_id
 from graph.model import (
     DepGraph,
     DiscoveredBy,

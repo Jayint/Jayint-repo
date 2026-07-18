@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from graph.core.certify import certify, certify_all
 from graph.contracts.executor import CommandResult
-from graph.ids import TEST_NODE_ID, import_id, package_id, syslib_id
+from graph.model import TEST_NODE_ID, import_id, package_id, syslib_id
 from graph.model import (
     DepGraph,
     DiscoveredBy,

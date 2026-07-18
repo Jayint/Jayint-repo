@@ -26,7 +26,7 @@ def test_command_is_stdlib_only():
     assert "importlib.metadata" in PACKAGES_DIST_CMD
 
 
-from graph.ids import import_id, package_id
+from graph.model import import_id, package_id
 from graph.model import (
     DepGraph,
     DiscoveredBy,

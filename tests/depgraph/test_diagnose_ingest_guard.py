@@ -9,7 +9,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from graph.diagnose import RepoContext, make_diagnostic_classifier
-from graph.ids import TEST_NODE_ID, package_id
+from graph.model import TEST_NODE_ID, package_id
 from graph.runtime_ingest import ingest_runtime_failures
 from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType,

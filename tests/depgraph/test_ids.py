@@ -7,10 +7,10 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from graph.ids import (
+from graph.model import (
     binary_id, header_id, pkgconfig_id, capability_id, syslib_id,
 )
-from graph.ids import apt_build_id
+from graph.model import apt_build_id
 
 
 def test_capability_id_constructors():

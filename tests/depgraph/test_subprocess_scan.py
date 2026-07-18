@@ -4,7 +4,7 @@
 # A subprocess-scanned executable is probed with `command -v <tool>` — it is a binary
 # CAPABILITY, so it carries the `binary:` id that construction and runtime ingest also mint.
 # `capability_id` is the single reconciliation key; `tool:` is for apt install DIRECTIVES.
-from graph.ids import TEST_NODE_ID, capability_id, project_id
+from graph.model import TEST_NODE_ID, capability_id, project_id
 
 
 def tool_id(name):        # the scanned-executable id, spelled the canonical way

@@ -15,7 +15,7 @@ import shlex
 from dataclasses import dataclass, replace
 
 from graph.contracts.executor import Executor
-from graph.ids import capability_id as _capability_id
+from graph.model import capability_id as _capability_id
 from graph.model import DepGraph, Node
 
 

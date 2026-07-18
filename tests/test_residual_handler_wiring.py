@@ -64,7 +64,7 @@ from src.orchestrate.loop.world_model import (
     merge_map,
 )
 from src.orchestrate.loop.sandbox import InstallResult
-from graph.ids import TEST_NODE_ID
+from graph.model import TEST_NODE_ID
 from graph.model import (
     DepGraph, DiscoveredBy, Layer, Node, NodeType, State,
 )

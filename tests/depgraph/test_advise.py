@@ -6,7 +6,7 @@ from graph.advise import (
     _best_evidence_line,
     render_dep_graph_advisory,
 )
-from graph.ids import (
+from graph.model import (
     TEST_NODE_ID,
     import_id,
     package_id,

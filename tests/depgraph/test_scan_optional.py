@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from graph.ids import import_id
+from graph.model import import_id
 from graph.python.read.scan import scan_to_nodes
 
 

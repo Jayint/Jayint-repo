@@ -7,7 +7,7 @@ from graph.python.native.build_deps import (
     PACKAGE_TO_BUILD_NEEDS, build_env_for, seed_build_deps,
 )
 from graph.compile.emit import _is_reciped
-from graph.ids import (
+from graph.model import (
     apt_build_id, binary_id, header_id, package_id, pkgconfig_id,
 )
 from graph.python.native.apt import ObservedNeed

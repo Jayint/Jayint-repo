@@ -27,7 +27,7 @@ from graph.python.config_scan import _const_str, _is_excluded
 # `command -v <tool>` — it is a binary CAPABILITY, the same thing construction and runtime ingest
 # mint. Minting `tool:adb` here while ingest minted `binary:adb` put the same executable in the
 # graph twice, under two ids, with nothing to reconcile them.
-from graph.ids import TEST_NODE_ID, capability_id
+from graph.model import TEST_NODE_ID, capability_id
 from graph.model import (
     DepGraph,
     DiscoveredBy,

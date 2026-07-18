@@ -31,7 +31,7 @@ from conftest import FakeExecutor, SequencedFakeExecutor  # type: ignore
 
 from graph.core.orchestrate import build_dep_graph
 from graph.contracts.executor import CommandResult
-from graph.ids import import_id, package_id, syslib_id
+from graph.model import import_id, package_id, syslib_id
 from graph.model import DiscoveredBy, NodeType
 from graph.python.util.import_mapping import normalize_package_name
 

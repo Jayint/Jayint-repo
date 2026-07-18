@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from graph.core.orchestrate import build_dep_graph
 from graph.contracts.executor import CommandResult
-from graph.ids import (
+from graph.model import (
     TEST_NODE_ID,
     binary_id,
     import_id,
@@ -158,7 +158,7 @@ def test_build_discovers_subprocess_cli_tools(tmp_path):
     assert adb.discovered_by is DiscoveredBy.STATIC_SCAN
     assert adb.state is State.MISSING           # command -v adb -> rc1
     # hung off the Project anchor (the repo's own code invokes it)
-    from graph.ids import project_id
+    from graph.model import project_id
     assert any(e.dst == capability_id("binary", "adb") and e.src == project_id(tmp_path.name)
                for e in graph.edges)
 
@@ -263,7 +263,7 @@ def test_project_node_hubs_runtime_deps_and_routes_test_deps(tmp_path):
     """Project node: runtime declared deps hang off Project; test/optional deps
     hang off the Test goal; certifi gains a parent (the no-parent observation)."""
     from graph.python.skeleton import _add_project_node
-    from graph.ids import project_id
+    from graph.model import project_id
     from graph.model import (
         DepGraph,
         DiscoveredBy,
@@ -315,7 +315,7 @@ def test_project_node_not_installable_without_build_manifest(tmp_path):
     """A repo with neither pyproject.toml nor setup.py is NOT editable-installable
     (no `pip install -e .` line should be rendered for it)."""
     from graph.python.skeleton import _add_project_node
-    from graph.ids import project_id
+    from graph.model import project_id
     from graph.model import DepGraph, DiscoveredBy, Layer, Node
 
     test_node = Node(
@@ -331,7 +331,7 @@ def test_project_node_not_installable_without_build_manifest(tmp_path):
 def test_project_node_installable_with_setup_py_only(tmp_path):
     """A legacy repo with only setup.py (no pyproject.toml) is still installable."""
     from graph.python.skeleton import _add_project_node
-    from graph.ids import project_id
+    from graph.model import project_id
     from graph.model import DepGraph, DiscoveredBy, Layer, Node
 
     (tmp_path / "setup.py").write_text("from setuptools import setup\nsetup(name='legacy')\n")
@@ -348,7 +348,7 @@ def _project_installable(tmp_path):
     """Helper: run _add_project_node on a bare repo and return the PROJECT node's
     installable flag."""
     from graph.python.skeleton import _add_project_node
-    from graph.ids import project_id
+    from graph.model import project_id
     from graph.model import DepGraph, DiscoveredBy, Layer, Node
 
     test_node = Node(
@@ -1308,7 +1308,7 @@ def _seed_graph_with_test_goal():
     be present first (build_dep_graph seeds it via ``scan`` before calling
     ``_add_project_node``; the sibling ``test_project_node_*`` tests do the same).
     """
-    from graph.ids import TEST_NODE_ID
+    from graph.model import TEST_NODE_ID
     from graph.model import (
         DepGraph,
         DiscoveredBy,

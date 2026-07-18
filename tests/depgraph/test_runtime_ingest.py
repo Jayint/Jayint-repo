@@ -8,7 +8,7 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from graph.ids import (
+from graph.model import (
     capability_id,
     TEST_NODE_ID, config_id, package_id, service_id, syslib_id, tool_id,
 )

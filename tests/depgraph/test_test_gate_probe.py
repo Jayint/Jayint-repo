@@ -8,7 +8,7 @@ same extract_needs + _ingest_need machinery as import_probe.
 from __future__ import annotations
 
 from graph.compile.emit import _is_reciped
-from graph.ids import TEST_NODE_ID, syslib_id
+from graph.model import TEST_NODE_ID, syslib_id
 from graph.python.native.system_libs import test_gate_probe
 from graph.model import (
     DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State,

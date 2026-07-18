@@ -19,7 +19,7 @@ from graph.core.orchestrate import build_dep_graph
 from graph.python.skeleton import reconcile_packages
 from graph.python.lanes.install.ground import resolved_record_coverage
 from graph.contracts.executor import CommandResult
-from graph.ids import import_id, package_id
+from graph.model import import_id, package_id
 from graph.python.lanes.install.resolve_errors import _offending_root_names
 from graph.python.lanes.install.resolve_lock import _package_node
 from graph.model import (

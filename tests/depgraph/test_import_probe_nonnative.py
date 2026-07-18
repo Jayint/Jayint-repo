@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from graph.ids import import_id, package_id, syslib_id
+from graph.model import import_id, package_id, syslib_id
 from graph.python.native.system_libs import import_probe
 from graph.model import (
     DepGraph,

@@ -16,7 +16,7 @@ import logging
 from collections.abc import Callable, Sequence
 from dataclasses import replace
 
-from graph.ids import (
+from graph.model import (
     TEST_NODE_ID, capability_id, config_id, package_id, service_id, syslib_id,
 )
 from graph.runtime_classify import Discovery, classify_observation

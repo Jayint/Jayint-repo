@@ -21,7 +21,7 @@ from graph.graph_context import (
 # namespace and pytest would try to collect IT as a test item too -- the exact false-positive
 # this module's own regex is built to mirror. Import it under a name that does not match.
 from graph.graph_context import tests_hidden as _tests_hidden
-from graph.ids import package_id
+from graph.model import package_id
 from graph.model import (
     Attempt, DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )

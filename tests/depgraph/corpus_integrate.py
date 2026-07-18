@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 from graph.exec_trace import ParsedFailure
 from graph.model import Node, NodeType, Layer, State, Strength, DiscoveredBy
-from graph.ids import package_id, TEST_NODE_ID
+from graph.model import package_id, TEST_NODE_ID
 
 
 @dataclass(frozen=True)

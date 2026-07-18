@@ -21,7 +21,7 @@ except ModuleNotFoundError:  # Python < 3.11
     import tomli as tomllib  # type: ignore[no-redef]
 
 from graph.contracts.executor import Executor
-from graph.ids import apt_build_id
+from graph.model import apt_build_id
 from graph.model import DepGraph, Edge, EdgeType, NodeType
 from graph.python.native.apt import ObservedNeed, capability_id
 from graph.python.native.build_deps import (

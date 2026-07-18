@@ -22,7 +22,7 @@ from graph.python.pipeline import _python_package_obligations
 from graph.compile.build_script import render_build_script
 from graph.compile.emit import next_deterministic_wave
 from graph.contracts.executor import CommandResult
-from graph.ids import package_id, tool_id
+from graph.model import package_id, tool_id
 from graph.model import (
     DepGraph,
     DiscoveredBy,

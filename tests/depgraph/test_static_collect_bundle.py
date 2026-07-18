@@ -1,7 +1,7 @@
 # tests/depgraph/test_static_collect_bundle.py
 import json
 from graph.model import DepGraph, Node, NodeType, Layer, DiscoveredBy
-from graph.ids import package_id, project_id
+from graph.model import package_id, project_id
 from graph.python.read.static_collect import (
     DeterministicHit, collect_static_evidence, compact_bundle_json,
 )

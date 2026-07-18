@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from graph.ids import TEST_NODE_ID, import_id
+from graph.model import TEST_NODE_ID, import_id
 from graph.python.read.scan import scan_to_nodes
 from graph.model import (
     DiscoveredBy,

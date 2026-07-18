@@ -18,7 +18,7 @@ green test here as licence to re-connect ``package_roots`` to
 
 from __future__ import annotations
 
-from graph.ids import TEST_NODE_ID, import_id
+from graph.model import TEST_NODE_ID, import_id
 from graph.python.lanes.install.link import package_roots
 from graph.model import (
     DepGraph,

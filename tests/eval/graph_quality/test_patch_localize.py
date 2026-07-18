@@ -28,7 +28,7 @@ for _p in (_REPO_ROOT, _SRC):
         sys.path.insert(0, str(_p))
 
 from graph.graph_context import render_graph_context
-from graph.ids import TEST_NODE_ID, binary_id, package_id, syslib_id, tool_id
+from graph.model import TEST_NODE_ID, binary_id, package_id, syslib_id, tool_id
 from graph.model import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )

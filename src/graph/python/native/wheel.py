@@ -23,7 +23,7 @@ from elftools.elf.dynamic import DynamicSection
 from elftools.elf.elffile import ELFFile
 
 from graph.contracts.executor import Executor
-from graph.ids import syslib_id
+from graph.model import syslib_id
 from graph.model import (
     DepGraph,
     DiscoveredBy,

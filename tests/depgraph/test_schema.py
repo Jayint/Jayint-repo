@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from graph import ids
+from graph import model as ids
 from graph.model import (
     Attempt,
     DepGraph,

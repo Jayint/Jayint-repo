@@ -13,7 +13,7 @@ import os
 import re
 import sys
 
-from graph.ids import package_id, syslib_id
+from graph.model import package_id, syslib_id
 from graph.python.native.system_libs import (
     EXT_SO_MAP_CMD,
     ldd_probe,

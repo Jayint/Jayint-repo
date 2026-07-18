@@ -9,7 +9,7 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from graph.ids import syslib_id
+from graph.model import syslib_id
 from graph.model import DepGraph
 from src.orchestrate.loop.execute import test_gate_soname_refresh
 

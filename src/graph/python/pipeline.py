@@ -32,7 +32,7 @@ from types import MappingProxyType
 
 from graph.contracts.executor import Executor
 from graph.executors import LocalSubprocessExecutor
-from graph.ids import package_id
+from graph.model import package_id
 from graph.model import (
     DepGraph,
     DiscoveredBy,
@@ -461,7 +461,7 @@ def _python_package_obligations(
     # Runtime-tier obligation: the container must run the targeted python minor.
     # Certified later by a host check (rc 0 iff sys.version_info matches); discovery
     # here never implies SATISFIED.
-    from graph.ids import runtime_id as _runtime_id
+    from graph.model import runtime_id as _runtime_id
     _maj, _min = target_python.split(".")[:2]
     _rt_check = f'python3 -c "import sys; sys.exit(0 if sys.version_info[:2]==({_maj},{_min}) else 1)"'
     graph = graph.with_node(

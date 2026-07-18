@@ -22,7 +22,7 @@ from __future__ import annotations
 from graph.python.native import wheel as wheel_preflight
 from graph.python.pipeline import _python_package_obligations
 from graph.contracts.executor import CommandResult
-from graph.ids import syslib_id
+from graph.model import syslib_id
 from graph.model import DiscoveredBy, NodeType, State
 
 
@@ -106,7 +106,7 @@ def test_wheel_preflight_prior_seeds_unknown_syslib(tmp_path, monkeypatch):
     # Table hit fills the apt fix without any container apt-file lookup.
     assert node.chosen_fix == "apt:libgl1"
     # A requires edge from the owning wheel package to the prior.
-    from graph.ids import package_id
+    from graph.model import package_id
 
     assert any(
         e.src == package_id("opencv-python", "4.9.0.80")
@@ -204,7 +204,7 @@ def test_sdist_gets_specific_dev_prior_and_generic_floor(tmp_path, monkeypatch):
     B3 baseline ``binary:pkg-config`` are added beyond the floor."""
     from conftest import SequencedFakeExecutor  # type: ignore
 
-    from graph.ids import binary_id, package_id, tool_id
+    from graph.model import binary_id, package_id, tool_id
 
     # An sdist closure never triggers a wheel download; if the pre-pass did, this
     # fake path would surface (guard: it must not be inspected for sonames).

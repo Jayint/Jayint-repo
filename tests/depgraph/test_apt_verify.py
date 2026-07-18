@@ -10,7 +10,7 @@ from graph.python.native.apt import (
     resolve_virtual_provider,
     t64_variant,
 )
-from graph.ids import syslib_id
+from graph.model import syslib_id
 from graph.model import (
     DepGraph,
     DiscoveredBy,

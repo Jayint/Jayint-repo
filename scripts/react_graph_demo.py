@@ -24,7 +24,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "tests" / "react_repair"))  # FakeSandbox test double
 
-from graph.ids import TEST_NODE_ID, package_id
+from graph.model import TEST_NODE_ID, package_id
 from graph.model import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )

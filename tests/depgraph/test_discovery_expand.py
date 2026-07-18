@@ -9,7 +9,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 import graph.discovery_expand as dx
-from graph.ids import package_id
+from graph.model import package_id
 from graph.model import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, State,
 )
