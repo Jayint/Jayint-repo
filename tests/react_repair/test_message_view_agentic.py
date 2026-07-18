@@ -6,7 +6,7 @@ for p in (str(_ROOT), str(_ROOT / "src")):
         sys.path.insert(0, p)
 
 from src.agent.history import History
-from src.agent.message_view import build_messages
+from src.agent.history import build_messages
 
 SCRIPT = "1| set -e\n2| pip install -r requirements.txt\n3| pytest -q"
 CLOSING = "Turn 3/10 (7 left). Reason briefly, then call one tool — explore or edit."

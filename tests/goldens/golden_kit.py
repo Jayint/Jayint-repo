@@ -27,8 +27,7 @@ for _p in (str(_ROOT), str(_ROOT / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import src.agent.history_view as history_view  # noqa: E402
-import src.agent.message_view as message_view  # noqa: E402
+import src.agent.history as history_mod  # noqa: E402  (history_view + message_view folded here, 3a-5)
 import src.agent.prompt as planner_mod  # noqa: E402
 from src.agent.prompt import RepairScope  # noqa: E402
 from src.agent.history import History  # noqa: E402
@@ -47,21 +46,17 @@ _ENV_DEFAULTS = {
     "REACT_MSG_KEEP_LAST_OBS": "3",     # message_view._keep_last_obs
     "REACT_MSG_IMMEDIATE_CAP": "8000",  # message_view._immediate_cap
 }
-# Module-level constants (bound at import — must be set as attributes, not env). The two
-# render modules each hold their OWN copy of the history_view caps (message_view imports
-# them by value), so both are pinned.
+# Module-level constants (bound at import — must be set as attributes, not env). 3a-5 folded
+# history_view + message_view into one module (`history`), so the caps are defined ONCE now
+# (message_view no longer holds its own imported-by-value copies) — each is pinned a single time.
 _ATTR_DEFAULTS = [
     (planner_mod, "_LOW_BUDGET_TURNS", 5),
-    (history_view, "_HISTORY_MODE", "flat"),
-    (history_view, "_OBS_COMPRESS_CAP", 1500),
-    (history_view, "_EXPLORE_FULL_CAP", 6000),
-    (history_view, "_STUCK_THRESHOLD", 3),
-    (history_view, "_STUCK_MODE", "neutral"),
-    (history_view, "_THOUGHT_CAP", 180),
-    (message_view, "_OBS_COMPRESS_CAP", 1500),
-    (message_view, "_EXPLORE_FULL_CAP", 6000),
-    (message_view, "_STUCK_THRESHOLD", 3),
-    (message_view, "_STUCK_MODE", "neutral"),
+    (history_mod, "_HISTORY_MODE", "flat"),
+    (history_mod, "_OBS_COMPRESS_CAP", 1500),
+    (history_mod, "_EXPLORE_FULL_CAP", 6000),
+    (history_mod, "_STUCK_THRESHOLD", 3),
+    (history_mod, "_STUCK_MODE", "neutral"),
+    (history_mod, "_THOUGHT_CAP", 180),
 ]
 
 
@@ -360,7 +355,7 @@ def _t2_numbered_script() -> str:
 
 def build_history_message_list(steps):
     """`message_view.build_messages` over the T2 transcript (style set by REACT_MSG_STYLE)."""
-    return message_view.build_messages(
+    return history_mod.build_messages(
         steps, system_prompt=_T2_SYSTEM_PROMPT, numbered_script=_t2_numbered_script(),
         closing_line=_T2_CLOSING_LINE, graph_context_text=None, rejection=None, rejected=None)
 

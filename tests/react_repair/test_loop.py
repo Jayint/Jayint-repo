@@ -266,7 +266,7 @@ def test_invalid_move_retried_in_place_not_recorded_when_corrected():
         object(), reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
         run_tests=run_tests, planner=_ScriptedPlanner([bad, good]), history=hist,
         log=ReactLog(silent=True), max_steps=5, _initial_script="pip install app\n")
-    from src.agent.history_view import render_history
+    from src.agent.history import render_history
     assert "invalid move" not in render_history(hist.steps)   # corrected in-place → not in history
     assert outcome == "DONE" and "libpq-dev" in script         # the retried edit applied
 
@@ -310,7 +310,7 @@ def test_non_readonly_explore_is_invalid_and_surfaces_edit_guidance():
               run_tests=run_tests,
               planner=_ScriptedPlanner([Action("explore", command="pip install libpq-dev")]),
               history=hist, log=log, max_steps=1, _initial_script="pip install app\n")
-    from src.agent.history_view import render_history
+    from src.agent.history import render_history
     view = render_history(hist.steps)
     assert "invalid move" in view.lower()
     assert "edit()" in view and "won't persist" in view
@@ -628,7 +628,7 @@ def test_explore_step_has_no_outcome():
 def test_loop_end_to_end_renders_a_valid_agentic_prompt(monkeypatch):
     """The real chain: loop → Step.outcome → message_view(agentic). No hand-built History."""
     monkeypatch.setenv("REACT_MSG_STYLE", "agentic")
-    from src.agent.message_view import build_messages
+    from src.agent.history import build_messages
     h = _history_of([], installed_needs=("libpq-dev",))
     msgs = build_messages(h.steps, system_prompt="SYS", numbered_script="1| pip install app",
                           closing_line="Turn 1/10.")

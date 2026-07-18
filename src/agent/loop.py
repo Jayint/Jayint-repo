@@ -15,7 +15,7 @@ from src.agent.observe import safety_compress_observation, strip_pip_progress
 from src.agent.observe import compact_pytest_blocks
 from src.agent.observe import format_breakdown, summarize
 from src.agent.script_prep import strip_graph_framing
-from src.agent.style import agentic
+from src.agent.history import agentic
 
 # Shown to the agent when a move is rejected (a non-read-only "explore", or an otherwise unusable
 # action). Tool-calling aware — the old text referenced the retired `Action:`/`Script:` free-text

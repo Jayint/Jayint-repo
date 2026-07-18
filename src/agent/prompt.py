@@ -15,8 +15,8 @@ from typing import Any, Callable
 from src.llm import complete_with_tools
 from src.agent.actions import (
     TOOLS_SCHEMA, action_from_tool_call, extract_reasoning, extract_thought, parse_action)
-from src.agent.history_view import render_history
-from src.agent.message_view import build_messages
+from src.agent.history import render_history
+from src.agent.history import build_messages
 
 # GOAL + APPROACH + INTEGRITY are STATIC and ablation-invariant (identical for the no-graph and
 # graph runs). The ENVIRONMENT section (injected per-run: base image / OS / repo dir / file tree)
