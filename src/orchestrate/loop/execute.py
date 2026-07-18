@@ -17,7 +17,7 @@ from typing import Callable, Dict, Optional, Tuple
 
 from graph.contracts.executor import CommandResult
 from graph.core.certify import certify_all
-from graph.evidence_log import Evidence, EvidenceBundle
+from src.orchestrate.loop.evidence import Evidence, EvidenceBundle
 from graph.patch.block import Block
 from src.orchestrate.loop.world_model import Fact
 

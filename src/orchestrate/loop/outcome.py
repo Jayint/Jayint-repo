@@ -84,7 +84,7 @@ def _build_install_evidence(result, failed_id, cycle):
     ``ev.block_id == failed_block.block_id``; setting block_id keeps the stderr visible on a
     #@block failure, while node_id stays correct for the common graph-node case.
     """
-    from graph.evidence_log import Evidence, EvidenceBundle
+    from src.orchestrate.loop.evidence import Evidence, EvidenceBundle
     ev = Evidence(
         evidence_id=f"install.{cycle}.{failed_id or 'unknown'}",
         container_kind="fresh_replay",
@@ -105,7 +105,7 @@ def _build_testgate_evidence(out, cycle, target_id):
     forces the proposer to hallucinate an evidence_ref against an empty citation
     list before finding the add_providers loophole. Mirrors _build_install_evidence
     (which threads install stderr on the binding path)."""
-    from graph.evidence_log import Evidence, EvidenceBundle
+    from src.orchestrate.loop.evidence import Evidence, EvidenceBundle
     if not out:
         return EvidenceBundle()
     ev = Evidence(

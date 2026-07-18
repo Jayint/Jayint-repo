@@ -1,6 +1,6 @@
 # tests/depgraph/test_evidence_bundle.py
 import json
-from graph.evidence_log import Evidence, EvidenceBundle, write_jsonl
+from src.orchestrate.loop.evidence import Evidence, EvidenceBundle, write_jsonl
 
 
 def _ev(i=0):

@@ -8,7 +8,7 @@ for p in (str(_ROOT), str(_SRC)):
 
 import src.agent.prompt as rs
 from graph.patch.block import Block
-from graph.evidence_log import Evidence, EvidenceBundle
+from src.orchestrate.loop.evidence import Evidence, EvidenceBundle
 
 def _bundle():
     return EvidenceBundle().with_item(Evidence(

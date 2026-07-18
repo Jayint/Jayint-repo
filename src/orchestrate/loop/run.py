@@ -939,7 +939,7 @@ def run_v3(
                 # no longer exists in run_v3) — give up honestly instead.
                 return _finish(TerminationReason.GIVEUP_CONFIG)
             from graph.patch.gate import compose_script
-            from graph.evidence_log import EvidenceBundle
+            from src.orchestrate.loop.evidence import EvidenceBundle
             _g = current_map.dep_graph
             _blocks = compose_script(_g, _manual_blocks) if _g is not None else ()
             _tid = _targets[0]
