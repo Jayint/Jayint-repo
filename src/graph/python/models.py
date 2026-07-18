@@ -112,15 +112,6 @@ class PythonDependencyEvidence:
     # out-of-repo relative path -- every path here is guaranteed lexical
     # (leaf not resolved) AND repo-relative.
     soft_requirements_files: list[str] = field(default_factory=list)
-    # The `packaging.requirements.Requirement` objects parsed from every SOFT
-    # requirements file above (see `evidence._parse_requirement_lines`),
-    # EXCLUDING bare `.` / `-e .` self-install and URL-only lines that carry no
-    # PEP 508 name. Purely additive and unconsumed until a later repair task
-    # proposes these declared dists as candidates for unresolved imports: the
-    # soft/hard classification, `declared_dependencies`, and root selection are
-    # all byte-unchanged by populating this. A repo with no soft files leaves
-    # it empty.
-    soft_declared_dependencies: list = field(default_factory=list)  # list[packaging.requirements.Requirement]
     # Repo-relative POSIX paths of the HARD requirements files
     # (`evidence._discover_hard_requirements_files`: the repo root plus the
     # top-level requirements/tests/test/docs dirs). Unlike the soft list these
@@ -159,6 +150,16 @@ class PythonDependencyEvidence:
     # synthetic pyproject; see ``build._exclude_direct_reference_roots`` for
     # the (unconditional, both-flag-states) consumer.
     direct_reference_sources: dict[str, str] = field(default_factory=dict)
+    # The `packaging.requirements.Requirement` objects parsed from every SOFT
+    # requirements file above (see `evidence._parse_requirement_lines`),
+    # EXCLUDING bare `.` / `-e .` self-install and URL-only lines that carry no
+    # PEP 508 name. Purely additive and unconsumed until a later repair task
+    # proposes these declared dists as candidates for unresolved imports: the
+    # soft/hard classification, `declared_dependencies`, and root selection are
+    # all byte-unchanged by populating this. A repo with no soft files leaves
+    # it empty. Kept LAST (appended at the end of the dataclass) so adding it
+    # never shifts the positional constructor arguments of any earlier field.
+    soft_declared_dependencies: list = field(default_factory=list)  # list[packaging.requirements.Requirement]
 
     def to_dict(self) -> dict[str, Any]:
         import_groups: dict[str, list[str]] = {}

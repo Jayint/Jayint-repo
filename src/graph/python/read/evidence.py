@@ -526,7 +526,24 @@ def _collect_requirements_files(root: Path, evidence: PythonDependencyEvidence) 
         # Reuses the same raw-line + inline-comment handling the HARD path uses;
         # never mutates soft_requirements_files, declared_dependencies, or root
         # selection (all byte-unchanged). Bare `.`/`-e .`/URL-only lines excluded.
-        evidence.soft_declared_dependencies.extend(_parse_requirement_lines(path))
+        #
+        # Guard the READ: `_parse_requirement_lines` -> `_iter_raw_requirement_lines`
+        # -> `path.read_text` can raise if the file vanished between discovery and
+        # this parse (or a permission/OS error). Such a per-file failure must NOT
+        # abort the loop -- the current path is already recorded above, but LATER
+        # soft files would then never be appended and the final `.sort()` below
+        # would never run, regressing the byte-unchanged `soft_requirements_files`
+        # invariant this additive parse promises. (UnicodeDecodeError is already
+        # handled inside `_iter_raw_requirement_lines`; InvalidRequirement inside
+        # `_parse_requirement_lines` -- so a read error is the only failure left to
+        # catch here.) Record it, never swallow it, and continue.
+        try:
+            evidence.soft_declared_dependencies.extend(_parse_requirement_lines(path))
+        except OSError as error:
+            evidence.collection_errors.append(
+                "_collect_requirements_files: failed to parse soft requirements "
+                f"file {_relative_posix_path(root, path)!r}: {error}"
+            )
     evidence.soft_requirements_files.sort()
 
 
