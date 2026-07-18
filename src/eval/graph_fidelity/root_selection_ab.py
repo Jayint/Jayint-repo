@@ -189,7 +189,7 @@ def reconstruct_generator_roots(
     extra-gated dep is still recovered as the generator's over-add — the very
     behavior the verifier drops. Host-only (lazy ``python_deps`` import); NOT one
     of the pure adjudication functions."""
-    from graph.python.lanes.install.naming import package_roots
+    from graph.python.lanes.install.link import package_roots
     from graph.python.lanes.install.roots import _is_non_distribution
     from graph.python.read.evidence import collect_python_dependency_evidence
     from graph.python.util.import_mapping import normalize_package_name

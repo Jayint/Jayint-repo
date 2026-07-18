@@ -7,8 +7,11 @@ resolve.py, which imports from here.
 
 from __future__ import annotations
 
+import datetime
+import json
 import re
 import shutil
+import urllib.request
 from dataclasses import replace
 
 try:  # tomllib is stdlib on 3.11+; fall back to the tomli backport on 3.10.
@@ -615,3 +618,63 @@ def native_risk_from_lock(
         and _non_default_source_evidence(p["name"], p.get("source", {})) is None
     ]
     return risk_from_packages(raw_packages, target_platform, target_python)
+
+
+# === pins.py: PyPI release-date pinning helpers ===
+_PIN_RE = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)==([A-Za-z0-9][A-Za-z0-9._!+-]*)")
+
+
+def parse_pinned_roots(roots: list[tuple[str | None, str]]) -> list[tuple[str, str]]:
+    """Extract ``(name, version)`` from roots specced as ``name==version``.
+
+    Unpinned roots (``opencv-python``, ``flask>=2``) are skipped — only an exact
+    ``==`` pin is a deliberate version choice we anchor the cutoff to.
+    """
+    out: list[tuple[str, str]] = []
+    for _import_id, spec in roots:
+        match = _PIN_RE.match(spec or "")
+        if match:
+            out.append((match.group(1), match.group(2)))
+    return out
+
+
+def _default_fetch(name: str, version: str) -> dict:
+    url = f"https://pypi.org/pypi/{name}/{version}/json"
+    with urllib.request.urlopen(url, timeout=20) as response:  # noqa: S310
+        return json.load(response)
+
+
+def pypi_upload_date(name: str, version: str, fetch=_default_fetch) -> str | None:
+    """The ``YYYY-MM-DD`` release date of ``name==version`` (earliest uploaded
+    file), or ``None`` on any failure (network, missing version, malformed)."""
+    try:
+        data = fetch(name, version)
+        times = [
+            u.get("upload_time")
+            for u in (data.get("urls") or [])
+            if u.get("upload_time")
+        ]
+        return min(times)[:10] if times else None
+    except Exception:  # noqa: BLE001 — best-effort; never break the resolve
+        return None
+
+
+def _plus_one_day(date_str: str) -> str:
+    day = datetime.date.fromisoformat(date_str) + datetime.timedelta(days=1)
+    return day.isoformat()
+
+
+def compute_exclude_newer(
+    roots: list[tuple[str | None, str]], fetch=_default_fetch
+) -> str | None:
+    """An ``exclude_newer`` cutoff (``YYYY-MM-DD``) from the pinned roots' newest
+    release date (+1 day), or ``None`` when no root is pinned / no date resolves.
+    """
+    dates = [
+        date
+        for name, version in parse_pinned_roots(roots)
+        if (date := pypi_upload_date(name, version, fetch))
+    ]
+    if not dates:
+        return None
+    return _plus_one_day(max(dates))

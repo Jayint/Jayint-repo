@@ -194,7 +194,7 @@ def _no_pypi_network(monkeypatch):
     """
     import urllib.request
 
-    from graph.python.lanes.install import coverage as _coverage
+    from graph.python.lanes.install import ground as _coverage
 
     def _blind_fetch(_dist):  # no wheel read -> blind candidate, zero network
         return None

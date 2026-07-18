@@ -2349,7 +2349,7 @@ def test_link_imports_skips_unresolved_mapping(monkeypatch):
     """Guard (Task 3): an UNRESOLVED mapping must be skipped, not fed into
     ``_canon`` as ``None`` (previously: TypeError, since ``_canon`` runs
     ``re.sub`` on its argument)."""
-    import graph.python.lanes.install.resolve_link as resolve_link
+    import graph.python.lanes.install.link as resolve_link
     from graph.python.lanes.install.resolve import link_imports_to_packages
     from graph.model import DepGraph, DiscoveredBy, Layer, Node, NodeType
     from graph.python.util.import_mapping import unresolved_result
@@ -2374,7 +2374,7 @@ def test_link_imports_reconciles_unresolved_by_own_name(monkeypatch):
     """An UNRESOLVED import must still link to a Package that ALREADY EXISTS under the
     import's own canonical name — reconciliation against existing graph state, never
     fabrication. (Regression guard for the identity-fallback deletion.)"""
-    import graph.python.lanes.install.resolve_link as resolve_link
+    import graph.python.lanes.install.link as resolve_link
     from graph.python.lanes.install.resolve import link_imports_to_packages
     from graph.model import (
         DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType,

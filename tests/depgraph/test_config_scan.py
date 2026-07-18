@@ -143,7 +143,7 @@ def test_scan_finds_bare_environ_setdefault(tmp_path):
 # ── FIX 3 — scan_env_defaults: deterministic walk + AMBIGUOUS -> drop, never pick a variant ──
 
 def test_scan_env_defaults_conflicting_values_across_files_drops_the_var(tmp_path):
-    """AMBIGUOUS -> never pick a variant (mirrors `depgraph.python.lanes.install.repair.choose_provider`'s
+    """AMBIGUOUS -> never pick a variant (mirrors `depgraph.python.lanes.install.ground.choose_provider`'s
     AMBIGUOUS branch). Two files disagreeing on a var's literal default must yield
     NEITHER value -- not whichever file the (previously undefined-order) walk
     happened to visit first."""

@@ -111,7 +111,7 @@ from graph.python.lanes.install.resolve_errors import (
     _diagnosis_to_graph,
     _offending_root_names,
 )
-from graph.python.lanes.install.resolve_link import (
+from graph.python.lanes.install.link import (
     _stamp,
     _import_edges,
     link_imports_to_packages,

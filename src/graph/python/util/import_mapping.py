@@ -77,7 +77,7 @@ def declared_metadata_match(
     This is EVIDENCE, not a guess: it only ever returns a name the repo itself
     wrote down as a dependency somewhere in its manifest (any group). Factored
     out of :func:`map_import_to_package` so
-    ``depgraph.python.lanes.install.repair.generate_candidates`` (:func:`~graph.python.lanes.install.repair.declared_candidates`)
+    ``depgraph.python.lanes.install.ground.generate_candidates`` (:func:`~graph.python.lanes.install.ground.declared_candidates`)
     can reuse the exact same rung as an additional candidate source, instead of
     re-implementing (and risking drift from) this matching logic.
     """

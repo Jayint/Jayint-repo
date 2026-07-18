@@ -39,7 +39,7 @@ from graph.python.native.os_resolver import (
     check_command_for,
     resolve,
 )
-from graph.python.lanes.install.relink import flag_runtime_import_failure
+from graph.python.lanes.install.link import flag_runtime_import_failure
 from graph.model import (
     Attempt,
     DepGraph,

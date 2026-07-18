@@ -176,7 +176,7 @@ def test_provider_preserves_hermeticity_symbols():
     the composite default is still built at the old 569-571 site inside the helper).
     End-to-end hermeticity is re-proven by oracle (a) after Task 7."""
     from graph.core import build
-    from graph.python.lanes.install import coverage, relink
+    from graph.python.lanes.install import ground as coverage, link as relink
 
     assert build.pypi_record_provider is coverage.pypi_record_provider
     assert build.composite_record_provider is coverage.composite_record_provider

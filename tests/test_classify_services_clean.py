@@ -347,7 +347,7 @@ def test_incidental_and_secret_shaped_vars_are_never_baked(tmp_path):
 
 def test_conflicting_defaults_for_an_allowlisted_var_bakes_nothing(tmp_path):
     """AMBIGUOUS -> never pick a variant (same discipline as
-    `depgraph.python.lanes.install.repair.choose_provider`'s AMBIGUOUS branch). Two files disagreeing
+    `depgraph.python.lanes.install.ground.choose_provider`'s AMBIGUOUS branch). Two files disagreeing
     on DJANGO_SETTINGS_MODULE's default must bake NEITHER value -- not whichever
     file the walk happened to visit first -- through the real wiring end to end."""
     _write(tmp_path, "manage.py",

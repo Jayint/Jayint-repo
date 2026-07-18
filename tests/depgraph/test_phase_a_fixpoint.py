@@ -19,7 +19,7 @@ from graph.core.build import (
     build_dep_graph,
     reconcile_packages,
 )
-from graph.python.lanes.install.coverage import resolved_record_coverage
+from graph.python.lanes.install.ground import resolved_record_coverage
 from graph.contracts.executor import CommandResult
 from graph.ids import import_id, package_id
 from graph.python.lanes.install.resolve_errors import _offending_root_names
@@ -210,7 +210,7 @@ def test_fixpoint_default_composite_provider_repairs_via_pypi_fetch(tmp_path):
     test P1.4 could not write — it proves production repair is no longer inert.
     """
     import graph.core.build as build_mod
-    from graph.python.lanes.install.coverage import pypi_record_provider
+    from graph.python.lanes.install.ground import pypi_record_provider
 
     repo = _repo(tmp_path, "import yaml\n")
     # The FIRST packages_distributions read (the memoized post-install container

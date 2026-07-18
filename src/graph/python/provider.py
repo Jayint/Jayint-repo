@@ -18,7 +18,7 @@ from graph.core.build import (
     _python_package_obligations,
 )
 from graph.contracts.executor import Executor
-from graph.python.lanes.install.repair import DistGuesser, RecordProvider
+from graph.python.lanes.install.ground import DistGuesser, RecordProvider
 from graph.model import DepGraph
 from graph.python.read.evidence import collect_python_dependency_evidence
 

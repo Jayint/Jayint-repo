@@ -57,7 +57,7 @@ except ModuleNotFoundError:  # pragma: no cover - exercised on Python < 3.11
 from graph.python.native.apt_verify import reconcile_apt_names
 from graph.python.native.build_deps import seed_build_deps
 from graph.core.certify import certify_all
-from graph.python.lanes.install.coverage import (
+from graph.python.lanes.install.ground import (
     composite_record_provider,
     default_record_provider,
     pypi_record_provider,
@@ -67,11 +67,11 @@ from graph.contracts.executor import Executor
 from graph.executors import LocalSubprocessExecutor
 from graph.ids import TEST_NODE_ID, package_id, project_id
 from graph.python.native.ldd_probe import ldd_probe
-from graph.python.lanes.install.pins import compute_exclude_newer
+from graph.python.lanes.install.resolve_lock import compute_exclude_newer
 from graph.python.native.probe import import_probe, install_closure
 from graph.python.native.project_native_deps import project_native_obligations
-from graph.python.lanes.install.relink import certified_import_links
-from graph.python.lanes.install.repair import (
+from graph.python.lanes.install.link import certified_import_links
+from graph.python.lanes.install.ground import (
     DistGuesser,
     RecordProvider,
     Verdict,

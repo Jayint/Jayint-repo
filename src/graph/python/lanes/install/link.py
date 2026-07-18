@@ -1,30 +1,27 @@
-"""Stage 4a — certified Import->Package relink from packages_distributions().
+"""Package<->import naming + the graph relink pass (spec §4B install/link, R8).
 
-After ``install_closure`` has installed the resolved closure, the container can
-report the ground-truth import-name -> distribution map via
-``importlib.metadata.packages_distributions()`` (Python 3.10+). This stage uses it
-to add CERTIFIED ``Import->Package`` edges — e.g. ``import dateutil`` provided by
-dist ``python-dateutil``. It is now the SOLE Import->Package source in
-construction: the provisional pre-install heuristic
-(``resolve.link_imports_to_packages``) is retired from the build path. Discovery
-only: it adds edges + honest ``unresolved`` data flags, never node state.
-
-Pure parser + pure edge builder + thin executor orchestrator (repo immutability:
-every "mutation" returns a NEW ``DepGraph``).
+Folded (3c-2) from relink + naming + resolve_link: normalize package/import names,
+resolve import->package links against the target env, and relink the graph's
+declared-root Import nodes to their installing Package. Pure over the graph +
+the injected import-name map.
 """
-
 from __future__ import annotations
 
 import json
 from dataclasses import replace
 
 from graph.contracts.executor import Executor
-from graph.model import DepGraph, Edge, EdgeType, NodeType
+from graph.model import DepGraph, Edge, EdgeType, Node, NodeType
+from graph.python.lanes.install.resolve_lock import _canon, _req_name
 from graph.python.util.import_mapping import (
+    is_unresolved,
+    map_import_to_package,
     normalize_package_name,
     top_level_import_name,
 )
 
+
+# === relink.py: relink declared-root Import nodes to their installing Package ===
 PACKAGES_DIST_CMD = (
     'python -c "import importlib.metadata, json; '
     'print(json.dumps(importlib.metadata.packages_distributions()))"'
@@ -199,3 +196,183 @@ def certified_import_links(graph: DepGraph, executor: Executor) -> DepGraph:
     for edge in edges:
         new = new.with_edge(edge)
     return flag_unresolved_imports(new)
+
+
+# === naming.py: package<->import name normalization + unresolved detection ===
+def package_roots(
+    graph: DepGraph,
+    declared_names: set[str] | None = None,
+) -> list[tuple[str, str]]:
+    """Return ``(import_id, distribution_name)`` for every Import node.
+
+    Resolution per Import node, highest precedence first:
+
+    1. **declared manifest name** — if a declared distribution's normalized
+       name equals the import's normalized name, the declared name wins
+       (original manifest form preserved). Project declarations are the
+       highest-trust evidence (design 4.2 / 10.3).
+    2. **curated table** — ``graph.python.util.import_mapping.map_import_to_package``
+       (handles ``cv2 -> opencv-python`` and friends).
+
+    An import that matches neither is **unresolved**
+    (``graph.python.util.import_mapping.is_unresolved``) and yields NO root — it is
+    never guessed to be its own distribution name.
+
+    Non-Import nodes are ignored. Output order follows graph node order, one
+    pair per resolved Import node (unresolved imports are omitted).
+    """
+    declared = declared_names or set()
+    declared_by_normalized = {normalize_package_name(name): name for name in declared}
+
+    roots: list[tuple[str, str]] = []
+    for node in graph.nodes:
+        if node.type is not NodeType.IMPORT:
+            continue
+        normalized = normalize_package_name(node.name)
+        if normalized in declared_by_normalized:
+            roots.append((node.id, declared_by_normalized[normalized]))
+            continue
+        result = map_import_to_package(node.name, declared_package_names=declared)
+        if is_unresolved(result):
+            continue
+        roots.append((node.id, result.package_name))
+    return roots
+
+
+# === resolve_link.py: resolve import->package links against the target env ===
+def _stamp(
+    node: Node,
+    risk: dict[str, dict],
+    target_python: str,
+    target_platform: str,
+    exclude_newer: str | None = None,
+) -> Node:
+    """Stamp targeting provenance + native-build risk onto a Package node."""
+    changes: dict = {
+        "resolved_python": target_python,
+        "resolved_platform": target_platform,
+        "exclude_newer": exclude_newer,
+    }
+    info = risk.get(node.name) or risk.get(_canon(node.name))
+    if info is None:
+        # Case/separator-insensitive fallback.
+        for key, val in risk.items():
+            if _canon(key) == _canon(node.name):
+                info = val
+                break
+    if info is not None:
+        changes["build_from_source"] = info.get("build_from_source")
+        changes["artifact"] = info.get("artifact")
+        changes["hash"] = info.get("hash")
+        # Fix A: the resolver pinned a version with NO installable artifact for
+        # this interpreter/platform (only wheels for other interpreters, no
+        # sdist). Emitting `pip install --no-deps name==version` can only fail
+        # (and, under `set -Eeuo pipefail`, aborts the whole setup.sh). Mark the
+        # node UNRESOLVED — drop the pip fix so the renderer never ships the
+        # doomed line, and leave honest evidence — so Phase-A's coverage audit
+        # flags the import instead of the build dying on it.
+        if info.get("installable") is False:
+            changes["chosen_fix"] = None
+            changes["fix_candidates"] = ()
+            changes["data"] = {**node.data, "uninstallable": True}
+            changes["evidence"] = (
+                f"no installable artifact for python {target_python} on "
+                f"{target_platform} (resolved {node.name}=={node.version})"
+            )
+    return replace(node, **changes)
+
+
+def _import_edges(
+    roots: list[tuple[str | None, str]],
+    nodes: list[Node],
+) -> list[Edge]:
+    """Import->Package edges for each root with a resolved Package node."""
+    canon_to_id = {_canon(n.name): n.id for n in nodes}
+    edges: list[Edge] = []
+    seen: set[tuple[str, str]] = set()
+    for import_id_, dist in roots:
+        if import_id_ is None:
+            continue  # manifest-declared root: no Import node to attach.
+        pkg_id = canon_to_id.get(_canon(_req_name(dist)))
+        if pkg_id is None:
+            continue
+        key = (import_id_, pkg_id)
+        if key in seen:
+            continue
+        seen.add(key)
+        edges.append(
+            Edge(
+                src=import_id_,
+                dst=pkg_id,
+                relation=EdgeType.REQUIRES,
+                origin="resolver",
+            )
+        )
+    return edges
+
+
+def link_imports_to_packages(graph: DepGraph) -> DepGraph:
+    """Connect every Import node to its resolved Package by canonical dist name.
+
+    Complements :func:`_import_edges`, which only links imports that were
+    themselves resolver roots.  A manifest-declared dependency seeds a Package via
+    a root with ``import_id=None`` (see ``roots.select_roots``), so its scanned
+    Import node would otherwise be orphaned from the Package — breaking the
+    symptom->owner walk.  This pass links any Import whose mapped distribution
+    matches a Package node, regardless of how the root was sourced.  ``_canon``
+    collapses ``_``/``-``/``.`` so e.g. ``charset_normalizer`` matches
+    ``charset-normalizer`` even via the identity fallback.
+    """
+    canon_to_pkg = {
+        _canon(n.name): n.id for n in graph.nodes if n.type is NodeType.PACKAGE
+    }
+    existing = {
+        (e.src, e.dst) for e in graph.edges if e.relation is EdgeType.REQUIRES
+    }
+    new = graph
+    for node in graph.nodes:
+        if node.type is not NodeType.IMPORT:
+            continue
+        result = map_import_to_package(node.name)
+        if is_unresolved(result):
+            # Reconciliation-by-own-name: an unresolved import can still be linked to a
+            # Package that ALREADY EXISTS under the import's own canonical name. This is
+            # reconciliation against existing graph state, never fabrication — no new node
+            # is created; the edge is drawn only if a matching Package is already present.
+            pkg_id = canon_to_pkg.get(_canon(node.name))
+        else:
+            pkg_id = canon_to_pkg.get(_canon(result.package_name))
+        if pkg_id is None or (node.id, pkg_id) in existing:
+            continue
+        new = new.with_edge(
+            Edge(
+                src=node.id,
+                dst=pkg_id,
+                relation=EdgeType.REQUIRES,
+                origin="reconcile",
+            )
+        )
+    return new
+
+
+def _merge(
+    primary_nodes: list[Node],
+    primary_edges: list[Edge],
+    extra_nodes: list[Node],
+    extra_edges: list[Edge],
+) -> tuple[list[Node], list[Edge]]:
+    """Merge node/edge lists; primary entries win on id/edge-key collisions."""
+    nodes: list[Node] = list(primary_nodes)
+    have_ids = {n.id for n in nodes}
+    for n in extra_nodes:
+        if n.id not in have_ids:
+            have_ids.add(n.id)
+            nodes.append(n)
+
+    edges: list[Edge] = list(primary_edges)
+    have_keys = {e.key() for e in edges}
+    for e in extra_edges:
+        if e.key() not in have_keys:
+            have_keys.add(e.key())
+            edges.append(e)
+    return nodes, edges

@@ -1,4 +1,4 @@
-from graph.python.lanes.install.pipreqs_map import pipreqs_candidates
+from graph.python.lanes.install.ground import pipreqs_candidates
 
 
 def test_known_mismatch_maps():

@@ -21,7 +21,7 @@ from graph.core.build import build_dep_graph
 from graph.contracts.executor import Executor
 from graph.executors import DockerExecutor, LocalSubprocessExecutor
 from graph.emit.emit import partition
-from graph.python.lanes.install.repair import DistGuesser
+from graph.python.lanes.install.ground import DistGuesser
 from graph.model import DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State
 
 logger = logging.getLogger(__name__)

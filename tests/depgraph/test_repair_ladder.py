@@ -5,7 +5,7 @@ No network, no Executor, no graph: these exercise only the deterministic pipreqs
 map lookup, the injected-LLM seam (fired only on a map miss), and the 3-way
 ``decide`` self-check.
 """
-from graph.python.lanes.install.repair import (
+from graph.python.lanes.install.ground import (
     Candidate,
     Verdict,
     decide,

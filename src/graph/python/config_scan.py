@@ -197,7 +197,7 @@ def scan_env_defaults(repo_path: str) -> dict[str, str]:
     decision must never depend on that. And when two files assign DIFFERENT
     literal defaults to the SAME var, neither wins: the var is dropped entirely
     rather than picking whichever file happened to be seen first. This mirrors
-    ``depgraph.python.lanes.install.repair.choose_provider``'s AMBIGUOUS branch -- never pick a
+    ``depgraph.python.lanes.install.ground.choose_provider``'s AMBIGUOUS branch -- never pick a
     variant -- because "first file wins" previously let a value from a test
     fixture or example app silently shadow the real one.
 

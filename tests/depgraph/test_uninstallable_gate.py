@@ -2,7 +2,7 @@
 node into an UNRESOLVED node (no pip fix) that the renderer never emits."""
 from graph.emit.emit import _is_reciped
 from graph.python.lanes.install.resolve_lock import _package_node
-from graph.python.lanes.install.resolve_link import _stamp
+from graph.python.lanes.install.link import _stamp
 
 LINUX_X86 = "x86_64-manylinux_2_28"
 
