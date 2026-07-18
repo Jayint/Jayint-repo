@@ -37,7 +37,7 @@ class Candidate:
     """A proposed distribution name and the rung that produced it."""
 
     dist: str
-    source: str  # "pipreqs" | "llm"
+    source: str  # "pipreqs" | "llm" | "declared"
 
 
 class Verdict(enum.Enum):
@@ -274,6 +274,34 @@ def resolved_record_coverage(
         if modules:
             provided |= {module.lower() for module in modules}
     return provided
+
+
+def declared_coverage(
+    declared_dists: frozenset[str], provider: RecordProvider
+) -> dict[str, list[str]]:
+    """Map lowercased top-level module -> canonical dist names, over DECLARED dists.
+
+    Reads each declared dist's wheel RECORD once via ``provider`` (a ``None`` return
+    contributes nothing — no wheel / sdist-only). Mirrors ``resolved_record_coverage``
+    but keyed module->dist so a missing import can look up which declared dist ships it.
+    """
+    coverage: dict[str, list[str]] = {}
+    for dist in sorted(declared_dists):
+        modules = provider(dist)
+        if not modules:
+            continue
+        for module in modules:
+            bucket = coverage.setdefault(module.lower(), [])
+            canon = normalize_package_name(dist)
+            if canon not in {normalize_package_name(d) for d in bucket}:
+                bucket.append(dist)
+    return coverage
+
+
+def declared_candidates(import_name: str, coverage: dict[str, list[str]]) -> list[Candidate]:
+    """Declared dists whose RECORD covers ``import_name`` — the highest-trust rung."""
+    top = top_level_import_name(import_name).lower()
+    return [Candidate(dist, "declared") for dist in coverage.get(top, [])]
 
 
 def default_record_provider(container_executor: Executor) -> RecordProvider:
