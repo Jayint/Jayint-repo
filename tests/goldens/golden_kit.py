@@ -188,6 +188,46 @@ def repair_scope_cases() -> dict:
     }
 
 
+# P0-b: the graph-context BLOCK and the rejection FOOTER — two prompt branches the base scenarios
+# above never light up (all pass graph=None, rejection=None). Both are captured through the PUBLIC
+# planner._messages seam in BOTH prompt styles, so they pin the blob path (planner._render, folded
+# by 3a-4) AND the messages path (message_view._scaffold, folded by 3a-5). R10.
+_GRAPH_CTX_STUB = (
+    "NEEDS (certified, still unmet):\n"
+    "  - syslib:libpq — `pip install psycopg2` fails: fatal error: libpq-fe.h (ev.install.psycopg2)\n"
+    "PROVIDERS (candidate): apt:libpq-dev")
+_REJECTION_REASON = ("explore is read-only — `apt-get install -y libpq-dev` modifies the system. "
+                     "Put the fix in setup.sh with edit() instead.")
+
+
+def _extra_planner(with_graph: bool) -> "ReactPlanner":
+    """A hermetic planner (bare object() client — _messages is pure). `with_graph` wires a
+    graph_context callable returning a FIXED certified-state block, so the GRAPH CONTEXT branch
+    fires deterministically without a real graph."""
+    gc = (lambda graph, result, causes, prev: _GRAPH_CTX_STUB) if with_graph else None
+    return ReactPlanner(client=object(), model="golden-model", graph_context=gc)
+
+
+def prompt_extra_scenarios() -> tuple:
+    return ("graph_context", "rejection_footer")
+
+
+def build_prompt_extra(scenario_key: str):
+    """Rebuild the `messages` list for a graph-context / rejection scenario via planner._messages
+    (style from REACT_PROMPT_STYLE). Same install-failure transcript as the base scenarios so the
+    only delta vs `install_failure.<style>` is the extra block/footer."""
+    history = install_failure_history()
+    script, obs, fail_lineno, turn, max_turns = _SEED_SCRIPT, _STILL_FAILING_OBS, 5, 3, 30
+    if scenario_key == "graph_context":
+        planner = _extra_planner(with_graph=True)
+        return planner._messages(history, script, obs, object(), fail_lineno, turn, max_turns, None)
+    if scenario_key == "rejection_footer":
+        planner = _extra_planner(with_graph=False)
+        return planner._messages(history, script, obs, None, fail_lineno, turn, max_turns,
+                                 _REJECTION_REASON)
+    raise KeyError(scenario_key)
+
+
 # --------------------------------------------------------------------------------------
 # T2: history render — one rich transcript exercised through every render branch.
 # --------------------------------------------------------------------------------------

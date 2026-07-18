@@ -48,10 +48,22 @@ def test_repair_scope_renders_match_goldens(monkeypatch):
         _assert_golden(f"{key}.txt", got)
 
 
+def test_prompt_extra_scenarios_match_goldens(monkeypatch):
+    """P0-b: the GRAPH CONTEXT block + the rejection footer, in both prompt styles — the two
+    branches the base scenarios leave dark (they all pass graph=None, rejection=None)."""
+    gk.pin_defaults(monkeypatch)
+    for style in _STYLES:
+        monkeypatch.setenv("REACT_PROMPT_STYLE", style)
+        for key in gk.prompt_extra_scenarios():
+            got = gk.serialize_messages(gk.build_prompt_extra(key))
+            _assert_golden(f"{key}.{style}.txt", got)
+
+
 def test_every_prompt_fixture_is_covered():
     """No orphaned fixture: every committed prompt/*.txt is asserted by a case above — a
     stale golden that nothing rebuilds is a silent hole in the oracle."""
     covered = {f"{k}.{s}.txt" for s in _STYLES for k in gk.prompt_scenarios()}
+    covered |= {f"{k}.{s}.txt" for s in _STYLES for k in gk.prompt_extra_scenarios()}
     covered |= {f"{k}.txt" for k in gk.repair_scope_cases()}
     on_disk = {p.name for p in PROMPT_DIR.glob("*.txt")}
     assert on_disk == covered, f"fixture/coverage mismatch: only-on-disk={on_disk - covered}, only-in-test={covered - on_disk}"
