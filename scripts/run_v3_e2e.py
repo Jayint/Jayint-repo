@@ -58,7 +58,7 @@ for _p in (_root, os.path.join(_root, "src")):
 from openai import OpenAI
 from httpx import Timeout
 from src.orchestrate.loop.sandbox import Sandbox
-from src.orchestrate.loop.orchestrator import run_v3
+from src.orchestrate.loop.run import run_v3
 from src.agent.actions.graph import V3BuildAgent
 from src.orchestrate.loop.done_gate import DeterministicMaintainer
 from src.orchestrate.loop.world_model import initial_map

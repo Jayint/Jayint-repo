@@ -26,7 +26,7 @@ _LEGACY_TOKEN = re.compile(r"\brun_v1\b|ContractGraph|contract_graph|derive_open
 
 
 def test_run_v1_symbol_absent_from_orchestrator():
-    from src.orchestrate.loop import orchestrator
+    from src.orchestrate.loop import run as orchestrator
     assert not hasattr(orchestrator, "run_v1"), "run_v1 must be deleted from the orchestrator"
     assert hasattr(orchestrator, "run_v3"), "run_v3 (the sole loop) must remain"
 

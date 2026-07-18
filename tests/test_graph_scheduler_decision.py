@@ -9,7 +9,7 @@ from graph.model import (  # noqa: E402
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy,
 )
 from src.orchestrate.loop.scheduler import next_decision, packet_to_task  # noqa: E402
-from src.orchestrate.loop.orchestrator import VERIFY_TEST_CMD  # noqa: E402
+from src.orchestrate.loop.run import VERIFY_TEST_CMD  # noqa: E402
 from graph.schedule import frame_obligation  # noqa: E402
 
 

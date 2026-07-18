@@ -24,7 +24,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from src.orchestrate.loop.ledger import ActionLedger
-from src.orchestrate.loop.orchestrator import run_v3
+from src.orchestrate.loop.run import run_v3
 from src.orchestrate.loop.world_model import (
     TaskReport,
     WorldModelMap,

@@ -35,7 +35,7 @@ def test_run_v3_still_uses_the_shared_helpers():
     """Source-guard: ``run_v3`` must keep calling BOTH shared helpers. This is the tripwire the
     shed protects — deleting the legacy loop must not strip ``host_refresh_facts``/``merge_map``
     from the surviving loop (a whole-file-delete of a mixed helper would do exactly that)."""
-    from src.orchestrate.loop import orchestrator
+    from src.orchestrate.loop import run as orchestrator
     v3_src = inspect.getsource(orchestrator.run_v3)
     assert "host_refresh_facts(" in v3_src, "run_v3 must keep calling host_refresh_facts"
     assert "merge_map(" in v3_src, "run_v3 must keep calling merge_map"

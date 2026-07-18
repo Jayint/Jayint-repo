@@ -11,7 +11,7 @@ import sys
 
 def test_verify_test_cmd_is_single_object_across_modules():
     from src.orchestrate.loop.constants import VERIFY_TEST_CMD as from_constants
-    from src.orchestrate.loop.orchestrator import VERIFY_TEST_CMD as from_orchestrator
+    from src.orchestrate.loop.run import VERIFY_TEST_CMD as from_orchestrator
     from src.orchestrate.loop.scheduler import VERIFY_TEST_CMD as from_scheduler
 
     assert from_constants is from_orchestrator is from_scheduler
@@ -37,13 +37,13 @@ def test_graph_scheduler_does_not_import_orchestrator_at_module_load():
     # re-imported) orchestrator in sys.modules, whose TerminationReason enum identity diverges —
     # cross-file pollution that flipped v3 stop-reasons (planner_done -> max_cycles).
     saved = {k: sys.modules.get(k)
-             for k in ("src.orchestrate.loop.scheduler", "src.orchestrate.loop.orchestrator")}
+             for k in ("src.orchestrate.loop.scheduler", "src.orchestrate.loop.run")}
     try:
         sys.modules.pop("src.orchestrate.loop.scheduler", None)
-        sys.modules.pop("src.orchestrate.loop.orchestrator", None)
+        sys.modules.pop("src.orchestrate.loop.run", None)
         import src.orchestrate.loop.scheduler  # noqa: F401
 
-        assert "src.orchestrate.loop.orchestrator" not in sys.modules
+        assert "src.orchestrate.loop.run" not in sys.modules
     finally:
         for k, v in saved.items():
             if v is not None:

@@ -28,7 +28,7 @@ from src.orchestrate.loop.world_model import (
 )
 from src.orchestrate.loop.sandbox import InstallResult
 
-from src.orchestrate.loop.orchestrator import run_v3  # noqa: E402
+from src.orchestrate.loop.run import run_v3  # noqa: E402
 from src.orchestrate.loop.done_gate import DeterministicMaintainer  # noqa: E402
 
 
@@ -101,19 +101,19 @@ class _PassiveBuildAgent:
 
 def test_default_max_cycles_constant_is_12():
     """MAX_CYCLES module constant must equal 12 per spec §8."""
-    from src.orchestrate.loop import orchestrator
+    from src.orchestrate.loop import run as orchestrator
     assert orchestrator.MAX_CYCLES == 12
 
 
 def test_collect_only_cmd_constant_present():
     """COLLECT_ONLY_CMD module constant must be defined in orchestrator."""
-    from src.orchestrate.loop import orchestrator
+    from src.orchestrate.loop import run as orchestrator
     assert hasattr(orchestrator, "COLLECT_ONLY_CMD")
     assert "--collect-only" in orchestrator.COLLECT_ONLY_CMD
 
 
 def test_termination_reason_maps_to_legacy_strings():
-    from src.orchestrate.loop.orchestrator import TerminationReason, _to_stop_reason
+    from src.orchestrate.loop.run import TerminationReason, _to_stop_reason
     assert _to_stop_reason(TerminationReason.DONE) == "planner_done"
     assert _to_stop_reason(TerminationReason.DONE_FLAG) == "done_flag"
     assert _to_stop_reason(TerminationReason.GIVEUP_RESIDUAL) == "planner_giveup"

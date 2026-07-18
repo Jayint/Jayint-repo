@@ -17,7 +17,7 @@ _SRC_DIR = _ROOT / "src"
 if str(_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(_SRC_DIR))
 
-_SRC = _ROOT / "src" / "orchestrate" / "loop" / "orchestrator.py"
+_SRC = _ROOT / "src" / "orchestrate" / "loop" / "run.py"
 
 
 def test_residual_giveup_is_gated_and_never_sets_done_flag():
@@ -57,7 +57,7 @@ def test_llm_classifier_injected_only_under_graph_scheduler():
 # ── Behavioral tests (dynamic semantics) ─────────────────────────────────────
 
 from src.orchestrate.loop.ledger import ActionLedger, make_action_event
-from src.orchestrate.loop.orchestrator import run_v3
+from src.orchestrate.loop.run import run_v3
 from src.orchestrate.loop.world_model import (
     TaskReport,
     initial_map,

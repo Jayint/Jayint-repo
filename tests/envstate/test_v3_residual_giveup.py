@@ -37,8 +37,8 @@ for p in (str(_ROOT), str(_SRC)):
         sys.path.insert(0, p)
 
 import src.orchestrate.loop.scheduler as gs_module
-import src.orchestrate.loop.orchestrator as orch
-from src.orchestrate.loop import orchestrator
+import src.orchestrate.loop.run as orch
+from src.orchestrate.loop import run as orchestrator
 from src.orchestrate.loop.constants import RESIDUAL_GIVEUP_CYCLES
 from src.orchestrate.loop.ledger import ActionLedger
 from src.agent.loop import RepairOutcome

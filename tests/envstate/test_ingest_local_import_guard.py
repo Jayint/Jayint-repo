@@ -32,7 +32,7 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from src.orchestrate.loop import orchestrator
+from src.orchestrate.loop import run as orchestrator
 from src.orchestrate.loop.ledger import ActionLedger
 from src.orchestrate.loop.world_model import initial_map
 from graph.model import DepGraph
