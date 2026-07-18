@@ -440,9 +440,29 @@ _APT_NOISY = (
 )
 
 
+# A LARGE observation (> 8000 chars) that fires safety_compress's SELECTION pass — the path
+# loop._obs_body leans on (threshold = target = _OBS_MAX_CHARS = 8000), unpinned until now (the
+# noise_strip case below only exercises the always-on pass-1 strip). Deterministic: range-built pip
+# noise (dropped by pass 1) + ~60 identical collection-error blocks + a summary tail, so after the
+# strip the text is still over 8000 and pass 2 selects head/tail/status/error-blocks, elides the
+# middle, then hard-caps to 8000 on line boundaries.
+_LARGE_OBS = (
+    "Collecting psycopg2\n"
+    + "".join(f"  Downloading dep_{i:02d}-1.0.0-py3-none-any.whl (512 kB)\n" for i in range(1, 25))
+    + "".join(
+        f"_______________ ERROR collecting tests/test_mod_{i:02d}.py _______________\n"
+        f"tests/test_mod_{i:02d}.py:7: in <module>\n"
+        f"    import redis\n"
+        f"E   ModuleNotFoundError: No module named 'redis'\n"
+        for i in range(1, 61))
+    + "=========================== short test summary info ============================\n"
+    + "".join(f"ERROR tests/test_mod_{i:02d}.py\n" for i in range(1, 61))
+    + "60 errors in 4.12s\n")
+
+
 def observe_cases() -> dict:
     """The observe cluster's pure renders: the `$ cmd -> result` envelope, edit tool-results,
-    the ranked pytest cause histogram, block dedup, and the noise-strip compression."""
+    the ranked pytest cause histogram, block dedup, and the noise-strip + selection compression."""
     from src.agent.envelope import edit_result, run_envelope
     from src.agent.observation import safety_compress_observation, strip_pip_progress
     from src.agent.pytest_blocks import compact_pytest_blocks
@@ -479,6 +499,10 @@ def observe_cases() -> dict:
     cases["pytest_blocks/dedup"] = compact_pytest_blocks(_PYTEST_SAME_CAUSE)
     cases["compression/strip_pip_progress"] = strip_pip_progress(_PIP_NOISY)
     cases["compression/noise_strip"] = safety_compress_observation(_APT_NOISY)[0]
+    # SELECTION pass at the loop._obs_body budget (8000): pass-1 strips the pip noise, then head/tail/
+    # status/error-block selection + a hard cap to 8000 — the >8000 path the observe merge (3a-3) owns.
+    cases["compression/large_selection"] = safety_compress_observation(
+        _LARGE_OBS, threshold_chars=8000, target_chars=8000)[0]
     return cases
 
 
