@@ -27,7 +27,7 @@ for _p in (_REPO, _SRC):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from src.orchestrate.loop.depgraph_live import emit_drain  # noqa: E402
+from src.orchestrate.loop.execute_ablation import emit_drain  # noqa: E402
 from src.orchestrate.loop.ledger import ActionLedger  # noqa: E402
 from src.orchestrate.loop.world_model import TaskReport, CommandRecord  # noqa: E402
 from graph.executors import DockerExecutor  # noqa: E402

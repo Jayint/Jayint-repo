@@ -9,7 +9,7 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from src.orchestrate.loop.depgraph_live import certify_refresh, ensure_python_shim  # noqa: E402
+from src.orchestrate.loop.execute import certify_refresh, ensure_python_shim  # noqa: E402
 from graph.model import DepGraph, Node, NodeType, Layer, State, DiscoveredBy  # noqa: E402
 
 

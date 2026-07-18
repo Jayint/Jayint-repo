@@ -1,6 +1,6 @@
 import subprocess
 
-from src.orchestrate.loop.extractor import EXTRACTOR_COMMANDS, run_extractor, SYSTEM_TOOL_PROBES
+from src.orchestrate.loop.execute import EXTRACTOR_COMMANDS, run_extractor, SYSTEM_TOOL_PROBES
 
 
 def test_system_tools_command_present_and_curated():

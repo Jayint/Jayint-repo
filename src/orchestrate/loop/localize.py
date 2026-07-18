@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 from graph.emit.emit import _is_reciped
 from graph.model import State
-from src.orchestrate.loop.depgraph_live import certify_refresh
+from src.orchestrate.loop.execute import certify_refresh
 
 _EVIDENCE_CAP = 500
 _WINDOW = 3  # annotated lines kept above/below the failing line

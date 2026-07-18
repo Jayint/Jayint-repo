@@ -1,6 +1,6 @@
 import unittest
 
-from src.orchestrate.loop.extractor import (
+from src.orchestrate.loop.execute import (
     EXTRACTOR_COMMANDS,
     LIGHTWEIGHT_FIELDS,
     run_extractor,

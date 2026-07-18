@@ -33,8 +33,8 @@ for p in (str(_ROOT), str(_SRC)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-import src.orchestrate.loop.block_emit as be
-import src.orchestrate.loop.depgraph_live as dl
+import src.orchestrate.loop.execute_ablation as be
+import src.orchestrate.loop.execute_ablation as dl
 from src.orchestrate.loop.orchestrator import VERIFY_TEST_CMD, run_v3
 from src.orchestrate.loop.ledger import ActionLedger
 from src.orchestrate.loop.world_model import TaskReport, initial_map, merge_map

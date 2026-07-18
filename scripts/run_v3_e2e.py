@@ -63,7 +63,7 @@ from src.agent.actions.graph import V3BuildAgent
 from src.orchestrate.loop.done_gate import DeterministicMaintainer
 from src.orchestrate.loop.world_model import initial_map
 from src.orchestrate.loop.ledger import ActionLedger
-from src.orchestrate.loop.snapshot import probe_env
+from src.orchestrate.loop.execute import probe_env
 from src.orchestrate.select.manifest import parse_manifests
 from graph.python.classify_services_clean import make_construction_classifier
 from src.orchestrate.select.choose import choose_base_image

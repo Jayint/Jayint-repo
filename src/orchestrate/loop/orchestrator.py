@@ -663,7 +663,7 @@ def run_v3(
             return
         from graph.model import NodeType, State
         from src.orchestrate.loop.world_model import Fact
-        from src.orchestrate.loop.depgraph_live import certify_refresh
+        from src.orchestrate.loop.execute import certify_refresh
         from graph.emit.emit import partition
         graph = certify_refresh(current_map.dep_graph, exec_readonly, cycle)
         # Snapshot: was the graph already fully certified BEFORE this cycle's
@@ -807,7 +807,7 @@ def run_v3(
             # as import_probe, collapsing onto syslib:<soname> so the dlopen-tail
             # need becomes renderable into setup.sh. ldd+import remain the PARTIAL
             # backstop (DT_NEEDED + eager module-init); the test run owns the rest.
-            from src.orchestrate.loop.depgraph_live import test_gate_soname_refresh
+            from src.orchestrate.loop.execute import test_gate_soname_refresh
             new_graph = test_gate_soname_refresh(
                 new_graph, exec_readonly, obs, VERIFY_TEST_CMD
             )
