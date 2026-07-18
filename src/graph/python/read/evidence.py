@@ -521,6 +521,12 @@ def _collect_requirements_files(root: Path, evidence: PythonDependencyEvidence) 
         # ingested into declared_dependencies (see
         # _is_hard_requirements_file's invariant docstring).
         evidence.soft_requirements_files.append(_relative_posix_path(root, path))
+        # Additive (Task 1): parse this ACCEPTED soft file's PEP 508 lines into
+        # Requirement objects for a later repair task to propose as candidates.
+        # Reuses the same raw-line + inline-comment handling the HARD path uses;
+        # never mutates soft_requirements_files, declared_dependencies, or root
+        # selection (all byte-unchanged). Bare `.`/`-e .`/URL-only lines excluded.
+        evidence.soft_declared_dependencies.extend(_parse_requirement_lines(path))
     evidence.soft_requirements_files.sort()
 
 
@@ -885,6 +891,34 @@ def _iter_raw_requirement_lines(path: Path) -> Iterable[str]:
         stripped = raw_line.strip()
         if stripped:
             yield raw_line
+
+
+def _parse_requirement_lines(path: Path) -> Iterable[Requirement]:
+    """Yield a ``packaging.requirements.Requirement`` per clean PEP 508 line.
+
+    A focused, SIDE-EFFECT-FREE lines->objects parser for the SOFT path -- unlike
+    the recursive, evidence-mutating ``_ingest_requirements_file``, it neither
+    follows ``-r``/``-c`` includes nor writes to any evidence list. It reuses the
+    SAME raw-line iteration (``_iter_raw_requirement_lines``) and inline-comment
+    stripping (``_strip_inline_comment``) the hard path uses, so markers and
+    extras are preserved identically. Lines that are not a clean PEP 508
+    requirement are SKIPPED, never guessed at:
+
+    * empty lines;
+    * option / include / editable directives -- anything starting ``-``/``--``
+      (``-e .``, ``-r other.txt``, ``-c constraints.txt``, ``-i <index>``, ...);
+    * a bare ``.`` self-install (routes to the Project node, not a dist);
+    * URL-only / legacy ``#egg=`` lines that ``Requirement`` rejects with
+      ``InvalidRequirement`` (no clean distribution name to carry).
+    """
+    for raw_line in _iter_raw_requirement_lines(path):
+        cleaned = _strip_inline_comment(raw_line).strip()
+        if not cleaned or cleaned == "." or cleaned.startswith(("-", "--")):
+            continue
+        try:
+            yield Requirement(cleaned)
+        except InvalidRequirement:
+            continue
 
 
 def _collect_constraints_files(root: Path, evidence: PythonDependencyEvidence) -> None:

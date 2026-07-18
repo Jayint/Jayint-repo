@@ -112,6 +112,15 @@ class PythonDependencyEvidence:
     # out-of-repo relative path -- every path here is guaranteed lexical
     # (leaf not resolved) AND repo-relative.
     soft_requirements_files: list[str] = field(default_factory=list)
+    # The `packaging.requirements.Requirement` objects parsed from every SOFT
+    # requirements file above (see `evidence._parse_requirement_lines`),
+    # EXCLUDING bare `.` / `-e .` self-install and URL-only lines that carry no
+    # PEP 508 name. Purely additive and unconsumed until a later repair task
+    # proposes these declared dists as candidates for unresolved imports: the
+    # soft/hard classification, `declared_dependencies`, and root selection are
+    # all byte-unchanged by populating this. A repo with no soft files leaves
+    # it empty.
+    soft_declared_dependencies: list = field(default_factory=list)  # list[packaging.requirements.Requirement]
     # Repo-relative POSIX paths of the HARD requirements files
     # (`evidence._discover_hard_requirements_files`: the repo root plus the
     # top-level requirements/tests/test/docs dirs). Unlike the soft list these
