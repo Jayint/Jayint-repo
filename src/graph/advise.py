@@ -22,7 +22,7 @@ from graph.contracts.executor import Executor
 from graph.executors import DockerExecutor, LocalSubprocessExecutor
 from graph.compile.emit import partition
 from graph.python.lanes.install.ground import DistGuesser
-from graph.model import DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State
+from graph.model import DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State, TEST_NODE_ID
 
 logger = logging.getLogger(__name__)
 
@@ -77,17 +77,25 @@ def _needed_by(graph: DepGraph, node: Node) -> list[str]:
     names = {
         pred.name for pred in graph.required_by(node.id) if pred.name != node.name
     }
+    anchor = declared_anchor(graph, node)
+    if anchor is not None and anchor.name != node.name:
+        names.add(anchor.name)
     return sorted(names)
 
 
 def _project_deps(graph: DepGraph, proj_id: str) -> list[str]:
-    return sorted(
-        {
-            n.name
-            for n in graph.requires_of(proj_id)
-            if n.type in (NodeType.PACKAGE, NodeType.IMPORT)
-        }
-    )
+    names = {
+        n.name
+        for n in graph.requires_of(proj_id)
+        if n.type in (NodeType.PACKAGE, NodeType.IMPORT)
+    }
+    # declared-direct deps are re-homed to node data (was Project->Package edges).
+    names |= {
+        n.name
+        for n in graph.nodes
+        if n.type is NodeType.PACKAGE and n.data.get("declared") == "direct"
+    }
+    return sorted(names)
 
 
 def _recent_attempts(node: Node, limit: int = 2) -> str:
@@ -198,6 +206,20 @@ _PLANNER_HEADER = (
 )
 
 
+def declared_anchor(graph: DepGraph, node: Node) -> Node | None:
+    """The hub a declared Package anchors to, reconstructed from its ``declared``
+    flag now that the Project->Package edge is provenance re-homed to node data.
+    ``direct`` -> the Project node; ``optional`` -> the Test goal; else None."""
+    if node.type is not NodeType.PACKAGE:
+        return None
+    kind = node.data.get("declared")
+    if kind == "direct":
+        return next((n for n in graph.nodes if n.type is NodeType.PROJECT), None)
+    if kind == "optional":
+        return graph.get(TEST_NODE_ID)
+    return None
+
+
 def _chain_to_goal(graph: DepGraph, node: Node, limit: int = 6) -> str:
     """Render the transitive required_by chain up to a Project/Test root.
 
@@ -210,6 +232,16 @@ def _chain_to_goal(graph: DepGraph, node: Node, limit: int = 6) -> str:
     for _ in range(limit):
         preds = [p for p in graph.required_by(cur.id) if p.id not in seen]
         if not preds:
+            # declared deps anchor to their hub via the `declared` flag (the
+            # Project->Package edge is provenance re-homed to node data).
+            anchor = declared_anchor(graph, cur)
+            if anchor is not None and anchor.id not in seen:
+                cur = anchor
+                chain.append(cur.name)
+                seen.add(cur.id)
+                if cur.type is NodeType.TEST:
+                    break
+                continue
             break
         cur = sorted(preds, key=lambda p: p.name)[0]
         chain.append(cur.name)

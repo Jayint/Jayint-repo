@@ -129,11 +129,17 @@ def build_requirement_slice(graph, node) -> RequirementSlice:
     (imported lazily to avoid module load-order coupling)."""
     from graph.advise import (
         _chain_to_goal, _conflict_note, _best_evidence_line, _platform_note,
+        declared_anchor,
     )
     from graph.model import NodeType, State
 
     deps = tuple(DepView(id=d.id, state=d.state.value) for d in graph.requires_of(node.id))
-    unblocks = tuple(n.id for n in graph.required_by(node.id))
+    unblocks_nodes = list(graph.required_by(node.id))
+    # declared deps anchor to their hub via node data (edge re-homed to the flag).
+    _anchor = declared_anchor(graph, node)
+    if _anchor is not None and _anchor.id not in {n.id for n in unblocks_nodes}:
+        unblocks_nodes.append(_anchor)
+    unblocks = tuple(n.id for n in unblocks_nodes)
     cohort = [n for n in graph.nodes if n.layer == node.layer and n.id != node.id]
     sat = tuple(n.id for n in cohort if n.state is State.SATISFIED)
     miss = tuple(n.id for n in cohort if n.state is State.MISSING)

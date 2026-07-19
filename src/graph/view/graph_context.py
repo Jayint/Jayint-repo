@@ -341,8 +341,14 @@ def _as_command(fix: str) -> str:
 
 
 def _up_edges(graph: DepGraph, node: Node, weight: int, est: bool) -> list[str]:
+    from graph.advise import declared_anchor
     out = []
-    for src in graph.required_by(node.id):
+    preds = list(graph.required_by(node.id))
+    # declared deps anchor to their hub via node data (edge re-homed to the flag).
+    anchor = declared_anchor(graph, node)
+    if anchor is not None and anchor.id not in {p.id for p in preds}:
+        preds.append(anchor)
+    for src in preds:
         state = "" if src.type is NodeType.TEST else f"  {_fmt_state(src)}"
         out.append(f"    {src.id}  --requires-->  {node.id}{state}")
     if weight:                     # a build-fail anchor has no test weight -- say nothing
