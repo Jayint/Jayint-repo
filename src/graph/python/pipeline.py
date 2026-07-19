@@ -55,8 +55,10 @@ from graph.python.lanes.install.resolve_lock import compute_exclude_newer
 from graph.python.lanes.install.roots import select_roots
 from graph.python.native.apt import reconcile_apt_names
 from graph.python.native.build_deps import seed_build_deps, seed_wheel_oracle_prior
+from graph.python.native.runtime_tools import seed_runtime_tools
 from graph.python.native.project_native import project_native_obligations
 from graph.python.native.system_libs import import_probe, ldd_probe
+from graph.python.native.ctypes_scan import add_ctypes_runtime_libs
 from graph.python.native.wheel import wheel_preflight_probe
 from graph.python.read.evidence import collect_python_dependency_evidence
 from graph.python.read.scan import scan_to_nodes
@@ -590,6 +592,11 @@ def _python_package_obligations(
     # the cycle restamp).
     graph = _add_project_node(graph, repo_path)
     graph = add_subprocess_tool_nodes(graph, repo_path)
+    # Stage 3a' — curated runtime-executable prior: a binary:<tool> Tool node for
+    # each closure package that shells out to an external CLI (git family, pandoc,
+    # graphviz/dot, poppler) that no static sensor can observe. RESOLVER/UNKNOWN ->
+    # falls inside the resolver_ids restamp below.
+    graph = seed_runtime_tools(graph)
     graph = seed_wheel_oracle_prior(graph)
     # Stage 3b' — PROACTIVE wheel-soname priors: for each package the Phase-A
     # native_risk_from_lock stamp classified as a WHEEL (build_from_source is
@@ -669,6 +676,11 @@ def _python_native_obligations(graph: DepGraph, container_executor: Executor) ->
     # Stage 4.5 (ldd_probe); this catches libs loaded at run time via dlopen that
     # never appear in the binary's NEEDED list.
     graph = import_probe(graph, container_executor)
+    # Stage 4.6 — ctypes/cffi dlopen scan: read the installed closure's source for
+    # find_library/CDLL/cffi-dlopen literals and mint SystemLib nodes for runtime
+    # libs neither ldd (not linked) nor import-probe (lazy dlopen) can see.
+    # STATIC_SCAN nodes -> untouched by the PROBE-only restamp below.
+    graph = add_ctypes_runtime_libs(graph, container_executor)
     probe_ids = {
         n.id
         for n in graph.nodes
