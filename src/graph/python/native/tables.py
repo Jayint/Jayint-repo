@@ -15,6 +15,8 @@ runtime-CLI authority and the native-risk gate, which the resolver does not cove
 
 from __future__ import annotations
 
+from graph.python.util.import_mapping import normalize_package_name
+
 # Runtime CLI binaries a repo's OWN code shells out to (subprocess/os.system) ->
 # apt package. Distinct from the pip *build* tools in ``os_resolver.PROVIDER_TABLE``
 # (headers/config binaries): those are surfaced by ldd/apt-on-build, whereas these
@@ -38,6 +40,7 @@ CLI_TOOL_TO_APT: dict[str, str] = {
     "openssl": "openssl",
     "dot": "graphviz",
     "pdftoppm": "poppler-utils",
+    "pdfinfo": "poppler-utils",
 }
 
 # Distributions whose import may need a system lib (whom to deep-probe).
@@ -59,23 +62,23 @@ NATIVE_RISK_PACKAGES: frozenset[str] = frozenset(
     }
 )
 
-from graph.python.util.import_mapping import normalize_package_name
-
 # Curated dist -> runtime CLI tools the package ITSELF shells out to, keyed by
 # canonical (PEP 503) distribution name. The RUN-time analogue of
-# PACKAGE_TO_BUILD_NEEDS: a universal, package-intrinsic fact that no sensor can
-# observe (GitPython invokes git through a variable executable path; a source
-# scan sees no literal). Minted via apt_for_cli_tool (NOT the resolve path,
-# which lacks ("binary","git") in PROVIDER_TABLE). Deliberately SMALL — every
-# entry must be a universal package fact, and every tool a CLI_TOOL_TO_APT key.
+# PACKAGE_TO_BUILD_NEEDS. BAR: the tool is required by the package's PRIMARY
+# DOCUMENTED FUNCTION (dominant-path intrinsic), NOT a repo we sampled — the
+# strict "always, every code path" reading would disqualify even psycopg2, and
+# Part V's 30-negative false-positive guard is the empirical over-breadth check.
+# Minted via apt_for_cli_tool (NOT the resolve path, which lacks ("binary","git")
+# in PROVIDER_TABLE). Deliberately SMALL: dvc is intentionally OMITTED (redundant
+# via gitpython->git through scmrepo); pdf2image lists pdfinfo (always invoked)
+# alongside the default pdftoppm. Every tool value must be a CLI_TOOL_TO_APT key.
 PACKAGE_TO_RUNTIME_TOOLS: dict[str, tuple[str, ...]] = {
-    "gitpython": ("git",),      # git.Git shells out to the git binary
-    "pre-commit": ("git",),     # a git-hook manager; core function IS git
-    "dvc": ("git",),            # data VCS layered on git
-    "copier": ("git",),         # clones template repos via git
-    "pypandoc": ("pandoc",),    # thin wrapper over the pandoc binary
-    "graphviz": ("dot",),       # renders via the dot binary
-    "pdf2image": ("pdftoppm",), # calls poppler's pdftoppm/pdfinfo
+    "gitpython": ("git",),        # git.Git shells out to the git binary
+    "pre-commit": ("git",),       # a git-hook manager; primary function IS git
+    "copier": ("git",),           # primary flow clones git template repos
+    "pypandoc": ("pandoc",),      # thin wrapper over the pandoc binary
+    "graphviz": ("dot",),         # renders via the dot binary
+    "pdf2image": ("pdftoppm", "pdfinfo"),  # poppler: pdfinfo always, pdftoppm default
 }
 
 

@@ -12,6 +12,7 @@ from graph.python.native.tables import (
     CLI_TOOL_TO_APT,
     NATIVE_RISK_PACKAGES,
     PACKAGE_TO_RUNTIME_TOOLS,
+    apt_for_cli_tool,
     runtime_tools_for,
 )
 
@@ -39,3 +40,22 @@ def test_runtime_tools_for_normalizes_dist_name():
     assert runtime_tools_for("gitpython") == ("git",)
     assert runtime_tools_for("pypandoc") == ("pandoc",)
     assert runtime_tools_for("not-a-real-pkg") == ()
+    assert runtime_tools_for("pdf2image") == ("pdftoppm", "pdfinfo")
+    assert runtime_tools_for("dvc") == ()   # intentionally dropped (redundant via gitpython)
+
+
+def test_runtime_tools_map_is_exactly_the_curated_set():
+    assert PACKAGE_TO_RUNTIME_TOOLS == {
+        "gitpython": ("git",),
+        "pre-commit": ("git",),
+        "copier": ("git",),
+        "pypandoc": ("pandoc",),
+        "graphviz": ("dot",),
+        "pdf2image": ("pdftoppm", "pdfinfo"),
+    }
+
+
+def test_runtime_tool_apt_providers_are_correct():
+    assert apt_for_cli_tool("dot") == "graphviz"
+    assert apt_for_cli_tool("pdftoppm") == "poppler-utils"
+    assert apt_for_cli_tool("pdfinfo") == "poppler-utils"
