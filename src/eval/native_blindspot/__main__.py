@@ -115,26 +115,35 @@ def behavioral(repo: str, graph, culprits: list[str], base_image: str) -> dict:
     (``pytest --collect-only``) post-setup. The container is ALWAYS removed,
     even on exception — no leaked containers on a failed run."""
     triggers = load_triggers()
+    present = {c: triggers[c] for c in culprits if c in triggers}
+    missing_triggers = [c for c in culprits if c not in triggers]
+    snippets = list(dict.fromkeys(present.values()))   # dedup, order-preserving
     setup_sh = render_build_script(graph, (), include_services=False)
-    snippets = [triggers[c] for c in culprits if c in triggers]
     cid = f"nbs_{uuid.uuid4().hex[:8]}"
     try:
-        _sh(["docker", "run", "-d", "--name", cid, base_image, "sleep", "infinity"])
-        _sh(["docker", "cp", f"{repo}/.", f"{cid}:/src"])
+        run_rc = _sh(["docker", "run", "-d", "--name", cid, base_image, "sleep", "infinity"]).returncode
+        cp_rc = _sh(["docker", "cp", f"{repo}/.", f"{cid}:/src"]).returncode
+        if run_rc != 0 or cp_rc != 0:
+            return {"repo": repo, "setup_failed": True, "run_rc": run_rc,
+                    "cp_rc": cp_rc, "missing_triggers": missing_triggers}
         before = {s: _trigger_rc(cid, s) for s in snippets}          # base image: expect != 0
         with open(f"/tmp/{cid}.sh", "w") as fh:
             fh.write(setup_sh)
-        _sh(["docker", "cp", f"/tmp/{cid}.sh", f"{cid}:/tmp/setup.sh"])
-        _sh(["docker", "exec", "-w", "/src", cid, "bash", "/tmp/setup.sh"])
+        setup_cp_rc = _sh(["docker", "cp", f"/tmp/{cid}.sh", f"{cid}:/tmp/setup.sh"]).returncode
+        setup_rc = _sh(["docker", "exec", "-w", "/src", cid, "bash", "/tmp/setup.sh"]).returncode
         after = {s: _trigger_rc(cid, s) for s in snippets}           # fixed env: expect 0
         col = _sh(["docker", "exec", "-w", "/src", cid, "python", "-m", "pytest",
                    "--collect-only", "-q", "-p", "no:cacheprovider"])
     finally:
-        _sh(["docker", "rm", "-f", cid])
+        cleanup_rc = _sh(["docker", "rm", "-f", cid]).returncode
     return {
         "repo": repo,
         "trigger_flips": {s: {"before": before[s], "after": after[s]} for s in snippets},
         "collect_rc": col.returncode,
+        "setup_cp_rc": setup_cp_rc,
+        "setup_rc": setup_rc,
+        "missing_triggers": missing_triggers,
+        "cleanup_rc": cleanup_rc,
     }
 
 
@@ -147,22 +156,24 @@ _APT_INSTALL_LINE_RE = re.compile(
 )
 
 
-def _strip_apt_lines(setup_sh: str, apts: list[str]) -> str:
+def _strip_apt_lines(setup_sh: str, apts: list[str]) -> tuple[str, set[str]]:
     """Neuter (not delete) the per-node apt install line for every package in
     ``apts``: ``if apt-get install ... <pkg>`` becomes ``if false ...``, so
     the wrapping ``then``/``else``/``fi`` (``_non_fatal_block``'s shape)
     stays syntactically valid bash — the package is simply never installed,
     same observable effect as deleting the line, without leaving a dangling
-    block behind."""
+    block behind. Returns (neutered_script, set_of_pkgs_actually_stripped)."""
     names = set(apts)
+    stripped: set[str] = set()
 
-    def _neuter(m: re.Match) -> str:
+    def _neuter(m: "re.Match") -> str:
         pkg = m.group(1)
         if pkg not in names:
             return m.group(0)
+        stripped.add(pkg)
         return f"if false  # v3-counterfactual: stripped apt install for {pkg}"
 
-    return _APT_INSTALL_LINE_RE.sub(_neuter, setup_sh)
+    return _APT_INSTALL_LINE_RE.sub(_neuter, setup_sh), stripped
 
 
 def _counterfactual(
@@ -176,20 +187,25 @@ def _counterfactual(
     (expect rc != 0 again). Recorded raw, no massaging. Container always
     removed, even on exception."""
     triggers = load_triggers()
-    snippets = [triggers[c] for c in culprits if c in triggers]
-    stripped_sh = _strip_apt_lines(setup_sh, emitted_apts)
+    present = {c: triggers[c] for c in culprits if c in triggers}
+    snippets = list(dict.fromkeys(present.values()))
+    stripped_sh, stripped_pkgs = _strip_apt_lines(setup_sh, emitted_apts)
     cid = f"nbs_{uuid.uuid4().hex[:8]}"
     try:
-        _sh(["docker", "run", "-d", "--name", cid, base_image, "sleep", "infinity"])
-        _sh(["docker", "cp", f"{repo}/.", f"{cid}:/src"])
+        run_rc = _sh(["docker", "run", "-d", "--name", cid, base_image, "sleep", "infinity"]).returncode
+        cp_rc = _sh(["docker", "cp", f"{repo}/.", f"{cid}:/src"]).returncode
+        if run_rc != 0 or cp_rc != 0:
+            return {"repo": repo, "setup_failed": True, "run_rc": run_rc, "cp_rc": cp_rc,
+                    "stripped_packages": sorted(stripped_pkgs)}
         with open(f"/tmp/{cid}.sh", "w") as fh:
             fh.write(stripped_sh)
         _sh(["docker", "cp", f"/tmp/{cid}.sh", f"{cid}:/tmp/setup.sh"])
-        _sh(["docker", "exec", "-w", "/src", cid, "bash", "/tmp/setup.sh"])
+        setup_rc = _sh(["docker", "exec", "-w", "/src", cid, "bash", "/tmp/setup.sh"]).returncode
         rebroken = {s: _trigger_rc(cid, s) for s in snippets}        # fix stripped: expect != 0
     finally:
         _sh(["docker", "rm", "-f", cid])
-    return {"repo": repo, "counterfactual_trigger_rc": rebroken}
+    return {"repo": repo, "counterfactual_trigger_rc": rebroken,
+            "stripped_packages": sorted(stripped_pkgs), "setup_rc": setup_rc}
 
 
 def _docker_pass(repos_root: str, base_image: str) -> dict:
@@ -208,6 +224,7 @@ def _docker_pass(repos_root: str, base_image: str) -> dict:
             continue
         _adv, graph = build_advisory_for_repo(repo, base_image)
         if graph is None:
+            out[name] = {"construction_failed": True}
             continue
         culprits = exp.culprit.split(", ")
         setup_sh = render_build_script(graph, (), include_services=False)
