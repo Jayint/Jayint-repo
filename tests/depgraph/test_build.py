@@ -260,8 +260,9 @@ def test_build_empty_repo_yields_only_test_node(tmp_path):
 
 
 def test_project_node_hubs_runtime_deps_and_routes_test_deps(tmp_path):
-    """Project node: runtime declared deps hang off Project; test/optional deps
-    hang off the Test goal; certifi gains a parent (the no-parent observation)."""
+    """Project node: declared deps are re-homed to a `declared` node flag (was
+    Project->Package / Test->Package edges); certifi gains a declared flag, not a
+    parent edge. The Test->Project edge is kept."""
     from graph.python.skeleton import _add_project_node
     from graph.model import project_id
     from graph.model import (
@@ -304,11 +305,12 @@ def test_project_node_hubs_runtime_deps_and_routes_test_deps(tmp_path):
     assert proj.data.get("installable") is True
 
     req = {(e.src, e.dst) for e in out.edges if e.relation is EdgeType.REQUIRES}
-    assert (TEST_NODE_ID, pid) in req  # Test -> Project
-    assert (pid, package_id("certifi", "2026.1.1")) in req  # runtime dep off Project
-    assert (TEST_NODE_ID, package_id("pytest", "8.0.0")) in req  # test dep off Test
-    # certifi now has a parent (no longer orphaned at the top of the layer)
-    assert any(e.dst == package_id("certifi", "2026.1.1") for e in out.edges)
+    assert (TEST_NODE_ID, pid) in req  # Test -> Project (KEPT)
+    # declared deps are re-homed to node data — NO Project->Package / Test->Package edge
+    assert (pid, package_id("certifi", "2026.1.1")) not in req
+    assert (TEST_NODE_ID, package_id("pytest", "8.0.0")) not in req
+    assert out.get(package_id("certifi", "2026.1.1")).data["declared"] == "direct"
+    assert out.get(package_id("pytest", "8.0.0")).data["declared"] == "optional"
 
 
 def test_declared_deps_carry_declared_flag(tmp_path):
