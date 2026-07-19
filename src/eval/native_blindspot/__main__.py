@@ -52,12 +52,14 @@ def run(repos_root: str, base_image: str = "python:3.11-slim") -> dict:
     oracle = load_oracle()
     scores = []
     false_positives: dict[str, list[str]] = {}
+    construction_failed: list[str] = []
     for name in sorted(os.listdir(repos_root)):
         repo = os.path.join(repos_root, name)
         if not os.path.isdir(repo):
             continue
         _adv, graph = build_advisory_for_repo(repo, base_image)
         if graph is None:
+            construction_failed.append(name)
             continue
         emitted = extract_emitted_apt(graph)
         if name in oracle:
@@ -70,6 +72,7 @@ def run(repos_root: str, base_image: str = "python:3.11-slim") -> dict:
 
     report = aggregate(scores)
     report["false_positives"] = false_positives  # MUST be {} on clean repos
+    report["construction_failed"] = construction_failed
     report["per_repo"] = {
         s.repo: {
             "covered": sorted(s.covered),
@@ -245,7 +248,8 @@ def _docker_pass(repos_root: str, base_image: str) -> dict:
             continue
         culprits = exp.culprit.split(", ")
         setup_sh = render_build_script(graph, (), include_services=False)
-        emitted_apts = [e.apt for e in extract_emitted_apt(graph)]
+        emitted_apts = [e.apt for e in extract_emitted_apt(graph)
+                        if e.provenance in (_GENERAL_PROVENANCE, _CURATED_PROVENANCE)]
         out[name] = {
             "behavioral": behavioral(repo, graph, culprits, base_image),
             "counterfactual": _counterfactual(

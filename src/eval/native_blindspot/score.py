@@ -87,11 +87,11 @@ def aggregate(scores: list[RepoScore]) -> dict:
     """Roll up recall over IN-SCOPE repos, split by class and by mechanism."""
     in_scope = [s for s in scores if s.expectation.in_scope]
 
-    def _recall(pick) -> float:
+    def _recall(pick) -> float | None:
         exp = sum(len(frozenset(capability_key(a) for a in pick(s.expectation))) for s in in_scope)
         cov = sum(len(frozenset(capability_key(a) for a in pick(s.expectation)) & s.covered)
                   for s in in_scope)
-        return cov / exp if exp else 1.0
+        return cov / exp if exp else None
 
     covered_by_general = sum(
         len(s.by_provenance.get(_GENERAL_PROVENANCE, frozenset())) for s in in_scope

@@ -1,6 +1,6 @@
 from graph.model import (
     DepGraph, DiscoveredBy, EdgeType, Layer, Node, NodeType, State,
-    binary_id, package_id, project_id,
+    binary_id, package_id,
 )
 from graph.python.native.runtime_tools import seed_runtime_tools
 
@@ -52,3 +52,31 @@ def test_idempotent_does_not_duplicate_existing_binary_node():
     assert git_nodes[0].provenance == "subprocess-scan"  # existing kept
     # edge still added
     assert any(e.dst == binary_id("git") for e in out.edges)
+
+
+def test_pdf2image_seeds_both_tools():
+    out = seed_runtime_tools(_graph(_pkg("pdf2image", "1.17.0")))
+    assert out.get(binary_id("pdftoppm")) is not None
+    assert out.get(binary_id("pdfinfo")) is not None
+    assert out.get(binary_id("pdftoppm")).chosen_fix == "apt:poppler-utils"
+    assert out.get(binary_id("pdfinfo")).chosen_fix == "apt:poppler-utils"
+    dsts = {e.dst for e in out.edges if e.src == package_id("pdf2image", "1.17.0")}
+    assert binary_id("pdftoppm") in dsts and binary_id("pdfinfo") in dsts
+
+
+def test_shared_tool_one_node_two_edges():
+    # gitpython + pre-commit both -> git: ONE binary:git node, an edge from EACH package.
+    out = seed_runtime_tools(_graph(_pkg("GitPython", "3.1.43"), _pkg("pre-commit", "3.7.0")))
+    git_nodes = [n for n in out.nodes if n.id == binary_id("git")]
+    assert len(git_nodes) == 1
+    srcs = {e.src for e in out.edges if e.dst == binary_id("git")}
+    assert package_id("GitPython", "3.1.43") in srcs
+    assert package_id("pre-commit", "3.7.0") in srcs
+
+
+def test_seed_is_idempotent_on_repeat():
+    g = _graph(_pkg("GitPython", "3.1.43"))
+    once = seed_runtime_tools(g)
+    twice = seed_runtime_tools(once)
+    assert [n.id for n in twice.nodes] == [n.id for n in once.nodes]
+    assert len(twice.edges) == len(once.edges)

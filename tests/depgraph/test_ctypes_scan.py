@@ -193,7 +193,22 @@ def test_does_not_overwrite_existing_syslib_node():
     g = g.with_node(existing)
     ex = FakeExecutor(responses={"grep -rInE": make_result(stdout=_GREP_OUT)})
     out = add_ctypes_runtime_libs(g, ex)
-    assert out.get(syslib_id("libmagic.so")).discovered_by is DiscoveredBy.PROBE
+    kept = out.get(syslib_id("libmagic.so"))
+    assert kept.discovered_by is DiscoveredBy.PROBE          # existing PROBE node preserved
+    assert kept.provenance == "ldd (observed)"               # not overwritten
+    # ... and the anchor edge to the Project is still added:
+    assert any(e.src == project_id("app") and e.dst == syslib_id("libmagic.so")
+               and e.relation is EdgeType.REQUIRES for e in out.edges)
+
+
+def test_ctypes_scan_no_anchor_is_noop():
+    # a graph with neither a Project nor a Test node -> no anchor -> return the SAME graph object.
+    from graph.model import package_id
+    g = DepGraph(nodes=(Node(id=package_id("python-magic", "0.4.27"), type=NodeType.PACKAGE,
+                    name="python-magic", layer=Layer.PIP, discovered_by=DiscoveredBy.RESOLVER,
+                    version="0.4.27"),))
+    ex = FakeExecutor(responses={"grep -rInE": make_result(stdout=_GREP_OUT)})
+    assert add_ctypes_runtime_libs(g, ex) is g
 
 
 def test_core_runtime_sonames_are_skipped_not_minted():
