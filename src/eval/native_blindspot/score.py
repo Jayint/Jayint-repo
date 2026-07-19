@@ -42,16 +42,19 @@ class EmittedApt:
 
 
 def extract_emitted_apt(graph: DepGraph) -> list[EmittedApt]:
-    """apt fixes from TOOL / SYSTEM_LIB nodes, tagged with provenance."""
+    """apt fixes ACTUALLY emitted by TOOL / SYSTEM_LIB nodes, tagged with
+    provenance. Scores the node's ``chosen_fix`` (the single fix the compiler
+    installs — see graph.compile.emit), NOT every ``fix_candidates`` alternative,
+    so recall reflects what setup.sh really runs."""
     out: list[EmittedApt] = []
     for n in graph.nodes:
         label = _NODE_TYPE_LABEL.get(n.type)
         if label is None:
             continue
-        for fix in n.fix_candidates:
-            if fix.startswith("apt:"):
-                apt = fix[len("apt:"):]
-                out.append(EmittedApt(apt, capability_key(apt), label, n.provenance or ""))
+        fix = n.chosen_fix
+        if fix and fix.startswith("apt:"):
+            apt = fix[len("apt:"):]
+            out.append(EmittedApt(apt, capability_key(apt), label, n.provenance or ""))
     return out
 
 

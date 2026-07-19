@@ -86,3 +86,21 @@ def test_aggregate_splits_general_vs_curated_recall():
     assert report["cli_recall"] == 1.0
     assert report["covered_by_general"] == 1   # ctypes-scan
     assert report["covered_by_curated"] == 1   # runtime-tool prior
+
+
+def test_extract_scores_only_the_chosen_fix_not_all_candidates():
+    # setup.sh installs only chosen_fix; a non-chosen candidate must NOT count.
+    n = Node(id=binary_id("git"), type=NodeType.TOOL, name="git",
+             layer=Layer.TOOLCHAIN, discovered_by=DiscoveredBy.RESOLVER,
+             state=State.UNKNOWN, fix_candidates=("apt:oracle-hit", "apt:actual-choice"),
+             chosen_fix="apt:actual-choice", provenance="runtime-tool prior")
+    caps = {e.apt for e in extract_emitted_apt(DepGraph(nodes=(n,)))}
+    assert caps == {"actual-choice"}      # NOT "oracle-hit"
+
+
+def test_extract_ignores_node_with_no_apt_chosen_fix():
+    n = Node(id=syslib_id("libx.so"), type=NodeType.SYSTEM_LIB, name="libx.so",
+             layer=Layer.SYSTEM, discovered_by=DiscoveredBy.STATIC_SCAN,
+             state=State.UNKNOWN, fix_candidates=(), chosen_fix=None,
+             provenance="ctypes-scan (installed source)")
+    assert extract_emitted_apt(DepGraph(nodes=(n,))) == []
