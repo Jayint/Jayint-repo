@@ -172,17 +172,19 @@ def _add_project_node(graph: DepGraph, repo_path: str) -> DepGraph:
         _canon(n.name): n.id for n in graph.nodes if n.type is NodeType.PACKAGE
     }
     for req in evidence.declared_dependencies:
-        if getattr(req, "kind", "dependency") == "constraint":
+        kind = getattr(req, "kind", "dependency")
+        if kind == "constraint":
             continue
         pkg_id = canon_to_pkg.get(_canon(normalize_package_name(req.name)))
         if pkg_id is None:
             continue
+        # Declaration is re-homed to node data (provenance): `direct` for runtime,
+        # `optional` for test/optional. The Project->Package / Test->Package edge is
+        # kept here for now and removed in Task 3 once the renders read the flag.
+        declared = "optional" if kind == "optional_dependency" else "direct"
+        graph = graph.with_node(graph.get(pkg_id).with_data(declared=declared))
         # runtime deps hang off the Project; test/optional deps off the Test goal.
-        src = (
-            TEST_NODE_ID
-            if getattr(req, "kind", "dependency") == "optional_dependency"
-            else proj_id
-        )
+        src = TEST_NODE_ID if kind == "optional_dependency" else proj_id
         graph = graph.with_edge(
             Edge(src=src, dst=pkg_id, relation=EdgeType.REQUIRES, origin="project")
         )

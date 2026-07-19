@@ -232,6 +232,10 @@ class Node:
         """Return a NEW node with ``attempt`` appended to the history."""
         return replace(self, attempts=self.attempts + (attempt,))
 
+    def with_data(self, **kv) -> "Node":
+        """Return a NEW node with ``kv`` merged into ``data`` (immutably)."""
+        return replace(self, data={**self.data, **kv})
+
     def to_dict(self) -> dict:
         out = {
             "id": self.id,

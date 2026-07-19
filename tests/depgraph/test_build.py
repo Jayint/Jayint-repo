@@ -311,6 +311,31 @@ def test_project_node_hubs_runtime_deps_and_routes_test_deps(tmp_path):
     assert any(e.dst == package_id("certifi", "2026.1.1") for e in out.edges)
 
 
+def test_declared_deps_carry_declared_flag(tmp_path):
+    """Declared runtime deps flag `direct`; optional deps flag `optional`.
+    Mirrors the set that currently gets a Project->Package / Test->Package edge."""
+    from graph.python.skeleton import _add_project_node
+    from graph.model import package_id, DepGraph, DiscoveredBy, Layer, Node, NodeType
+
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "myproj"\ndependencies = ["certifi>=2020"]\n'
+        '[project.optional-dependencies]\ntest = ["pytest>=7"]\n'
+    )
+    test_node = Node(id=TEST_NODE_ID, type=NodeType.TEST, name="repo_tests_pass",
+                     layer=Layer.TESTS, discovered_by=DiscoveredBy.GOAL)
+    certifi = Node(id=package_id("certifi", "2026.1.1"), type=NodeType.PACKAGE,
+                   name="certifi", version="2026.1.1", layer=Layer.PIP,
+                   discovered_by=DiscoveredBy.RESOLVER)
+    pytest_pkg = Node(id=package_id("pytest", "8.0.0"), type=NodeType.PACKAGE,
+                      name="pytest", version="8.0.0", layer=Layer.PIP,
+                      discovered_by=DiscoveredBy.RESOLVER)
+    graph = DepGraph().with_node(test_node).with_node(certifi).with_node(pytest_pkg)
+
+    out = _add_project_node(graph, str(tmp_path))
+    assert out.get(package_id("certifi", "2026.1.1")).data.get("declared") == "direct"
+    assert out.get(package_id("pytest", "8.0.0")).data.get("declared") == "optional"
+
+
 def test_project_node_not_installable_without_build_manifest(tmp_path):
     """A repo with neither pyproject.toml nor setup.py is NOT editable-installable
     (no `pip install -e .` line should be rendered for it)."""
