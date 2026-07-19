@@ -53,7 +53,13 @@ def _annotation(graph: DepGraph, node: Node) -> list[str]:
     if _apt_name(node) is not None:
         toks.append(f"provider={node.chosen_fix}")
     reqs = [d.id for d in graph.requires_of(node.id) if _is_reciped(d)]
-    toks.append("requires=" + (",".join(sorted(reqs)) if reqs else "-"))
+    if node.type is NodeType.PROJECT:
+        # declared-direct deps are re-homed to node data (was Project->Package edges);
+        # reconstruct them for the capstone annotation so setup.sh stays byte-honest.
+        reqs += [n.id for n in graph.nodes
+                 if n.type is NodeType.PACKAGE
+                 and n.data.get("declared") == "direct" and _is_reciped(n)]
+    toks.append("requires=" + (",".join(sorted(set(reqs))) if reqs else "-"))
     unblocks = sorted(n.id for n in graph.required_by(node.id) if _is_reciped(n))
     if unblocks:
         toks.append("unblocks=" + ",".join(unblocks))
