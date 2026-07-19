@@ -197,23 +197,24 @@ def test_does_not_overwrite_existing_syslib_node():
 
 
 def test_core_runtime_sonames_are_skipped_not_minted():
-    # find_library('c') / CDLL('libpthread.so.0') / find_library('m') are the C
-    # runtime -> present in every base image -> NO node and NO edge minted; a real
-    # ctypes lib on the same scan is still minted.
+    # The classic-glibc / base-toolchain sonames are present in every base image
+    # -> NO node and NO edge minted. A genuine ctypes lib on the same scan is
+    # still minted (with its anchor edge). Separately-packaged libs (nsl/crypt)
+    # are NOT denied -> they still mint (never hide a real obligation).
     grep = (
         "/x/site-packages/a/x.py:1:    libc = ctypes.util.find_library('c')\n"
         "/x/site-packages/a/y.py:2:    pt = CDLL('libpthread.so.0')\n"
         "/x/site-packages/a/z.py:3:    m = ctypes.util.find_library('m')\n"
-        "/x/site-packages/a/w.py:4:    lib = ctypes.util.find_library('magic')\n"
+        "/x/site-packages/a/s.py:4:    cpp = CDLL('libstdc++.so.6')\n"
+        "/x/site-packages/a/n.py:5:    nsl = ctypes.util.find_library('nsl')\n"   # NOT core -> still minted
+        "/x/site-packages/a/w.py:6:    lib = ctypes.util.find_library('magic')\n"
     )
     ex = FakeExecutor(responses={"grep -rInE": make_result(stdout=grep)})
     out = add_ctypes_runtime_libs(_graph_with_project_and_pkg(), ex)
-    assert out.get(syslib_id("libc.so")) is None
-    assert out.get(syslib_id("libpthread.so.0")) is None
-    assert out.get(syslib_id("libm.so")) is None
-    # a genuine ctypes lib on the same scan is still minted + no core edge leaks
-    assert out.get(syslib_id("libmagic.so")) is not None
-    from graph.model import EdgeType, project_id
-    core_edges = [e for e in out.edges
-                  if e.dst in (syslib_id("libc.so"), syslib_id("libpthread.so.0"), syslib_id("libm.so"))]
-    assert core_edges == []
+    for core in ("libc.so", "libpthread.so.0", "libm.so", "libstdc++.so.6"):
+        assert out.get(syslib_id(core)) is None, f"{core} should be skipped"
+        assert not [e for e in out.edges if e.dst == syslib_id(core)], f"{core} edge leaked"
+    # non-core libnsl and the genuine libmagic are BOTH still minted + anchored
+    for real in ("libnsl.so", "libmagic.so"):
+        assert out.get(syslib_id(real)) is not None, f"{real} should still mint"
+        assert [e for e in out.edges if e.dst == syslib_id(real)], f"{real} anchor edge missing"

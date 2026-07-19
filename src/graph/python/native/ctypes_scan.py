@@ -177,30 +177,44 @@ CTYPES_GREP_CMD = (
 
 
 # Core C-runtime / base-toolchain sonames that ship in EVERY Debian & python-slim
-# base image (glibc, the dynamic linker, libgcc/libstdc++). A package doing
+# base image (glibc itself, plus the base toolchain runtime). A package doing
 # find_library('c') / CDLL('libm.so.6') is a genuine observation, but the library
 # is never a MISSING obligation — minting it just clutters setup.sh with an
-# always-satisfied apt line and pollutes the graph. Keyed by canonical soname in
-# BOTH the find_library base form (libX.so) and the versioned soname (libX.so.N),
-# since canonical_soname passes versioned sonames through. This is a
-# universal-PRESENCE fact (the C runtime is always there), NOT a benchmark-specific
-# dist->syslib prediction map — principle-aligned, same class as the accepted
-# always-present exceptions.
+# always-satisfied apt line and pollutes the graph. This set is intentionally
+# NARROW and arch-agnostic: every entry is (a) part of libc6 or the base
+# toolchain, (b) never separately packaged, and (c) has one canonical soname
+# spelling across x86_64/aarch64/etc — universal PRESENCE, not a benchmark-
+# specific dist->syslib prediction map.
+#
+# DELIBERATELY EXCLUDED (kept observable, mint a real obligation instead of
+# hiding one):
+#   * libnsl.so.2  — shipped by the SEPARATE ``libnsl2`` package, not always
+#     installed (glibc dropped NSL/RPC and moved it out of libc6);
+#   * libcrypt.so.2 — does not exist; ``libcrypt1`` provides ``libcrypt.so.1``,
+#     so denying ``.so.2`` would be a no-op guard on a made-up name while
+#     silently risking future false negatives if miscopied;
+#   * ld-linux* (the dynamic linker) — arch-specific soname
+#     (``ld-linux-x86-64.so.2`` vs ``ld-linux-aarch64.so.1``) and the bare
+#     ``ld-linux.so`` form is DEAD: ``canonical_soname('ld-linux')`` always
+#     normalizes to ``libld-linux.so`` (the ``lib``-prefix rule), never to
+#     ``ld-linux.so``, so the un-prefixed entries can never match anyway.
+# Better to emit a real, installable apt package than to silently drop a
+# genuine need.
 _CORE_SONAMES: frozenset[str] = frozenset({
+    # classic glibc libraries — always in libc6, arch-agnostic soname names,
+    # never separately packaged; these are what find_library('c'/'m'/'pthread'/…)
+    # resolves to.
     "libc.so", "libc.so.6",
     "libm.so", "libm.so.6",
     "libpthread.so", "libpthread.so.0",
     "libdl.so", "libdl.so.2",
     "librt.so", "librt.so.1",
     "libutil.so", "libutil.so.1",
-    "libnsl.so", "libnsl.so.1", "libnsl.so.2",
     "libresolv.so", "libresolv.so.2",
-    "libcrypt.so", "libcrypt.so.1", "libcrypt.so.2",
+    # base toolchain runtime — ships in python:*-slim (apt itself depends on
+    # libstdc++6; libgcc-s1 is a base dep).
     "libgcc_s.so", "libgcc_s.so.1",
     "libstdc++.so", "libstdc++.so.6",
-    "ld-linux.so", "ld-linux.so.2",
-    "ld-linux-x86-64.so", "ld-linux-x86-64.so.2",
-    "ld-linux-aarch64.so", "ld-linux-aarch64.so.1",
 })
 
 
