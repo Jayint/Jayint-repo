@@ -181,10 +181,15 @@ CTYPES_GREP_CMD = (
 # find_library('c') / CDLL('libm.so.6') is a genuine observation, but the library
 # is never a MISSING obligation — minting it just clutters setup.sh with an
 # always-satisfied apt line and pollutes the graph. This set is intentionally
-# NARROW and arch-agnostic: every entry is (a) part of libc6 or the base
-# toolchain, (b) never separately packaged, and (c) has one canonical soname
-# spelling across x86_64/aarch64/etc — universal PRESENCE, not a benchmark-
-# specific dist->syslib prediction map.
+# NARROW and arch-agnostic: every entry is (a) part of libc6, OR a hard,
+# always-installed dependency of the base image itself (apt depends on
+# libstdc++6, which depends on libgcc-s1) — so it is guaranteed PRESENT even
+# though the toolchain libs are their own packages; (b) has one canonical soname
+# spelling across x86_64/aarch64/etc. This is universal PRESENCE, not a
+# benchmark-specific dist->syslib prediction map. NB: the keys are the CANONICAL
+# sonames the scanner emits (find_library('c') -> 'libc.so'), not runtime files;
+# the bare 'libX.so' forms MUST stay so a find_library('c') observation is
+# skipped — removing them would re-mint the phantom libc6 obligation.
 #
 # DELIBERATELY EXCLUDED (kept observable, mint a real obligation instead of
 # hiding one):
