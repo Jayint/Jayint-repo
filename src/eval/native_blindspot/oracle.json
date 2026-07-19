@@ -1,0 +1,25 @@
+{
+  "corpus": "manifest_out_py50",
+  "affected": [
+    {"repo": "coderamp-labs-gitingest", "cli": ["git"], "dlopen": [], "culprit": "gitpython", "in_scope": true, "part": "B"},
+    {"repo": "copier", "cli": ["git"], "dlopen": [], "culprit": "copier", "in_scope": true, "part": "B"},
+    {"repo": "pre-commit-pre-commit", "cli": ["git"], "dlopen": [], "culprit": "pre-commit", "in_scope": true, "part": "B"},
+    {"repo": "frappe-press", "cli": ["git"], "dlopen": [], "culprit": "gitpython", "in_scope": true, "part": "B"},
+    {"repo": "mlflow", "cli": ["git"], "dlopen": [], "culprit": "gitpython", "in_scope": true, "part": "B", "note": "java (pyspark) is a separate runtime/service class, out of scope"},
+    {"repo": "feast", "cli": ["git"], "dlopen": [], "culprit": "gitpython", "in_scope": true, "part": "B", "note": "git dev-murky per prevalence"},
+    {"repo": "mckinsey-vizro", "cli": ["git"], "dlopen": [], "culprit": "gitpython", "in_scope": true, "part": "B", "note": "git dev-murky"},
+    {"repo": "aiida-core", "cli": ["graphviz"], "dlopen": [], "culprit": "graphviz", "in_scope": true, "part": "B", "note": "postgres/rabbitmq = SERVICE class, out of scope"},
+    {"repo": "mozilla-addons-server", "cli": ["graphviz"], "dlopen": [], "culprit": "graphviz", "in_scope": true, "part": "B", "note": "pngcrush/librsvg2-bin are image-pipeline (no python culprit) -> residual"},
+    {"repo": "wecode-ai-wegent", "cli": ["poppler-utils"], "dlopen": ["libmagic1"], "culprit": "pdf2image, python-magic", "in_scope": true, "part": "A+B"},
+    {"repo": "opencti", "cli": ["git"], "dlopen": ["libcairo2", "libpango-1.0-0"], "culprit": "gitpython, weasyprint", "in_scope": true, "part": "A+B", "note": "libpangocairo/libgdk-pixbuf need extra PROVIDER_TABLE rows -> partial"},
+    {"repo": "posthog", "cli": ["git"], "dlopen": ["libmediainfo0v5"], "culprit": "gitpython, pymediainfo", "in_scope": true, "part": "A+B", "note": "xmlsec1 murky"},
+    {"repo": "mvt", "cli": [], "dlopen": ["libusb-1.0-0"], "culprit": "pyusb", "in_scope": true, "part": "A"},
+    {"repo": "tgoai-tgo", "cli": [], "dlopen": ["libmagic1"], "culprit": "python-magic", "in_scope": true, "part": "A"},
+    {"repo": "pycontribs-jira", "cli": [], "dlopen": ["libmagic1"], "culprit": "filemagic", "in_scope": true, "part": "A"},
+    {"repo": "tinygrad", "cli": [], "dlopen": ["libgl1"], "culprit": "opencv-python", "in_scope": true, "part": "A", "note": "libGL may already be ldd-caught on some builds -> before/after delta decides credit"},
+    {"repo": "archipelago", "cli": ["xclip", "xsel"], "dlopen": ["libgl1"], "culprit": "kivy", "in_scope": true, "part": "A", "note": "xclip/xsel + libgles2 not in tables -> partial/residual"},
+    {"repo": "microsoft-markitdown", "cli": ["ffmpeg"], "dlopen": [], "culprit": "pydub", "in_scope": false, "part": "-", "note": "RESIDUAL: pydub not in PACKAGE_TO_RUNTIME_TOOLS"},
+    {"repo": "baserow", "cli": ["xmlsec1"], "dlopen": [], "culprit": "pysaml2", "in_scope": false, "part": "-", "note": "RESIDUAL: pysaml2->xmlsec1 not in tables"},
+    {"repo": "karlicoss-promnesia", "cli": [], "dlopen": ["libmagic1"], "culprit": "python-magic", "in_scope": false, "part": "-", "note": "OUT OF SCOPE: python-magic never enters closure (extras gap)"}
+  ]
+}
