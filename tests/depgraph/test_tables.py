@@ -56,6 +56,8 @@ def test_runtime_tools_map_is_exactly_the_curated_set():
 
 
 def test_runtime_tool_apt_providers_are_correct():
+    assert apt_for_cli_tool("git") == "git"
+    assert apt_for_cli_tool("pandoc") == "pandoc"
     assert apt_for_cli_tool("dot") == "graphviz"
     assert apt_for_cli_tool("pdftoppm") == "poppler-utils"
     assert apt_for_cli_tool("pdfinfo") == "poppler-utils"
