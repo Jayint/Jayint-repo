@@ -85,9 +85,14 @@ def _compare(before_path: str, after_path: str) -> int:
     b_fp = before.get("false_positives", {})
     a_fp = after.get("false_positives", {})
     print(f"  false_positives: {len(b_fp)} repos -> {len(a_fp)} repos")
-    new_fp = sorted(set(a_fp) - set(b_fp))
-    if new_fp:
-        print(f"    NEW false-positive repos introduced: {new_fp}")
+    # Diff on (repo, apt) PAIRS, not repo names: a NEW false-positive apt added
+    # to an already-flagged repo must still surface (a repo-name set-diff would
+    # mask it, hiding a real regression the before/after gate must catch).
+    b_pairs = {(repo, apt) for repo, apts in b_fp.items() for apt in apts}
+    a_pairs = {(repo, apt) for repo, apts in a_fp.items() for apt in apts}
+    new_pairs = sorted(a_pairs - b_pairs)
+    if new_pairs:
+        print(f"    NEW false positives introduced (repo, apt): {new_pairs}")
     return 0
 
 
