@@ -110,41 +110,49 @@ def _trigger_rc(cid: str, snippet: str) -> int:
 def behavioral(repo: str, graph, culprits: list[str], base_image: str) -> dict:
     """Build ``repo``'s env from ``graph``'s rendered setup.sh in a scratch
     container and record, per culprit trigger: rc on the bare ``base_image``
-    (BEFORE — expect != 0, the lib is genuinely missing) and rc after
-    setup.sh runs (AFTER — expect 0). Also records the collect-gate rc
-    (``pytest --collect-only``) post-setup. The container is ALWAYS removed,
-    even on exception — no leaked containers on a failed run."""
+    (BEFORE — expect != 0) and rc after setup.sh runs (AFTER — expect 0), plus
+    the collect-gate rc. If container bootstrap OR the setup script itself fails,
+    returns a ``setup_failed`` record instead of AFTER observations (an infra
+    failure is never presented as a behavioral trigger result). The container is
+    ALWAYS removed and ``cleanup_rc`` is reported on every path."""
     triggers = load_triggers()
     present = {c: triggers[c] for c in culprits if c in triggers}
     missing_triggers = [c for c in culprits if c not in triggers]
-    snippets = list(dict.fromkeys(present.values()))   # dedup, order-preserving
+    snippets = list(dict.fromkeys(present.values()))
     setup_sh = render_build_script(graph, (), include_services=False)
     cid = f"nbs_{uuid.uuid4().hex[:8]}"
+    result: dict = {}
     try:
         run_rc = _sh(["docker", "run", "-d", "--name", cid, base_image, "sleep", "infinity"]).returncode
         cp_rc = _sh(["docker", "cp", f"{repo}/.", f"{cid}:/src"]).returncode
         if run_rc != 0 or cp_rc != 0:
-            return {"repo": repo, "setup_failed": True, "run_rc": run_rc,
-                    "cp_rc": cp_rc, "missing_triggers": missing_triggers}
-        before = {s: _trigger_rc(cid, s) for s in snippets}          # base image: expect != 0
-        with open(f"/tmp/{cid}.sh", "w") as fh:
-            fh.write(setup_sh)
-        setup_cp_rc = _sh(["docker", "cp", f"/tmp/{cid}.sh", f"{cid}:/tmp/setup.sh"]).returncode
-        setup_rc = _sh(["docker", "exec", "-w", "/src", cid, "bash", "/tmp/setup.sh"]).returncode
-        after = {s: _trigger_rc(cid, s) for s in snippets}           # fixed env: expect 0
-        col = _sh(["docker", "exec", "-w", "/src", cid, "python", "-m", "pytest",
-                   "--collect-only", "-q", "-p", "no:cacheprovider"])
+            result = {"repo": repo, "setup_failed": True, "run_rc": run_rc,
+                      "cp_rc": cp_rc, "missing_triggers": missing_triggers}
+        else:
+            before = {s: _trigger_rc(cid, s) for s in snippets}
+            with open(f"/tmp/{cid}.sh", "w") as fh:
+                fh.write(setup_sh)
+            setup_cp_rc = _sh(["docker", "cp", f"/tmp/{cid}.sh", f"{cid}:/tmp/setup.sh"]).returncode
+            setup_rc = _sh(["docker", "exec", "-w", "/src", cid, "bash", "/tmp/setup.sh"]).returncode
+            if setup_cp_rc != 0 or setup_rc != 0:
+                result = {"repo": repo, "setup_failed": True, "run_rc": run_rc, "cp_rc": cp_rc,
+                          "setup_cp_rc": setup_cp_rc, "setup_rc": setup_rc,
+                          "before": before, "missing_triggers": missing_triggers}
+            else:
+                after = {s: _trigger_rc(cid, s) for s in snippets}
+                col = _sh(["docker", "exec", "-w", "/src", cid, "python", "-m", "pytest",
+                           "--collect-only", "-q", "-p", "no:cacheprovider"])
+                result = {
+                    "repo": repo,
+                    "trigger_flips": {s: {"before": before[s], "after": after[s]} for s in snippets},
+                    "collect_rc": col.returncode,
+                    "setup_cp_rc": setup_cp_rc, "setup_rc": setup_rc,
+                    "missing_triggers": missing_triggers,
+                }
     finally:
         cleanup_rc = _sh(["docker", "rm", "-f", cid]).returncode
-    return {
-        "repo": repo,
-        "trigger_flips": {s: {"before": before[s], "after": after[s]} for s in snippets},
-        "collect_rc": col.returncode,
-        "setup_cp_rc": setup_cp_rc,
-        "setup_rc": setup_rc,
-        "missing_triggers": missing_triggers,
-        "cleanup_rc": cleanup_rc,
-    }
+    result["cleanup_rc"] = cleanup_rc
+    return result
 
 
 # The exact per-node apt install line ``graph.compile.emit._command_for``
@@ -180,32 +188,41 @@ def _counterfactual(
     repo: str, setup_sh: str, culprits: list[str], base_image: str, emitted_apts: list[str],
 ) -> dict:
     """Rebuild in a FRESH container from ``setup_sh`` with the graph's own
-    emitted apt fix(es) (``emitted_apts``) regex-stripped out, then re-run
-    each culprit's trigger — this is the causal check: if ``behavioral``'s
-    AFTER flip was really caused by our apt fix (not by something already on
-    ``base_image``), removing the fix must make the trigger RE-break
-    (expect rc != 0 again). Recorded raw, no massaging. Container always
-    removed, even on exception."""
+    emitted apt fix(es) regex-stripped, then re-run each culprit's trigger — the
+    causal check: removing the fix must make the trigger RE-break (rc != 0). If
+    container bootstrap OR the (stripped) setup script fails, returns a
+    ``setup_failed`` record instead of counterfactual observations. Records the
+    actually-stripped package set; container always removed with ``cleanup_rc``."""
     triggers = load_triggers()
     present = {c: triggers[c] for c in culprits if c in triggers}
     snippets = list(dict.fromkeys(present.values()))
     stripped_sh, stripped_pkgs = _strip_apt_lines(setup_sh, emitted_apts)
     cid = f"nbs_{uuid.uuid4().hex[:8]}"
+    result: dict = {}
     try:
         run_rc = _sh(["docker", "run", "-d", "--name", cid, base_image, "sleep", "infinity"]).returncode
         cp_rc = _sh(["docker", "cp", f"{repo}/.", f"{cid}:/src"]).returncode
         if run_rc != 0 or cp_rc != 0:
-            return {"repo": repo, "setup_failed": True, "run_rc": run_rc, "cp_rc": cp_rc,
-                    "stripped_packages": sorted(stripped_pkgs)}
-        with open(f"/tmp/{cid}.sh", "w") as fh:
-            fh.write(stripped_sh)
-        _sh(["docker", "cp", f"/tmp/{cid}.sh", f"{cid}:/tmp/setup.sh"])
-        setup_rc = _sh(["docker", "exec", "-w", "/src", cid, "bash", "/tmp/setup.sh"]).returncode
-        rebroken = {s: _trigger_rc(cid, s) for s in snippets}        # fix stripped: expect != 0
+            result = {"repo": repo, "setup_failed": True, "run_rc": run_rc, "cp_rc": cp_rc,
+                      "stripped_packages": sorted(stripped_pkgs)}
+        else:
+            with open(f"/tmp/{cid}.sh", "w") as fh:
+                fh.write(stripped_sh)
+            setup_cp_rc = _sh(["docker", "cp", f"/tmp/{cid}.sh", f"{cid}:/tmp/setup.sh"]).returncode
+            setup_rc = _sh(["docker", "exec", "-w", "/src", cid, "bash", "/tmp/setup.sh"]).returncode
+            if setup_cp_rc != 0 or setup_rc != 0:
+                result = {"repo": repo, "setup_failed": True, "run_rc": run_rc, "cp_rc": cp_rc,
+                          "setup_cp_rc": setup_cp_rc, "setup_rc": setup_rc,
+                          "stripped_packages": sorted(stripped_pkgs)}
+            else:
+                rebroken = {s: _trigger_rc(cid, s) for s in snippets}
+                result = {"repo": repo, "counterfactual_trigger_rc": rebroken,
+                          "stripped_packages": sorted(stripped_pkgs),
+                          "setup_cp_rc": setup_cp_rc, "setup_rc": setup_rc}
     finally:
-        _sh(["docker", "rm", "-f", cid])
-    return {"repo": repo, "counterfactual_trigger_rc": rebroken,
-            "stripped_packages": sorted(stripped_pkgs), "setup_rc": setup_rc}
+        cleanup_rc = _sh(["docker", "rm", "-f", cid]).returncode
+    result["cleanup_rc"] = cleanup_rc
+    return result
 
 
 def _docker_pass(repos_root: str, base_image: str) -> dict:
