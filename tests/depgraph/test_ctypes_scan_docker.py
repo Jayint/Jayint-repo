@@ -42,10 +42,13 @@ def test_finds_libmagic_in_real_container() -> None:
                     layer=Layer.PIP, discovered_by=DiscoveredBy.STATIC_SCAN,
                     state=State.UNKNOWN)
         out = add_ctypes_runtime_libs(DepGraph(nodes=(proj,)), ex)
-    node = out.get(syslib_id("libmagic.so"))
-    assert node is not None, (
-        "ctypes scan did not find libmagic.so. site-packages contents: "
-        + ex.run("python -c \"import magic, os; print(os.path.dirname(magic.__file__))\"").stdout
-    )
-    assert node.chosen_fix == "apt:libmagic1"
-    assert "magic" in (node.evidence or "")
+        # Assertions stay INSIDE the `with` block so the diagnostic can still
+        # query the (living) container if the scan came back empty; on `with`
+        # exit DockerExecutor removes the container and .run() would raise.
+        node = out.get(syslib_id("libmagic.so"))
+        assert node is not None, (
+            "ctypes scan did not find libmagic.so. magic install location: "
+            + ex.run("python -c \"import magic, os; print(os.path.dirname(magic.__file__))\"").stdout
+        )
+        assert node.chosen_fix == "apt:libmagic1"
+        assert "magic" in (node.evidence or "")
