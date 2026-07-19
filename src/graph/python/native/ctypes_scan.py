@@ -176,6 +176,34 @@ CTYPES_GREP_CMD = (
 )
 
 
+# Core C-runtime / base-toolchain sonames that ship in EVERY Debian & python-slim
+# base image (glibc, the dynamic linker, libgcc/libstdc++). A package doing
+# find_library('c') / CDLL('libm.so.6') is a genuine observation, but the library
+# is never a MISSING obligation — minting it just clutters setup.sh with an
+# always-satisfied apt line and pollutes the graph. Keyed by canonical soname in
+# BOTH the find_library base form (libX.so) and the versioned soname (libX.so.N),
+# since canonical_soname passes versioned sonames through. This is a
+# universal-PRESENCE fact (the C runtime is always there), NOT a benchmark-specific
+# dist->syslib prediction map — principle-aligned, same class as the accepted
+# always-present exceptions.
+_CORE_SONAMES: frozenset[str] = frozenset({
+    "libc.so", "libc.so.6",
+    "libm.so", "libm.so.6",
+    "libpthread.so", "libpthread.so.0",
+    "libdl.so", "libdl.so.2",
+    "librt.so", "librt.so.1",
+    "libutil.so", "libutil.so.1",
+    "libnsl.so", "libnsl.so.1", "libnsl.so.2",
+    "libresolv.so", "libresolv.so.2",
+    "libcrypt.so", "libcrypt.so.1", "libcrypt.so.2",
+    "libgcc_s.so", "libgcc_s.so.1",
+    "libstdc++.so", "libstdc++.so.6",
+    "ld-linux.so", "ld-linux.so.2",
+    "ld-linux-x86-64.so", "ld-linux-x86-64.so.2",
+    "ld-linux-aarch64.so", "ld-linux-aarch64.so.1",
+})
+
+
 def _anchor_id(graph: DepGraph) -> str | None:
     """Node the discovered libs hang off: prefer the Project hub, else the Test
     goal (both legal ``requires`` sources), else None."""
@@ -205,6 +233,8 @@ def add_ctypes_runtime_libs(graph: DepGraph, executor: Executor) -> DepGraph:
     seen: set[str] = set()
     for hit in hits:
         soname = canonical_soname(hit.lib)
+        if soname in _CORE_SONAMES:
+            continue  # C runtime: always present in the base image, never an obligation
         sid = syslib_id(soname)
         if sid in seen:
             continue
