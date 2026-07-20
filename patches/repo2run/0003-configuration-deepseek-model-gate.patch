@@ -1,0 +1,30 @@
+--- /tmp/Repo2Run_inspect/build_agent/agents/configuration.py	2026-06-07 07:31:43.006569176 +0000
++++ /opt/rat-bench-integration/rat_run_repo2run/Repo2Run/build_agent/agents/configuration.py	2026-06-07 08:06:59.875303233 +0000
+@@ -233,7 +233,7 @@
+         print(self.init_prompt)
+         start_time0 = time.time()
+         self.messages = []
+-        if "gpt" in self.model:
++        if "gpt" in self.model or "deepseek" in self.model:
+             system_message = {"role": "system", "content": self.init_prompt}
+             self.messages.append(system_message)
+             user_message = {"role": "user", "content": f"[Project root Path]: /repo"}
+@@ -328,7 +328,8 @@
+                     self.outer_commands.append({"command": commands[i], "returncode": -2, "time": -1})
+                     start_time = time.time()
+                     vdb = subprocess.run("df -h | grep '/dev/vdb' | awk '{print $5}'", shell=True, capture_output=True, text=True)
+-                    if float(vdb.stdout.strip().split('%')[0]) > 90:
++                    _vdb_pct = vdb.stdout.strip().split('%')[0]
++                    if _vdb_pct and float(_vdb_pct) > 90:
+                         print('Warning! The disk /dev/vdb has occupied over 90% memories!')
+                         sys.exit(3)
+                     
+@@ -545,7 +546,7 @@
+             appendix = re.sub(pattern1, replacement1, appendix)
+             
+             system_res += appendix
+-            if "gpt" in self.model:
++            if "gpt" in self.model or "deepseek" in self.model:
+                 system_message = {"role": "system", "content": system_res}
+             else:
+                 system_message = {"role": "user", "content": system_res}

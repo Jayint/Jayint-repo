@@ -2,6 +2,8 @@
 
 这是一个基于 LLM 的 Agent，旨在自动为 GitHub 仓库配置可执行的 Docker 环境。
 
+> **Running the RAT benchmark + scoring (EBSR/ESSR):** see [docs/RUNNING_RATBENCH.md](docs/RUNNING_RATBENCH.md).
+
 ## 核心组件
 
 1. **Sandbox (sandbox.py)**: 使用 Docker SDK 运行指令，并具有基于 `commit` 的回滚机制。
@@ -27,7 +29,7 @@ python agent.py <GITHUB_REPO_URL>
 
 ## 配置
 
-将 `.env.example` 重命名为 `.env` 并填写你的 `OPENAI_API_KEY`。
+将 `.env.example` 重命名为 `.env` 并填写你的 `MINIMAX_API_KEY`。如果使用兼容 OpenAI SDK 的网关，也可以继续使用 `OPENAI_API_KEY` / `OPENAI_API_BASE`。
 
 ## 使用
 
@@ -54,7 +56,7 @@ python agent.py https://github.com/psf/requests
 python multi_docker_eval_adapter.py \
     path/to/Multi-Docker-Eval/task.jsonl \
     --output-dir ./eval_results \
-    --model gpt-4o
+    --model MiniMax-M2.7-highspeed
 ```
 
 详细文档见 [`doc/MULTI_DOCKER_EVAL.md`](doc/MULTI_DOCKER_EVAL.md)

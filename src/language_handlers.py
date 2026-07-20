@@ -2,8 +2,29 @@
 Language-specific handlers for base image selection and environment setup.
 Supports: Python, JavaScript, TypeScript, Rust, Go, Java, C#, C, C++, Ruby, PHP, Swift, Kotlin, Scala, R, Julia, Dart, Elixir, Haskell, Lua, Perl, Zig
 """
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+import json
+import os
+import re
 from typing import List, Dict, Optional
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python 3.10 benchmark host
+    import tomli as tomllib
+
+
+@dataclass(frozen=True)
+class LanguageRequirement:
+    """One statically evidenced repository language/runtime requirement."""
+
+    language: str
+    version_constraint: str | None
+    role: str
+    evidence: tuple[str, ...]
 
 
 class LanguageHandler(ABC):
@@ -87,14 +108,9 @@ class PythonHandler(LanguageHandler):
     
     def get_setup_instructions(self) -> str:
         return """### Python-Specific Instructions:
-- Make sure the package is installed from source in editable mode before running tests (e.g., `pip install -e .`)
-- Avoid using tox to run tests if possible as it's designed for CI. Read tox.ini to understand setup
-- Check requirements.txt, setup.py, or pyproject.toml for dependencies
-- For requirements.txt: use `pip install -r requirements.txt`
-- For pyproject.toml with poetry: use `poetry install`
-- For Pipfile: use `pipenv install`
-- For environment.yml: use `conda env create -f environment.yml`
-- Always install the package in editable mode if setup.py or pyproject.toml exists: `pip install -e .`
+- Inspect pyproject.toml, setup.py/setup.cfg, requirements files, tox.ini, or lockfiles for runtime and test dependencies.
+- Install the local package and test dependencies in the way the project declares; editable installs are common but not universally sufficient.
+- Run pytest or the project-native test command after dependencies are installed.
 """
 
 
@@ -133,11 +149,9 @@ class JavaScriptHandler(LanguageHandler):
     
     def get_setup_instructions(self) -> str:
         return """### JavaScript/Node.js-Specific Instructions:
-- Use npm, yarn, or pnpm to install dependencies (check package.json and lockfiles)
-- Run `npm install` or `yarn install` to install dependencies
-- Check package.json for test scripts and build commands
-- Consider using `npm ci` for faster, reproducible builds if package-lock.json exists
-- Install global dependencies if needed (e.g., `npm install -g typescript`)
+- Inspect package.json and lockfiles to choose npm, yarn, or pnpm.
+- Install dependencies with the project-appropriate package manager.
+- Use package.json scripts for build and test commands.
 """
 
 
@@ -482,10 +496,6 @@ class PHPHandler(LanguageHandler):
     
     def get_setup_instructions(self) -> str:
         return """### PHP-Specific Instructions:
-- **PRE-REQUISITE**: Before running `composer install`, ensure the following system tools are available:
-  - `git` - required by composer for source downloads
-  - `zip`/`unzip` - required for extracting packages
-  - If using php-cli image, install with: `apt-get update && apt-get install -y git zip unzip`
 - Check composer.json for PHP version requirement (e.g., `"php": "^8.1"`) and ensure compatibility
 - Use `composer install` to install dependencies from composer.json
 - Use `./vendor/bin/phpunit` to run PHPUnit tests
@@ -674,6 +684,333 @@ def get_language_handler(language: str) -> LanguageHandler:
         raise ValueError(f"Language '{language}' is not supported. "
                         f"Available: {list(LANGUAGE_HANDLERS.keys())}")
     return LANGUAGE_HANDLERS[language]
+
+
+_DETECTION_SKIP_DIRS = frozenset({
+    ".git", ".hg", ".svn", ".venv", "venv", "node_modules", "target",
+    "dist", "build", "__pycache__", ".tox", ".gradle", ".idea",
+})
+_RELEVANT_NAMES = frozenset({
+    "pyproject.toml", "setup.py", "setup.cfg", "requirements.txt",
+    "pytest.ini", "tox.ini", ".python-version", "package.json",
+    "package-lock.json", "pnpm-lock.yaml", "yarn.lock", ".nvmrc",
+    ".node-version", "cargo.toml", "cargo.lock", "rust-toolchain",
+    "rust-toolchain.toml", "go.mod", "go.sum", "go.work", "pom.xml",
+    "build.gradle", "build.gradle.kts", "gradle.properties", "dockerfile",
+})
+_SOURCE_SUFFIXES = {
+    "python": (".py",),
+    "javascript": (".js", ".jsx"),
+    "typescript": (".ts", ".tsx"),
+    "rust": (".rs",),
+    "go": (".go",),
+    "java": (".java",),
+}
+
+
+def _read_detection_inventory(repo_path: str) -> tuple[str, dict[str, str]]:
+    """Return a bounded repository structure and environment-relevant contents."""
+    structure: list[str] = []
+    contents: dict[str, str] = {}
+    root_path = os.path.abspath(repo_path)
+    for root, dirs, files in os.walk(root_path):
+        dirs[:] = sorted(d for d in dirs if d not in _DETECTION_SKIP_DIRS)
+        rel_root = os.path.relpath(root, root_path)
+        for filename in sorted(files):
+            rel = filename if rel_root == "." else os.path.join(rel_root, filename)
+            rel = rel.replace(os.sep, "/")
+            structure.append(rel)
+            lower = filename.lower()
+            if (
+                lower in _RELEVANT_NAMES
+                or rel.startswith(".github/workflows/")
+                or lower.startswith("dockerfile")
+            ):
+                try:
+                    with open(os.path.join(root, filename), encoding="utf-8") as fh:
+                        contents[rel] = fh.read(128_000)
+                except (OSError, UnicodeError):
+                    pass
+    return "\n".join(structure), contents
+
+
+def _evidence_for(language: str, paths: tuple[str, ...]) -> tuple[str, ...]:
+    names = {
+        "python": {
+            "pyproject.toml", "setup.py", "setup.cfg", "requirements.txt",
+            "pytest.ini", "tox.ini", ".python-version",
+        },
+        "javascript": {
+            "package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock",
+            ".nvmrc", ".node-version",
+        },
+        "typescript": {
+            "package.json", "tsconfig.json", "package-lock.json", "pnpm-lock.yaml",
+            "yarn.lock", ".nvmrc", ".node-version",
+        },
+        "rust": {
+            "cargo.toml", "cargo.lock", "rust-toolchain", "rust-toolchain.toml",
+        },
+        "go": {"go.mod", "go.sum", "go.work"},
+        "java": {
+            "pom.xml", "build.gradle", "build.gradle.kts", "gradle.properties",
+        },
+    }.get(language, set())
+    suffixes = _SOURCE_SUFFIXES.get(language, ())
+    strong = [
+        path for path in paths
+        if os.path.basename(path).lower() in names
+    ]
+    if not strong and suffixes:
+        strong = [path for path in paths if path.lower().endswith(suffixes)][:3]
+    return tuple(strong[:12])
+
+
+def _first_content(files_content: dict[str, str], basename: str) -> tuple[str, str] | None:
+    for path, content in sorted(files_content.items()):
+        if os.path.basename(path).lower() == basename.lower():
+            return path, content
+    return None
+
+
+def _python_version(files_content: dict[str, str]) -> str | None:
+    item = _first_content(files_content, "pyproject.toml")
+    if item:
+        try:
+            data = tomllib.loads(item[1])
+            value = (data.get("project") or {}).get("requires-python")
+            if not value:
+                value = (((data.get("tool") or {}).get("poetry") or {})
+                         .get("dependencies") or {}).get("python")
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        except Exception:
+            pass
+    item = _first_content(files_content, ".python-version")
+    return item[1].strip().splitlines()[0] if item and item[1].strip() else None
+
+
+def _node_version(files_content: dict[str, str]) -> str | None:
+    item = _first_content(files_content, "package.json")
+    if item:
+        try:
+            value = (json.loads(item[1]).get("engines") or {}).get("node")
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        except Exception:
+            pass
+    for name in (".nvmrc", ".node-version"):
+        item = _first_content(files_content, name)
+        if item and item[1].strip():
+            return item[1].strip().splitlines()[0]
+    return None
+
+
+def _rust_version(files_content: dict[str, str]) -> str | None:
+    item = _first_content(files_content, "rust-toolchain.toml")
+    if item:
+        try:
+            value = (tomllib.loads(item[1]).get("toolchain") or {}).get("channel")
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        except Exception:
+            pass
+    item = _first_content(files_content, "rust-toolchain")
+    if item and item[1].strip():
+        return item[1].strip().splitlines()[0]
+    item = _first_content(files_content, "cargo.toml")
+    if item:
+        try:
+            parsed = tomllib.loads(item[1])
+            candidates = (
+                (parsed.get("package") or {}).get("rust-version"),
+                ((parsed.get("workspace") or {}).get("package") or {}).get(
+                    "rust-version"
+                ),
+            )
+            for value in candidates:
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
+        except Exception:
+            pass
+    return None
+
+
+def _go_version(files_content: dict[str, str]) -> str | None:
+    item = _first_content(files_content, "go.mod")
+    if not item:
+        return None
+    match = re.search(r"(?m)^\s*go\s+([0-9]+(?:\.[0-9]+){1,2})\s*$", item[1])
+    return match.group(1) if match else None
+
+
+def _java_version(files_content: dict[str, str]) -> str | None:
+    item = _first_content(files_content, "pom.xml")
+    if item:
+        text = item[1]
+        enforcer = re.search(
+            r"<requireJavaVersion\b[^>]*>.*?<version>\s*([^<]+)"
+            r"\s*</version>.*?</requireJavaVersion>",
+            text,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if enforcer:
+            major = re.search(r"\d+(?:\.\d+)*", enforcer.group(1))
+            if major:
+                return major.group(0)
+        match = re.search(r"<java\.version>\s*([^<]+)", text, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+    for path, content in files_content.items():
+        if ".github/workflows/" not in path.replace("\\", "/").lower():
+            continue
+        match = re.search(
+            r"(?im)^\s*java-version\s*:\s*['\"]?([0-9]+(?:\.[0-9]+)*)",
+            content,
+        )
+        if match:
+            return match.group(1)
+    if item:
+        for pattern in (
+            r"<maven\.compiler\.release>\s*([^<]+)",
+            r"<maven\.compiler\.source>\s*([^<]+)",
+        ):
+            match = re.search(pattern, item[1], re.IGNORECASE)
+            if match:
+                return match.group(1).strip()
+    for name in ("build.gradle", "build.gradle.kts"):
+        item = _first_content(files_content, name)
+        if not item:
+            continue
+        match = re.search(
+            r"(?:JavaLanguageVersion\.of|languageVersion\s*=)\s*\(?\s*([0-9]+)",
+            item[1],
+        )
+        if match:
+            return match.group(1)
+    return None
+
+
+def _language_version(language: str, files_content: dict[str, str]) -> str | None:
+    if language == "python":
+        return _python_version(files_content)
+    if language in {"javascript", "typescript"}:
+        return _node_version(files_content)
+    if language == "rust":
+        return _rust_version(files_content)
+    if language == "go":
+        return _go_version(files_content)
+    if language in {"java", "kotlin"}:
+        return _java_version(files_content)
+    return None
+
+
+def _role_scores(
+    detected: tuple[str, ...],
+    paths: tuple[str, ...],
+    files_content: dict[str, str],
+) -> dict[str, int]:
+    """Score the language that owns the repository's main test interface."""
+    root_names = {path.lower() for path in paths if "/" not in path}
+    all_text = "\n".join(files_content.values()).lower()
+    scores = {language: 0 for language in detected}
+    boosts = {
+        "python": (("pyproject.toml", 5), ("pytest.ini", 5), ("tox.ini", 3)),
+        "javascript": (("package.json", 4),),
+        "typescript": (("package.json", 4), ("tsconfig.json", 3)),
+        "rust": (("cargo.toml", 5),),
+        "go": (("go.mod", 5),),
+        "java": (("pom.xml", 5), ("build.gradle", 5), ("build.gradle.kts", 5)),
+    }
+    for language in detected:
+        for filename, score in boosts.get(language, ()):
+            if filename in root_names:
+                scores[language] += score
+    command_signals = {
+        "python": ("pytest", "python -m unittest"),
+        "javascript": ("npm test", "pnpm test", "yarn test"),
+        "typescript": ("npm test", "pnpm test", "yarn test"),
+        "rust": ("cargo test",),
+        "go": ("go test",),
+        "java": ("mvn test", "gradlew test", "gradle test"),
+    }
+    for language, signals in command_signals.items():
+        if language in scores and any(signal in all_text for signal in signals):
+            scores[language] += 4
+    return scores
+
+
+def detect_languages(
+    repo_structure_or_path: str,
+    files_content: Dict[str, str] | None = None,
+) -> tuple[LanguageRequirement, ...]:
+    """Detect all repository languages with versions, roles, and evidence.
+
+    Passing a directory performs a deterministic bounded scan.  Passing the
+    historical ``repo_structure`` plus ``files_content`` form keeps the image
+    selector and older callers source-compatible.
+    """
+    if files_content is None and os.path.isdir(repo_structure_or_path):
+        repo_structure, contents = _read_detection_inventory(repo_structure_or_path)
+    else:
+        repo_structure = repo_structure_or_path
+        contents = dict(files_content or {})
+
+    paths = tuple(
+        line.strip().replace("\\", "/")
+        for line in repo_structure.splitlines()
+        if line.strip() and not line.rstrip().endswith("/")
+    )
+    detected = tuple(
+        name for name, handler in LANGUAGE_HANDLERS.items()
+        if handler.detect_language(repo_structure, contents)
+    )
+    # TypeScript is a Node ecosystem specialization, not an additional runtime.
+    # Reporting both would create duplicate Node workspaces and install blocks.
+    if "typescript" in detected and "javascript" in detected:
+        detected = tuple(item for item in detected if item != "javascript")
+    if not detected:
+        return ()
+
+    scores = _role_scores(detected, paths, contents)
+    primary = max(
+        detected,
+        key=lambda language: (
+            scores.get(language, 0),
+            language == "python",
+            language in {"java", "go", "rust", "typescript", "javascript"},
+        ),
+    )
+
+    # Rust commonly participates only as a Python native-extension compiler.
+    python_native_rust = (
+        "python" in detected
+        and "rust" in detected
+        and any(token in "\n".join(contents.values()).lower()
+                for token in ("maturin", "setuptools-rust", "pyo3"))
+    )
+
+    requirements: list[LanguageRequirement] = []
+    for language in detected:
+        if language == primary:
+            role = "primary_runtime"
+        elif language == "rust" and python_native_rust:
+            role = "build_tool"
+        else:
+            role = "secondary_runtime"
+        requirements.append(LanguageRequirement(
+            language=language,
+            version_constraint=_language_version(language, contents),
+            role=role,
+            evidence=_evidence_for(language, paths),
+        ))
+    role_rank = {"primary_runtime": 0, "secondary_runtime": 1, "build_tool": 2}
+    return tuple(sorted(
+        requirements,
+        key=lambda item: (role_rank[item.role], item.language),
+    ))
+
+
 def detect_language(repo_structure: str, files_content: Dict[str, str]) -> Optional[str]:
     """
     Auto-detect the primary language of the repository.
@@ -681,27 +1018,11 @@ def detect_language(repo_structure: str, files_content: Dict[str, str]) -> Optio
     Returns:
         The detected language name, or None if no language is detected.
     """
-    detected_languages = []
-    
-    for name, handler in LANGUAGE_HANDLERS.items():
-        if handler.detect_language(repo_structure, files_content):
-            detected_languages.append(name)
-    
-    if not detected_languages:
+    requirements = detect_languages(repo_structure, files_content)
+    if not requirements:
         return None
-    
-    # Priority order for conflict resolution
-    # typescript/javascript before c/c++ to avoid false positives from .js/.ts filenames
-    priority = [
-        "rust", "go", "c#",
-        "kotlin", "scala", "java",
-        "typescript", "javascript",
-        "c++", "c",
-        "ruby", "php", "dart",
-        "python", "r"
-    ]
-    for lang in priority:
-        if lang in detected_languages:
-            return lang
-    
-    return detected_languages[0]
+    primary = next(
+        (item.language for item in requirements if item.role == "primary_runtime"),
+        requirements[0].language,
+    )
+    return primary

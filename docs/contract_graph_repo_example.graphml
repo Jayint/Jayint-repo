@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+  <key id="node_type" for="node" attr.name="type" attr.type="string"/>
+  <key id="label" for="node" attr.name="label" attr.type="string"/>
+  <key id="level" for="node" attr.name="level" attr.type="string"/>
+  <key id="kind" for="node" attr.name="kind" attr.type="string"/>
+  <key id="layer" for="node" attr.name="layer" attr.type="string"/>
+  <key id="status" for="node" attr.name="status" attr.type="string"/>
+  <key id="summary" for="node" attr.name="summary" attr.type="string"/>
+  <key id="check" for="node" attr.name="check" attr.type="string"/>
+  <key id="evidence_refs" for="node" attr.name="evidence_refs" attr.type="string"/>
+  <key id="outcome" for="node" attr.name="outcome" attr.type="string"/>
+  <key id="edge_type" for="edge" attr.name="type" attr.type="string"/>
+  <key id="edge_label" for="edge" attr.name="label" attr.type="string"/>
+
+  <graph id="contract_graph_repo_example" edgedefault="directed">
+    <node id="contract:goal:repo_tests_pass">
+      <data key="node_type">Contract</data>
+      <data key="label">repo_tests_pass</data>
+      <data key="level">goal</data>
+      <data key="kind">verification</data>
+      <data key="layer">tests</data>
+      <data key="status">violated</data>
+      <data key="summary">The repository test command must pass.</data>
+      <data key="check">python -m pytest</data>
+    </node>
+    <node id="contract:goal:repo_tests_collect">
+      <data key="node_type">Contract</data>
+      <data key="label">repo_tests_collect</data>
+      <data key="level">goal</data>
+      <data key="kind">test_command</data>
+      <data key="layer">tests</data>
+      <data key="status">violated</data>
+      <data key="summary">The test runner must collect tests without import errors.</data>
+      <data key="check">python -m pytest --collect-only</data>
+    </node>
+    <node id="contract:goal:repo_imports_work">
+      <data key="node_type">Contract</data>
+      <data key="label">repo_imports_work</data>
+      <data key="level">goal</data>
+      <data key="kind">verification</data>
+      <data key="layer">deps</data>
+      <data key="status">violated</data>
+      <data key="summary">Imports used by repo entrypoints and tests must resolve.</data>
+      <data key="check">python -m pytest --collect-only</data>
+    </node>
+    <node id="contract:goal:repo_deps_installed">
+      <data key="node_type">Contract</data>
+      <data key="label">repo_deps_installed</data>
+      <data key="level">goal</data>
+      <data key="kind">verification</data>
+      <data key="layer">deps</data>
+      <data key="status">satisfied</data>
+      <data key="summary">Declared Python dependencies have been installed through the normal install path.</data>
+      <data key="check">python -m pip install -r requirements.txt</data>
+      <data key="evidence_refs">world.command:12</data>
+    </node>
+    <node id="contract:goal:repo_build_ready">
+      <data key="node_type">Contract</data>
+      <data key="label">repo_build_ready</data>
+      <data key="level">goal</data>
+      <data key="kind">build_command</data>
+      <data key="layer">build</data>
+      <data key="status">unknown</data>
+      <data key="summary">The project build command must be executable if the repo has a build step.</data>
+      <data key="check">python -m pip install -e .</data>
+    </node>
+    <node id="contract:goal:repo_services_ready">
+      <data key="node_type">Contract</data>
+      <data key="label">repo_services_ready</data>
+      <data key="level">goal</data>
+      <data key="kind">service</data>
+      <data key="layer">runtime</data>
+      <data key="status">unknown</data>
+      <data key="summary">Required runtime services must be reachable.</data>
+      <data key="check">service probes from manifest and runtime failures</data>
+    </node>
+    <node id="contract:goal:repo_config_ready">
+      <data key="node_type">Contract</data>
+      <data key="label">repo_config_ready</data>
+      <data key="level">goal</data>
+      <data key="kind">env_var</data>
+      <data key="layer">config</data>
+      <data key="status">satisfied</data>
+      <data key="summary">Required environment variables and config defaults are available.</data>
+      <data key="check">env probe</data>
+      <data key="evidence_refs">world.env:3</data>
+    </node>
+    <node id="contract:package_manager_available">
+      <data key="node_type">Contract</data>
+      <data key="label">package_manager_available</data>
+      <data key="level">atomic</data>
+      <data key="kind">binary</data>
+      <data key="layer">deps</data>
+      <data key="status">satisfied</data>
+      <data key="summary">pip is available in the active Python runtime.</data>
+      <data key="check">python -m pip --version</data>
+      <data key="evidence_refs">world.command:2</data>
+    </node>
+    <node id="contract:python_version_compatible">
+      <data key="node_type">Contract</data>
+      <data key="label">python_version_compatible</data>
+      <data key="level">atomic</data>
+      <data key="kind">runtime</data>
+      <data key="layer">deps</data>
+      <data key="status">satisfied</data>
+      <data key="summary">The active Python version satisfies project constraints.</data>
+      <data key="check">python --version</data>
+      <data key="evidence_refs">world.probe:python</data>
+    </node>
+    <node id="contract:test_runner_available">
+      <data key="node_type">Contract</data>
+      <data key="label">test_runner_available</data>
+      <data key="level">atomic</data>
+      <data key="kind">python_import</data>
+      <data key="layer">tests</data>
+      <data key="status">satisfied</data>
+      <data key="summary">pytest is installed and runnable.</data>
+      <data key="check">python -m pytest --version</data>
+      <data key="evidence_refs">world.command:14</data>
+    </node>
+    <node id="contract:project_installable">
+      <data key="node_type">Contract</data>
+      <data key="label">project_installable</data>
+      <data key="level">atomic</data>
+      <data key="kind">python_package_installable</data>
+      <data key="layer">build</data>
+      <data key="status">satisfied</data>
+      <data key="summary">The repo can be installed in editable mode.</data>
+      <data key="check">python -m pip install -e .</data>
+      <data key="evidence_refs">world.command:13</data>
+    </node>
+    <node id="contract:python_import:cv2">
+      <data key="node_type">Contract</data>
+      <data key="label">cv2_importable</data>
+      <data key="level">atomic</data>
+      <data key="kind">python_import</data>
+      <data key="layer">deps</data>
+      <data key="status">violated</data>
+      <data key="summary">The repo imports cv2 from tests or entrypoints.</data>
+      <data key="check">python -c &quot;import cv2&quot;</data>
+      <data key="evidence_refs">world.command:17</data>
+    </node>
+    <node id="contract:system_library:libGL.so.1">
+      <data key="node_type">Contract</data>
+      <data key="label">libGL.so.1_present</data>
+      <data key="level">atomic</data>
+      <data key="kind">system_library</data>
+      <data key="layer">system</data>
+      <data key="status">violated</data>
+      <data key="summary">The native OpenGL runtime library required by cv2 must exist.</data>
+      <data key="check">ldconfig -p | grep libGL.so.1</data>
+      <data key="evidence_refs">world.command:17</data>
+    </node>
+    <node id="contract:service:redis_reachable">
+      <data key="node_type">Contract</data>
+      <data key="label">redis_reachable</data>
+      <data key="level">atomic</data>
+      <data key="kind">service</data>
+      <data key="layer">runtime</data>
+      <data key="status">unknown</data>
+      <data key="summary">Redis must be reachable if integration tests require it.</data>
+      <data key="check">redis-cli ping</data>
+    </node>
+    <node id="blocker:missing-libgl">
+      <data key="node_type">Blocker</data>
+      <data key="label">missing-libGL</data>
+      <data key="kind">missing_system_library</data>
+      <data key="layer">system</data>
+      <data key="status">active</data>
+      <data key="summary">cv2 import fails because libGL.so.1 is missing.</data>
+      <data key="evidence_refs">world.command:17</data>
+    </node>
+    <node id="blocker:redis-refused">
+      <data key="node_type">Blocker</data>
+      <data key="label">redis-connection-refused</data>
+      <data key="kind">service_unreachable</data>
+      <data key="layer">runtime</data>
+      <data key="status">inactive_example</data>
+      <data key="summary">A future runtime probe might show Redis is unreachable.</data>
+      <data key="evidence_refs">world.command:21</data>
+    </node>
+    <node id="attempt:bulk-install">
+      <data key="node_type">Attempt</data>
+      <data key="label">bulk install requirements</data>
+      <data key="kind">python_install</data>
+      <data key="layer">deps</data>
+      <data key="outcome">ok_but_still_blocked</data>
+      <data key="summary">requirements.txt install succeeded, but import collection still fails.</data>
+      <data key="evidence_refs">world.command:12</data>
+    </node>
+    <node id="attempt:pip-install-opencv">
+      <data key="node_type">Attempt</data>
+      <data key="label">pip install opencv-python</data>
+      <data key="kind">python_install</data>
+      <data key="layer">deps</data>
+      <data key="outcome">ok_but_still_blocked</data>
+      <data key="summary">opencv-python is installed, but cv2 still fails because libGL is missing.</data>
+      <data key="evidence_refs">world.command:16, world.command:17</data>
+    </node>
+    <node id="attempt:install-libgl1">
+      <data key="node_type">Attempt</data>
+      <data key="label">apt install libgl1</data>
+      <data key="kind">system_install</data>
+      <data key="layer">system</data>
+      <data key="outcome">pending</data>
+      <data key="summary">Proposed next repair: install the native library and re-run the cv2 import check.</data>
+    </node>
+    <node id="attempt:pytest-collect">
+      <data key="node_type">Attempt</data>
+      <data key="label">pytest collect only</data>
+      <data key="kind">test_retry</data>
+      <data key="layer">tests</data>
+      <data key="outcome">failed</data>
+      <data key="summary">Collection failed after importing a module that imports cv2.</data>
+      <data key="evidence_refs">world.command:15</data>
+    </node>
+
+    <edge id="e1" source="contract:goal:repo_tests_pass" target="contract:goal:repo_tests_collect">
+      <data key="edge_type">depends_on</data><data key="edge_label">depends_on</data>
+    </edge>
+    <edge id="e2" source="contract:goal:repo_tests_pass" target="contract:goal:repo_imports_work">
+      <data key="edge_type">depends_on</data><data key="edge_label">depends_on</data>
+    </edge>
+    <edge id="e3" source="contract:goal:repo_tests_pass" target="contract:goal:repo_deps_installed">
+      <data key="edge_type">depends_on</data><data key="edge_label">depends_on</data>
+    </edge>
+    <edge id="e4" source="contract:goal:repo_tests_pass" target="contract:goal:repo_build_ready">
+      <data key="edge_type">depends_on</data><data key="edge_label">depends_on</data>
+    </edge>
+    <edge id="e5" source="contract:goal:repo_tests_pass" target="contract:goal:repo_services_ready">
+      <data key="edge_type">depends_on</data><data key="edge_label">depends_on</data>
+    </edge>
+    <edge id="e6" source="contract:goal:repo_tests_pass" target="contract:goal:repo_config_ready">
+      <data key="edge_type">depends_on</data><data key="edge_label">depends_on</data>
+    </edge>
+    <edge id="e7" source="contract:goal:repo_tests_collect" target="contract:goal:repo_imports_work">
+      <data key="edge_type">depends_on</data><data key="edge_label">depends_on</data>
+    </edge>
+    <edge id="e8" source="contract:goal:repo_tests_collect" target="contract:test_runner_available">
+      <data key="edge_type">depends_on</data><data key="edge_label">depends_on</data>
+    </edge>
+    <edge id="e9" source="contract:goal:repo_imports_work" target="contract:goal:repo_deps_installed">
+      <data key="edge_type">depends_on</data><data key="edge_label">depends_on</data>
+    </edge>
+    <edge id="e10" source="contract:goal:repo_imports_work" target="contract:python_import:cv2">
+      <data key="edge_type">depends_on</data><data key="edge_label">depends_on</data>
+    </edge>
+    <edge id="e11" source="contract:goal:repo_deps_installed" target="contract:package_manager_available">
+      <data key="edge_type">depends_on</data><data key="edge_label">depends_on</data>
+    </edge>
+    <edge id="e12" source="contract:goal:repo_deps_installed" target="contract:python_version_compatible">
+      <data key="edge_type">depends_on</data><data key="edge_label">depends_on</data>
+    </edge>
+    <edge id="e13" source="contract:goal:repo_deps_installed" target="contract:project_installable">
+      <data key="edge_type">depends_on</data><data key="edge_label">depends_on</data>
+    </edge>
+    <edge id="e14" source="contract:python_import:cv2" target="contract:system_library:libGL.so.1">
+      <data key="edge_type">depends_on</data><data key="edge_label">depends_on</data>
+    </edge>
+    <edge id="e15" source="contract:goal:repo_services_ready" target="contract:service:redis_reachable">
+      <data key="edge_type">depends_on</data><data key="edge_label">depends_on</data>
+    </edge>
+    <edge id="e16" source="blocker:missing-libgl" target="contract:system_library:libGL.so.1">
+      <data key="edge_type">violates</data><data key="edge_label">violates</data>
+    </edge>
+    <edge id="e17" source="blocker:redis-refused" target="contract:service:redis_reachable">
+      <data key="edge_type">violates</data><data key="edge_label">violates</data>
+    </edge>
+    <edge id="e18" source="attempt:bulk-install" target="contract:goal:repo_deps_installed">
+      <data key="edge_type">addresses</data><data key="edge_label">addresses</data>
+    </edge>
+    <edge id="e19" source="attempt:pip-install-opencv" target="contract:python_import:cv2">
+      <data key="edge_type">addresses</data><data key="edge_label">addresses</data>
+    </edge>
+    <edge id="e20" source="attempt:install-libgl1" target="contract:system_library:libGL.so.1">
+      <data key="edge_type">addresses</data><data key="edge_label">addresses</data>
+    </edge>
+    <edge id="e21" source="attempt:pytest-collect" target="contract:goal:repo_tests_collect">
+      <data key="edge_type">addresses</data><data key="edge_label">addresses</data>
+    </edge>
+  </graph>
+</graphml>

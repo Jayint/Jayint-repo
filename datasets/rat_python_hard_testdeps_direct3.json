@@ -1,0 +1,56 @@
+{
+  "_comment": "Curated hard/differentiating Python subset of RATBench python_repos_all.json (500). Over-weights cases where Repo2Run (44.8 ESSR) and RAT (63.2 ESSR) struggle; excludes benchmark-impossible repos (GPU/CUDA, ML monorepos, multi-service, native>=35%, code_bytes>20MB). Heuristic selection by repo features + paper aggregate findings (no per-repo RAT/Repo2Run labels exist for the 500). Tiers: smoke (run first), extended.",
+  "_source": "RunAnyThing RATBench datasets/python/python_repos_all.json",
+  "_total": 3,
+  "_categories": "documented_rat_failure | repo2run_weak_ci_service(S2) | repo2run_weak_test_deficient(S3) | connection_error_stress | native_runtime_stress | winnable_large | easy_control | hard_general(top-up)",
+  "repos": [
+    {
+      "full_name": "LibreTranslate/LibreTranslate",
+      "clone_url": "https://github.com/LibreTranslate/LibreTranslate.git",
+      "default_branch": "main",
+      "size": "small",
+      "stargazers_count": 13591,
+      "code_bytes": 117352,
+      "language_breakdown": {
+        "Python": 74.16,
+        "HTML": 11.01,
+        "Dockerfile": 5.89,
+        "CSS": 5.75
+      },
+      "_category": "repo2run_weak_ci_service",
+      "_tier": "smoke",
+      "_targets": "Repo2Run S2 / system-service",
+      "_why": "Dockerfile + backend/service → system-service deps invisible to requirements.txt; Repo2Run S2 collapse (25.4 vs RAT 69.5)"
+    },
+    {
+      "full_name": "python-websockets/websockets",
+      "clone_url": "https://github.com/python-websockets/websockets.git",
+      "default_branch": "main",
+      "size": "medium",
+      "stargazers_count": 5620,
+      "code_bytes": 1460314,
+      "language_breakdown": {
+        "Python": 97.95
+      },
+      "_category": "repo2run_weak_test_deficient",
+      "_tier": "extended",
+      "_targets": "Repo2Run S3",
+      "_why": "Pure-Python lib/CLI, no container; test-deficient pattern"
+    },
+    {
+      "full_name": "copier-org/copier",
+      "clone_url": "https://github.com/copier-org/copier.git",
+      "default_branch": "master",
+      "size": "medium",
+      "stargazers_count": 3073,
+      "code_bytes": 588005,
+      "language_breakdown": {
+        "Python": 99.76
+      },
+      "_category": "repo2run_weak_test_deficient",
+      "_tier": "extended",
+      "_targets": "Repo2Run S3",
+      "_why": "Pure-Python lib/CLI, no container; test-deficient pattern"
+    }
+  ]
+}

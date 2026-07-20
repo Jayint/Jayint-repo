@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Static-Probe Certified Dependency Graph — sample</title>
+  <script src="vis-network.min.js"></script>
+  <style>
+    :root { --bg: #0f172a; --panel: #1e293b; --ink: #e2e8f0; --muted: #94a3b8; --line: #334155; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--ink); }
+    #app { display: grid; grid-template-columns: 1fr 330px; grid-template-rows: auto 1fr; height: 100vh; min-height: 0; }
+    #graph { min-height: 0; min-width: 0; height: 100%; background: radial-gradient(circle at 30% 20%, #15233f, #0f172a); }
+    header { grid-column: 1 / -1; padding: 12px 18px; border-bottom: 1px solid var(--line); }
+    header h1 { font-size: 16px; margin: 0; }
+    header p { font-size: 12px; color: var(--muted); margin: 4px 0 0; }
+    header code { background: #0b1220; color: #7dd3fc; padding: 1px 5px; border-radius: 4px; }
+    aside { border-left: 1px solid var(--line); padding: 14px; overflow-y: auto; background: var(--panel); }
+    aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; }
+    .legend-row { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 5px 0; }
+    .swatch { width: 14px; height: 14px; border-radius: 3px; flex: 0 0 auto; }
+    .shape { width: 16px; flex: 0 0 auto; display: inline-block; text-align: center; }
+    .sep { height: 1px; background: var(--line); margin: 14px 0; }
+    #detail { font-size: 12px; line-height: 1.5; }
+    #detail .k { color: var(--muted); }
+    #detail code { background: #0b1220; color: #7dd3fc; padding: 1px 5px; border-radius: 4px; word-break: break-all; display: inline-block; margin-top: 2px; }
+    .pill { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .s-satisfied { background: #064e3b; color: #6ee7b7; }
+    .s-missing { background: #7f1d1d; color: #fca5a5; }
+    .s-unknown { background: #334155; color: #cbd5e1; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Static-Probe Certified Dependency Graph — concrete model</h1>
+      <p>From <code>sample-dependency-graph.graphml</code>. Fill = discovered_by (pipeline stage) · shape = node type · border = host-certified state. Click a node for its fields. Drag to explore.</p>
+    </header>
+    <div id="graph"></div>
+    <aside>
+      <h2>Discovered by (fill = pipeline stage)</h2>
+      <div id="legend-disc"></div>
+      <div class="sep"></div>
+      <h2>Node type (shape)</h2>
+      <div id="legend-types"></div>
+      <div class="sep"></div>
+      <h2>State (border)</h2>
+      <div id="legend-states"></div>
+      <div class="sep"></div>
+      <h2>Edges</h2>
+      <div id="legend-edges"></div>
+      <div class="sep"></div>
+      <h2>Selection</h2>
+      <div id="detail"><span class="k">Click a node…</span></div>
+    </aside>
+  </div>
+
+  <script>
+    const DISC_COLOR = {
+      goal:        "#10b981",
+      static_scan: "#a78bfa",
+      resolver:    "#3b82f6",
+      probe:       "#f97316",
+      runtime:     "#ec4899",
+    };
+    const TYPE_SHAPE = {
+      Test:      "star",
+      Project:   "square",
+      Import:    "dot",
+      Package:   "box",
+      SystemLib: "triangle",
+      Tool:      "diamond",
+      Runtime:   "hexagon",
+    };
+    const TYPE_GLYPH = { Test: "★", Project: "▣", Import: "●", Package: "▮", SystemLib: "▲", Tool: "◆", Runtime: "⬡" };
+    const STATE_BORDER = { satisfied: "#22c55e", missing: "#ef4444", unknown: "#64748b" };
+    const EDGE_STYLE = {
+      requires:       { color: "#64748b", arrows: { to: { enabled: true, scaleFactor: 0.6 } } },
+      alternative_to: { color: "#2dd4bf", dashes: [6, 6], arrows: { to: { enabled: false } } },
+      conflicts_with: { color: "#f59e0b", dashes: [2, 4], arrows: { to: { enabled: false } } },
+    };
+
+    function row(html) { const e = document.createElement("div"); e.className = "legend-row"; e.innerHTML = html; return e; }
+
+    function buildLegend() {
+      const D = document.getElementById("legend-disc");
+      Object.entries(DISC_COLOR).forEach(([k, c]) => D.appendChild(row(`<span class="swatch" style="background:${c}"></span>${k}`)));
+      const T = document.getElementById("legend-types");
+      Object.keys(TYPE_SHAPE).forEach((k) => T.appendChild(row(`<span class="shape">${TYPE_GLYPH[k]}</span>${k}`)));
+      const S = document.getElementById("legend-states");
+      Object.entries(STATE_BORDER).forEach(([k, c]) => S.appendChild(row(`<span class="swatch" style="background:transparent;border:3px solid ${c}"></span>${k}`)));
+      const E = document.getElementById("legend-edges");
+      Object.entries(EDGE_STYLE).forEach(([k, st]) =>
+        E.appendChild(row(`<span class="swatch" style="background:transparent;border-top:3px ${st.dashes ? "dashed" : "solid"} ${st.color};height:0;border-radius:0"></span>${k}`)));
+    }
+
+    function fail(msg) {
+      document.getElementById("graph").innerHTML = '<p style="padding:20px;color:#fca5a5;font-size:13px">' + msg + '</p>';
+    }
+
+    async function main() {
+      buildLegend();
+      if (typeof vis === "undefined") {
+        fail("vis-network library did not load. Make sure <code>vis-network.min.js</code> is next to this file and the page is served over HTTP.");
+        return;
+      }
+      let xml;
+      try {
+        const res = await fetch("sample-dependency-graph.graphml");
+        xml = new DOMParser().parseFromString(await res.text(), "application/xml");
+        if (xml.getElementsByTagName("parsererror").length) throw new Error("GraphML parse error");
+      } catch (e) {
+        fail("Could not load GraphML. Serve this folder over HTTP, e.g. <code>python3 -m http.server</code>, then open http://localhost:&lt;port&gt;/.");
+        return;
+      }
+
+      const keyName = {};
+      for (const k of xml.getElementsByTagName("key")) keyName[k.getAttribute("id")] = k.getAttribute("attr.name");
+      const readData = (el) => {
+        const o = {};
+        for (const d of el.getElementsByTagName("data")) o[keyName[d.getAttribute("key")]] = d.textContent;
+        return o;
+      };
+
+      const rawNodes = [];
+      for (const n of xml.getElementsByTagName("node")) rawNodes.push({ id: n.getAttribute("id"), ...readData(n) });
+      const rawEdges = [];
+      for (const e of xml.getElementsByTagName("edge"))
+        rawEdges.push({ source: e.getAttribute("source"), target: e.getAttribute("target"), ...readData(e) });
+
+      const nodes = new vis.DataSet(rawNodes.map((n) => ({
+        id: n.id,
+        label: n.label,
+        title: `${n.type} · ${n.layer} · ${n.state}\ndiscovered_by: ${n.discovered_by}` + (n.check ? `\ncheck: ${n.check}` : ""),
+        shape: TYPE_SHAPE[n.type] || "dot",
+        color: {
+          background: DISC_COLOR[n.discovered_by] || "#64748b",
+          border: STATE_BORDER[n.state] || "#64748b",
+          highlight: { background: DISC_COLOR[n.discovered_by], border: "#f8fafc" },
+        },
+        borderWidth: (n.state === "satisfied" || n.state === "missing") ? 4 : 2,
+        font: { color: "#e2e8f0", size: 13, face: "ui-monospace, monospace", strokeWidth: 3, strokeColor: "#0b1220" },
+        size: n.type === "Test" ? 22 : 16,
+        _raw: n,
+      })));
+
+      const edges = new vis.DataSet(rawEdges.map((e, i) => {
+        const st = EDGE_STYLE[e.relation] || { color: "#64748b" };
+        return {
+          id: "e" + i, from: e.source, to: e.target, label: e.relation,
+          arrows: st.arrows !== undefined ? st.arrows : { to: { enabled: true, scaleFactor: 0.6 } },
+          dashes: st.dashes || false,
+          color: { color: st.color, highlight: "#f8fafc", opacity: 0.9 },
+          font: { color: "#94a3b8", size: 10, strokeWidth: 4, strokeColor: "#0f172a", align: "middle" },
+          smooth: { type: "dynamic" },
+        };
+      }));
+
+      const network = new vis.Network(document.getElementById("graph"), { nodes, edges }, {
+        physics: {
+          solver: "forceAtlas2Based",
+          forceAtlas2Based: { gravitationalConstant: -70, springLength: 130, springConstant: 0.08, avoidOverlap: 0.7 },
+          stabilization: { iterations: 320 },
+        },
+        interaction: { hover: true, tooltipDelay: 120, multiselect: true },
+      });
+
+      const detail = document.getElementById("detail");
+      const esc = (s) => (s || "").replace(/</g, "&lt;");
+      network.on("click", (params) => {
+        if (!params.nodes.length) { detail.innerHTML = '<span class="k">Click a node…</span>'; return; }
+        const n = nodes.get(params.nodes[0])._raw;
+        detail.innerHTML =
+          `<div style="font-weight:600;margin-bottom:6px">${esc(n.label)}</div>` +
+          `<div><span class="k">type:</span> ${n.type}</div>` +
+          `<div><span class="k">layer:</span> ${n.layer}</div>` +
+          `<div><span class="k">discovered_by:</span> ${n.discovered_by}</div>` +
+          `<div><span class="k">state:</span> <span class="pill s-${n.state}">${n.state}</span></div>` +
+          (n.fix ? `<div style="margin-top:6px"><span class="k">fix:</span> <code>${esc(n.fix)}</code></div>` : "") +
+          (n.check ? `<div style="margin-top:6px"><span class="k">check_command:</span><br><code>${esc(n.check)}</code></div>` : "") +
+          (n.evidence ? `<div style="margin-top:6px"><span class="k">evidence:</span><br><code>${esc(n.evidence)}</code></div>` : "");
+      });
+    }
+
+    main().catch((e) => fail("Render error: " + (e && e.message ? e.message : e)));
+  </script>
+</body>
+</html>

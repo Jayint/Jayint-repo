@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contract Graph GraphML Visualization</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --ink: #172033;
+    --muted: #667085;
+    --faint: #98a2b3;
+    --line: #d9dee7;
+    --contract: #1f6feb;
+    --contract-bg: #eaf2ff;
+    --blocker: #c2410c;
+    --blocker-bg: #fff0e8;
+    --attempt: #0f766e;
+    --attempt-bg: #e7f6f4;
+    --satisfied: #14804a;
+    --violated: #d92d20;
+    --unknown: #667085;
+    --pending: #b54708;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    --body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--body);
+  }
+  .shell {
+    min-height: 100vh;
+    display: grid;
+    grid-template-rows: auto 1fr;
+  }
+  header {
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+  }
+  h1 {
+    margin: 0;
+    font-size: 22px;
+    letter-spacing: 0;
+  }
+  .lead {
+    margin: 5px 0 0;
+    color: var(--muted);
+    max-width: 980px;
+    font-size: 14px;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    min-height: 0;
+  }
+  .canvas-wrap {
+    position: relative;
+    min-height: calc(100vh - 78px);
+    overflow: hidden;
+  }
+  svg {
+    width: 100%;
+    height: 100%;
+    min-height: calc(100vh - 78px);
+    display: block;
+    background:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-color: #fbfcfe;
+  }
+  .toolbar {
+    position: absolute;
+    left: 16px;
+    top: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: 0 8px 22px rgba(16, 24, 40, 0.08);
+  }
+  button {
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--ink);
+    border-radius: 6px;
+    padding: 7px 10px;
+    font: 12px var(--body);
+    cursor: pointer;
+  }
+  button.active {
+    border-color: var(--contract);
+    color: var(--contract);
+    background: var(--contract-bg);
+  }
+  .legend {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1px solid rgba(0,0,0,.14);
+  }
+  aside {
+    min-height: calc(100vh - 78px);
+    border-left: 1px solid var(--line);
+    background: var(--panel);
+    padding: 16px;
+    overflow: auto;
+  }
+  .panel-title {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0;
+    color: var(--muted);
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .detail {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+    background: #fff;
+  }
+  .detail h2 {
+    margin: 0 0 6px;
+    font-size: 18px;
+    overflow-wrap: anywhere;
+  }
+  .id {
+    font: 11px var(--mono);
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 10px;
+    border-top: 1px solid #eef1f5;
+    padding-top: 8px;
+    margin-top: 8px;
+    font-size: 13px;
+  }
+  .row .k {
+    color: var(--muted);
+  }
+  .row .v {
+    overflow-wrap: anywhere;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    border-radius: 999px;
+    padding: 0 7px;
+    font: 11px var(--mono);
+    border: 1px solid var(--line);
+    background: #fff;
+  }
+  .pill.satisfied { color: var(--satisfied); background: #eaf7ef; border-color: #abd9bd; }
+  .pill.violated { color: var(--violated); background: #fff1f0; border-color: #f4b8b2; }
+  .pill.unknown { color: var(--unknown); background: #f2f4f7; border-color: #d0d5dd; }
+  .pill.pending { color: var(--pending); background: #fff7e8; border-color: #f3c98b; }
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .stat {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px;
+    background: #fbfcfe;
+  }
+  .stat b {
+    display: block;
+    font-size: 18px;
+  }
+  .stat span {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .path {
+    margin-top: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+    background: #fbfcfe;
+  }
+  .path h3 {
+    margin: 0 0 8px;
+    font-size: 14px;
+  }
+  .path ol {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .path li {
+    margin: 5px 0;
+    overflow-wrap: anywhere;
+  }
+  .edge {
+    stroke-width: 2;
+    fill: none;
+  }
+  .edge.depends_on { stroke: #7c8798; }
+  .edge.violates { stroke: var(--blocker); stroke-dasharray: 6 4; }
+  .edge.addresses { stroke: var(--attempt); stroke-dasharray: 2 4; }
+  .edge-label {
+    font: 10px var(--mono);
+    fill: #667085;
+    paint-order: stroke;
+    stroke: #fff;
+    stroke-width: 4;
+  }
+  .node rect {
+    stroke-width: 1.5;
+    filter: drop-shadow(0 5px 9px rgba(16, 24, 40, 0.09));
+  }
+  .node text {
+    pointer-events: none;
+  }
+  .node .title {
+    font: 700 12px var(--body);
+    fill: var(--ink);
+  }
+  .node .sub {
+    font: 10px var(--mono);
+    fill: var(--muted);
+  }
+  .node.Contract rect { fill: var(--contract-bg); stroke: #9ec5ff; }
+  .node.Blocker rect { fill: var(--blocker-bg); stroke: #fdba8c; }
+  .node.Attempt rect { fill: var(--attempt-bg); stroke: #8edbd3; }
+  .node.selected rect {
+    stroke: #101828;
+    stroke-width: 2.4;
+  }
+  .node.dim, .edge.dim, .edge-label.dim {
+    opacity: .16;
+  }
+  .hint {
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  code {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: #eef1f5;
+    border-radius: 4px;
+    padding: 1px 4px;
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    aside { min-height: auto; border-left: 0; border-top: 1px solid var(--line); }
+    .canvas-wrap, svg { min-height: 720px; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <h1>Contract Graph for Repo Environment Construction</h1>
+    <p class="lead">
+      Loaded from <code>contract_graph_repo_example.graphml</code>. The graph shows a coarse goal backbone,
+      then runtime blockers and attempts attached to the obligations they affect.
+    </p>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--contract-bg);border-color:#9ec5ff"></i>Contract</span>
+      <span><i class="swatch" style="background:var(--blocker-bg);border-color:#fdba8c"></i>Blocker</span>
+      <span><i class="swatch" style="background:var(--attempt-bg);border-color:#8edbd3"></i>Attempt</span>
+      <span><i class="swatch" style="background:#fff;border-color:#7c8798"></i>depends_on</span>
+      <span><i class="swatch" style="background:#fff;border-color:var(--blocker)"></i>violates</span>
+      <span><i class="swatch" style="background:#fff;border-color:var(--attempt)"></i>addresses</span>
+    </div>
+  </header>
+  <main class="layout">
+    <section class="canvas-wrap">
+      <div class="toolbar" role="group" aria-label="Graph filters">
+        <button data-filter="all" class="active">All</button>
+        <button data-filter="frontier">Repair Frontier</button>
+        <button data-filter="contracts">Contracts</button>
+        <button data-filter="runtime">Runtime Overlay</button>
+      </div>
+      <svg id="graph" aria-label="Contract graph visualization"></svg>
+    </section>
+    <aside>
+      <div class="panel-title">Selected node</div>
+      <div class="detail" id="detail"></div>
+      <div class="stats" id="stats"></div>
+      <div class="path">
+        <h3>Planner reading</h3>
+        <ol>
+          <li>Start at <code>repo_tests_pass</code>.</li>
+          <li>Follow <code>depends_on</code> to violated obligations.</li>
+          <li>Find active <code>Blocker</code> nodes that violate those contracts.</li>
+          <li>Check <code>Attempt</code> history before choosing a new recipe patch.</li>
+        </ol>
+      </div>
+      <p class="hint">
+        Click a node to inspect the GraphML attributes. Use Repair Frontier to see the
+        current root target: <code>libGL.so.1_present</code>.
+      </p>
+    </aside>
+  </main>
+</div>
+
+<script>
+const svg = document.getElementById("graph");
+const detail = document.getElementById("detail");
+const stats = document.getElementById("stats");
+let model = { nodes: [], edges: [] };
+let selectedId = null;
+let activeFilter = "all";
+
+const layout = {
+  "contract:goal:repo_tests_pass": [520, 60],
+  "contract:goal:repo_tests_collect": [350, 190],
+  "contract:goal:repo_imports_work": [610, 190],
+  "contract:goal:repo_deps_installed": [780, 330],
+  "contract:goal:repo_build_ready": [1040, 190],
+  "contract:goal:repo_services_ready": [1040, 330],
+  "contract:goal:repo_config_ready": [1040, 470],
+  "contract:package_manager_available": [620, 480],
+  "contract:python_version_compatible": [780, 520],
+  "contract:test_runner_available": [210, 330],
+  "contract:project_installable": [940, 520],
+  "contract:python_import:cv2": [520, 340],
+  "contract:system_library:libGL.so.1": [520, 500],
+  "contract:service:redis_reachable": [820, 650],
+  "blocker:missing-libgl": [280, 500],
+  "blocker:redis-refused": [1080, 650],
+  "attempt:bulk-install": [1010, 650],
+  "attempt:pip-install-opencv": [260, 660],
+  "attempt:install-libgl1": [520, 690],
+  "attempt:pytest-collect": [120, 190]
+};
+
+const nodeSize = {
+  Contract: [168, 58],
+  Blocker: [174, 58],
+  Attempt: [184, 58]
+};
+
+function getData(el, key) {
+  const item = [...el.getElementsByTagNameNS("*", "data")].find(d => d.getAttribute("key") === key);
+  return item ? item.textContent.trim() : "";
+}
+
+function parseGraphML(text) {
+  const doc = new DOMParser().parseFromString(text, "application/xml");
+  const nodes = [...doc.getElementsByTagNameNS("*", "node")].map(node => {
+    const id = node.getAttribute("id");
+    const type = getData(node, "node_type") || "Contract";
+    const [x, y] = layout[id] || [80 + Math.random() * 900, 80 + Math.random() * 580];
+    return {
+      id,
+      type,
+      label: getData(node, "label") || id,
+      level: getData(node, "level"),
+      kind: getData(node, "kind"),
+      layer: getData(node, "layer"),
+      status: getData(node, "status"),
+      summary: getData(node, "summary"),
+      check: getData(node, "check"),
+      evidence_refs: getData(node, "evidence_refs"),
+      outcome: getData(node, "outcome"),
+      x,
+      y
+    };
+  });
+  const edges = [...doc.getElementsByTagNameNS("*", "edge")].map(edge => ({
+    id: edge.getAttribute("id"),
+    source: edge.getAttribute("source"),
+    target: edge.getAttribute("target"),
+    type: getData(edge, "edge_type") || "depends_on",
+    label: getData(edge, "edge_label") || getData(edge, "edge_type") || "edge"
+  }));
+  return { nodes, edges };
+}
+
+function lineBetween(source, target) {
+  const [sw, sh] = nodeSize[source.type];
+  const [tw, th] = nodeSize[target.type];
+  const sx = source.x + sw / 2;
+  const sy = source.y + sh / 2;
+  const tx = target.x + tw / 2;
+  const ty = target.y + th / 2;
+  const dx = tx - sx;
+  const dy = ty - sy;
+  const absX = Math.abs(dx) || 1;
+  const absY = Math.abs(dy) || 1;
+  const sScale = Math.min((sw / 2) / absX, (sh / 2) / absY);
+  const tScale = Math.min((tw / 2) / absX, (th / 2) / absY);
+  const x1 = sx + dx * sScale;
+  const y1 = sy + dy * sScale;
+  const x2 = tx - dx * tScale;
+  const y2 = ty - dy * tScale;
+  return { x1, y1, x2, y2, mx: (x1 + x2) / 2, my: (y1 + y2) / 2 };
+}
+
+function visibleSet() {
+  if (activeFilter === "all") return new Set(model.nodes.map(n => n.id));
+  if (activeFilter === "contracts") {
+    return new Set(model.nodes.filter(n => n.type === "Contract").map(n => n.id));
+  }
+  if (activeFilter === "runtime") {
+    return new Set(model.nodes.filter(n => n.type !== "Contract" || n.id.includes("cv2") || n.id.includes("libGL") || n.id.includes("redis")).map(n => n.id));
+  }
+  return new Set([
+    "contract:goal:repo_tests_pass",
+    "contract:goal:repo_tests_collect",
+    "contract:goal:repo_imports_work",
+    "contract:python_import:cv2",
+    "contract:system_library:libGL.so.1",
+    "blocker:missing-libgl",
+    "attempt:pip-install-opencv",
+    "attempt:install-libgl1",
+    "attempt:pytest-collect"
+  ]);
+}
+
+function render() {
+  svg.innerHTML = "";
+  svg.setAttribute("viewBox", "0 0 1250 790");
+  const visible = visibleSet();
+  const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+  defs.innerHTML = `
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c8798"></path>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#c2410c"></path>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0f766e"></path>
+    </marker>`;
+  svg.appendChild(defs);
+
+  const edgeGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  const labelGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  const nodeGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  svg.append(edgeGroup, labelGroup, nodeGroup);
+
+  const byId = new Map(model.nodes.map(n => [n.id, n]));
+  model.edges.forEach(edge => {
+    const source = byId.get(edge.source);
+    const target = byId.get(edge.target);
+    if (!source || !target) return;
+    const shown = visible.has(source.id) && visible.has(target.id);
+    const p = lineBetween(source, target);
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const marker = edge.type === "violates" ? "arrow-red" : edge.type === "addresses" ? "arrow-green" : "arrow";
+    path.setAttribute("d", `M ${p.x1} ${p.y1} L ${p.x2} ${p.y2}`);
+    path.setAttribute("class", `edge ${edge.type}${shown ? "" : " dim"}`);
+    path.setAttribute("marker-end", `url(#${marker})`);
+    edgeGroup.appendChild(path);
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    text.setAttribute("x", p.mx);
+    text.setAttribute("y", p.my - 4);
+    text.setAttribute("text-anchor", "middle");
+    text.setAttribute("class", `edge-label${shown ? "" : " dim"}`);
+    text.textContent = edge.label;
+    labelGroup.appendChild(text);
+  });
+
+  model.nodes.forEach(node => {
+    const shown = visible.has(node.id);
+    const [w, h] = nodeSize[node.type];
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("class", `node ${node.type}${node.id === selectedId ? " selected" : ""}${shown ? "" : " dim"}`);
+    g.setAttribute("transform", `translate(${node.x}, ${node.y})`);
+    g.setAttribute("tabindex", "0");
+    g.addEventListener("click", () => {
+      selectedId = node.id;
+      updateDetail(node);
+      render();
+    });
+    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect.setAttribute("width", w);
+    rect.setAttribute("height", h);
+    rect.setAttribute("rx", 7);
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    title.setAttribute("x", 12);
+    title.setAttribute("y", 22);
+    title.setAttribute("class", "title");
+    title.textContent = fit(node.label, 22);
+    const sub = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    sub.setAttribute("x", 12);
+    sub.setAttribute("y", 42);
+    sub.setAttribute("class", "sub");
+    sub.textContent = fit(`${node.type} | ${node.status || node.outcome || node.kind || "unknown"}`, 28);
+    g.append(rect, title, sub);
+    nodeGroup.appendChild(g);
+  });
+}
+
+function fit(text, max) {
+  if (!text) return "";
+  return text.length > max ? text.slice(0, max - 1) + "..." : text;
+}
+
+function updateDetail(node) {
+  const status = node.outcome || node.status || "unknown";
+  const statusClass = status.includes("violated") ? "violated" : status.includes("satisfied") || status === "ok" ? "satisfied" : status.includes("pending") ? "pending" : "unknown";
+  const rows = [
+    ["type", node.type],
+    ["kind", node.kind],
+    ["level", node.level],
+    ["layer", node.layer],
+    ["status", node.status],
+    ["outcome", node.outcome],
+    ["check", node.check],
+    ["evidence", node.evidence_refs],
+    ["summary", node.summary]
+  ].filter(([, value]) => value);
+  detail.innerHTML = `
+    <h2>${escapeHtml(node.label)}</h2>
+    <div class="id">${escapeHtml(node.id)}</div>
+    <div class="row"><div class="k">state</div><div class="v"><span class="pill ${statusClass}">${escapeHtml(status)}</span></div></div>
+    ${rows.map(([k, v]) => `<div class="row"><div class="k">${escapeHtml(k)}</div><div class="v">${escapeHtml(v)}</div></div>`).join("")}
+  `;
+}
+
+function updateStats() {
+  const byType = countBy(model.nodes, n => n.type);
+  const violated = model.nodes.filter(n => n.status === "violated").length;
+  const attempted = model.nodes.filter(n => n.type === "Attempt").length;
+  stats.innerHTML = `
+    <div class="stat"><b>${byType.Contract || 0}</b><span>contracts</span></div>
+    <div class="stat"><b>${byType.Blocker || 0}</b><span>blockers</span></div>
+    <div class="stat"><b>${attempted}</b><span>attempts</span></div>
+    <div class="stat"><b>${violated}</b><span>violated contracts</span></div>
+  `;
+}
+
+function countBy(items, fn) {
+  return items.reduce((acc, item) => {
+    const key = fn(item);
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+document.querySelectorAll("button[data-filter]").forEach(button => {
+  button.addEventListener("click", () => {
+    activeFilter = button.dataset.filter;
+    document.querySelectorAll("button[data-filter]").forEach(b => b.classList.toggle("active", b === button));
+    render();
+  });
+});
+
+fetch("contract_graph_repo_example.graphml")
+  .then(response => response.text())
+  .then(text => {
+    model = parseGraphML(text);
+    selectedId = "contract:system_library:libGL.so.1";
+    updateDetail(model.nodes.find(n => n.id === selectedId) || model.nodes[0]);
+    updateStats();
+    render();
+  })
+  .catch(error => {
+    detail.innerHTML = `<p>Could not load GraphML: ${escapeHtml(error.message)}</p>`;
+  });
+</script>
+</body>
+</html>

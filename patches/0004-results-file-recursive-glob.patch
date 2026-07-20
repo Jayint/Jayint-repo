@@ -1,0 +1,122 @@
+--- a/libkit/codeagent.py
++++ b/libkit/codeagent.py
+@@ -239,7 +239,74 @@
+         )
+ 
+         return text
++
++    def _find_newest_in_container(self, basename: str):
++        """CORRECTED VARIANT (RAT-bench fidelity fix C): recursively locate a
++        results file inside the container.
++
++        The original copy-out read a single fixed path (/repo/logs/<basename>).
++        If the agent ran pytest from a subdirectory (e.g. markitdown ran from
++        /repo/packages/markitdown, writing /repo/packages/markitdown/logs/...),
++        the fixed-path docker cp found nothing and the scorer silently scored 0.0.
++
++        Here we search /repo recursively for **/logs/<basename> and return the
++        NEWEST match (path inside the container), or None if there is none.
++        """
++        try:
++            # -newer-style ordering: emit "<mtime> <path>" and pick the max mtime.
++            find_cmd = (
++                "find /repo -type f -path '*/logs/" + basename + "' "
++                "-printf '%T@ %p\\n' 2>/dev/null | sort -rn | head -n1 | cut -d' ' -f2-"
++            )
++            cmd = [
++                "docker",
++                "exec",
++                self.env.container.name,
++                "sh",
++                "-c",
++                find_cmd,
++            ]
++            result = subprocess.run(cmd, capture_output=True, text=True)
++            if result.returncode == 0:
++                path = result.stdout.strip()
++                if path:
++                    return path
++        except Exception as e:
++            print(f"⚠️  Recursive search for {basename} failed: {e}")
++        return None
+ 
++    def _copy_one_with_fallback(self, source_path, dest_path, basename, description):
++        """Copy a single results file, falling back to a recursive search.
++
++        Tries the fixed source_path first (paper-faithful behavior); if that
++        misses, searches the container recursively for the newest **/logs/<basename>
++        before giving up. Returns True on success.
++        """
++        cmd = f"docker cp {self.env.container.name}:{source_path} {dest_path}"
++        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
++        if result.returncode == 0:
++            print(f"✅ Copied {description}: {dest_path}")
++            return True
++
++        # Fixed path missed -> recursive fallback (fix C).
++        found = self._find_newest_in_container(basename)
++        if found:
++            cmd2 = f"docker cp {self.env.container.name}:{found} {dest_path}"
++            result2 = subprocess.run(cmd2, shell=True, capture_output=True, text=True)
++            if result2.returncode == 0:
++                print(
++                    f"✅ Copied {description} (recursive fallback {found}): {dest_path}"
++                )
++                return True
++            if "No such file" not in result2.stderr:
++                print(f"⚠️  Failed to copy {description} from {found}: {result2.stderr}")
++            return False
++
++        # Nothing anywhere; only warn for non-"missing file" errors (tool may not have run).
++        if "No such file" not in result.stderr:
++            print(f"⚠️  Failed to copy {description}: {result.stderr}")
++        return False
++
+     def _copy_test_results_from_container(self):
+         """Copy test results from container to host output dir (multi-language)."""
+         if not self.env.container:
+@@ -256,19 +323,11 @@
+             try:
+                 source_path = file_info["source"]
+                 dest_path = f"{output_dir}/{file_info['dest_name']}"
++                basename = os.path.basename(source_path)
+ 
+-                # Copy via docker cp
+-                cmd = f"docker cp {self.env.container.name}:{source_path} {dest_path}"
+-                result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+-
+-                if result.returncode == 0:
+-                    print(f"✅ Copied {file_info['description']}: {dest_path}")
+-                else:
+-                    # The file may not exist (tool may not have run)
+-                    if "No such file" not in result.stderr:
+-                        print(
+-                            f"⚠️  Failed to copy {file_info['description']}: {result.stderr}"
+-                        )
++                self._copy_one_with_fallback(
++                    source_path, dest_path, basename, file_info["description"]
++                )
+             except Exception as e:
+                 print(f"⚠️  Copy error for {file_info['description']}: {e}")
+ 
+@@ -288,16 +347,10 @@
+             # Destination path
+             dest_path = f"{output_dir}/junit_report.xml"
+ 
+-            # Copy via docker cp
+-            cmd = f"docker cp {self.env.container.name}:{source_path} {dest_path}"
+-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+-
+-            if result.returncode == 0:
+-                print(f"✅ Copied JUnit XML report to: {dest_path}")
+-            else:
+-                # The file may not exist (pytest may not have run)
+-                if "No such file" not in result.stderr:
+-                    print(f"⚠️  Failed to copy JUnit XML: {result.stderr}")
++            # Copy via docker cp, with recursive fallback (fix C).
++            self._copy_one_with_fallback(
++                source_path, dest_path, "junit_report.xml", "JUnit XML report"
++            )
+         except Exception as e:
+             print(f"⚠️  JUnit XML copy error: {e}")
+ 

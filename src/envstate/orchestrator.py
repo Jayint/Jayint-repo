@@ -1,0 +1,1458 @@
+"""EnvState orchestrator loops.
+
+run_v1() — three-role planner-driven loop (spec §4):
+    initial_map → planner.decide → (done/giveup → break)
+                → build_agent.run → maintainer.update
+                → (done_flag → break)
+                → repeat up to max_cycles
+
+run_v3() — graph-scheduler loop (no planner):
+    initial_map → dep-graph scheduler (next_decision) → build_agent.run
+                → maintainer.update → (done_flag/giveup/budget → break)
+                → repeat up to max_cycles
+"""
+from __future__ import annotations
+
+import enum
+import os
+from dataclasses import asdict
+from typing import TYPE_CHECKING, Callable, Tuple
+
+from src.envstate._loop_common import host_refresh_facts
+from src.envstate.constants import VERIFY_TEST_CMD  # re-exported for back-compat
+from src.envstate.ledger import ActionLedger, make_action_event
+from src.envstate.done_gate import _verified_test_run_passed as _gate_passed
+from src.envstate.repair_loop import CandidateTransactionOutcome, run_structured_repair
+from src.envstate.world_model import (
+    CommandRecord,
+    PlannerDecision,
+    RecipePatch,
+    TaskReport,
+    WorldModelMap,
+    merge_map,
+)
+
+if TYPE_CHECKING:
+    from src.sandbox import InstallResult
+
+# Sentinel type aliases (readable names only, no runtime cost).
+Executor = Callable[[str], Tuple[bool, str]]
+
+# Module-level constants (spec §8).
+MAX_CYCLES: int = 12
+LOCAL_BUDGET: int = 8
+# Canonical collect-only command — kept for back-compat (some tests/modules import it).
+COLLECT_ONLY_CMD: str = "pytest --collect-only -q --disable-warnings"
+
+# VERIFY_TEST_CMD now lives in src.envstate.constants and is imported above; it is
+# re-exported from this module so existing ``from ...orchestrator import VERIFY_TEST_CMD``
+# call sites keep working.
+
+
+# ---------------------------------------------------------------------------
+# Internal termination taxonomy (v3 / graph-scheduler arm)
+# ---------------------------------------------------------------------------
+
+class TerminationReason(enum.Enum):
+    """Typed termination cause for the v1/v3 loops.
+
+    Maps to the external stop_reason strings via ``_to_stop_reason``. Introduced
+    so *internal* code (logging, future extension) can distinguish the three
+    logically-distinct giveup causes. The external contract still collapses all
+    three to ``"planner_giveup"`` — callers observing stop_reason strings cannot
+    tell them apart, by design.
+    """
+    DONE            = "done"
+    DONE_FLAG       = "done_flag"
+    GIVEUP_RESIDUAL = "giveup_residual"   # LLM giveup or runtime divergence
+    GIVEUP_BUDGET   = "giveup_budget"     # LLM repair turns exhausted
+    GIVEUP_STUCK    = "giveup_stuck"      # no new graph obligations (discover rounds)
+    GIVEUP_CONFIG   = "giveup_config"     # targeted obligation but no exec_readonly/client:
+                                           # typed repair is impossible, and there is no
+                                           # free-text fallback to silently downgrade to
+    GIVEUP_REPLAY   = "giveup_replay"     # a success door (scheduler "done" OR maintainer
+                                           # done_flag) opened but the raw-base replay
+                                           # certificate did not
+                                           # reproduce from base (None or rc!=0) — a build
+                                           # that doesn't build is never reported as success
+                                           # (guarded by `_finalize_if_replayed` in run_v3)
+    MAX_CYCLES      = "max_cycles"
+
+
+_TERMINATION_TO_STOP_REASON: dict[TerminationReason, str] = {
+    TerminationReason.DONE:            "planner_done",
+    TerminationReason.DONE_FLAG:       "done_flag",
+    TerminationReason.GIVEUP_RESIDUAL: "planner_giveup",
+    TerminationReason.GIVEUP_BUDGET:   "planner_giveup",
+    TerminationReason.GIVEUP_STUCK:    "planner_giveup",
+    TerminationReason.GIVEUP_CONFIG:   "planner_giveup",
+    TerminationReason.GIVEUP_REPLAY:   "planner_giveup",
+    TerminationReason.MAX_CYCLES:      "max_cycles",
+}
+
+
+def _to_stop_reason(reason: TerminationReason) -> str:
+    """Map an internal ``TerminationReason`` to the external stop-reason string.
+
+    The returned string is identical to the literal that was previously
+    hard-coded at each return site — callers observing stop_reason strings
+    are unaffected.
+    """
+    return _TERMINATION_TO_STOP_REASON[reason]
+
+
+# ---------------------------------------------------------------------------
+# run_v1 — three-role planner-driven loop
+# ---------------------------------------------------------------------------
+
+def run_v1(
+    planner,
+    build_agent,
+    maintainer,
+    initial_world_map: WorldModelMap,
+    ledger: ActionLedger,
+    sandbox_execute: Executor,
+    max_cycles: int = MAX_CYCLES,
+    local_budget: int = LOCAL_BUDGET,
+    on_cycle=None,
+    *,
+    probe=None,
+    manifest=None,
+    exec_readonly=None,
+    enable_dep_emit: bool = False,
+    enable_runtime_feedback: bool = False,
+):
+    """Top-level v1 three-role orchestrator loop (planner-driven).
+
+    Returns ``(final_map, stop_reason)`` where ``stop_reason`` is one of:
+      ``'done_flag'``     — maintainer set WorldModelMap.done_flag=True
+      ``'planner_done'``  — planner emitted action='done'
+      ``'planner_giveup'``— planner emitted action='giveup'
+      ``'max_cycles'``    — loop ran for max_cycles without terminating
+
+    The loop terminates the instant done_flag is set — it does NOT wait
+    for the next planner.decide call (structural fix for the 'reached gate
+    but never committed' failure mode).
+
+    New optional kwargs (all default off — every existing test and the A1 arm
+    are byte-for-byte unchanged):
+      exec_readonly         — callable(cmd) -> (rc: int, out: str) for read-only probes
+    """
+    current_map: WorldModelMap = initial_world_map
+    # Monotonic step counter for ledger offsets (avoids cycle-based aliasing).
+    global_step: int = 0
+    # Runtime-feedback high-water mark: index into ledger.events() up to which we
+    # have already ingested. Starts at 0 so the first ingest captures every event
+    # not yet ingested — including any written before the loop began (e.g. a
+    # pre-seeded failure). _runtime_ingest_phase advances it.
+    _rt_mark: int = 0
+
+    def _dep_emit_phase(cycle: int) -> None:
+        nonlocal current_map, global_step
+        if not enable_dep_emit or current_map.dep_graph is None:
+            return
+        if exec_readonly is None:                      # R3(c): no certify path -> no emit
+            return
+        from python_deps.depgraph.schema import NodeType, State
+        from src.envstate.world_model import Fact
+        from src.envstate.depgraph_live import certify_refresh, emit_drain, ensure_python_shim
+        from python_deps.depgraph.advise import render_depgraph_planner
+        # Make a bare `python` resolve to python3 before any check runs, else a
+        # python3-only base fails every `python -m pip show` and nothing certifies.
+        ensure_python_shim(sandbox_execute, exec_readonly)
+        graph = certify_refresh(current_map.dep_graph, exec_readonly, cycle)
+        # Certify still runs (populating the frontier); emit_drain runs as a
+        # deterministic prefix regardless of arm so the LLM only sees the
+        # irreducible non-emittable residual. global_step is advanced here only
+        # if emit_drain consumed steps, so LLM turns are NOT counted.
+        graph, _reports, steps = emit_drain(
+            graph, build_agent, sandbox_execute, ledger, exec_readonly,
+            step_offset=global_step, cycle=cycle,
+        )
+        if steps:
+            global_step += steps
+        # Fold emit-certified packages into installed so the synthesizer's closure
+        # recipe includes them even when the planner finalizes immediately.
+        sat = tuple(Fact(n.name, n.version or "") for n in graph.nodes
+                    if n.type is NodeType.PACKAGE and n.state is State.SATISFIED)
+        have = {f.name for f in current_map.installed}
+        installed = current_map.installed + tuple(f for f in sat if f.name not in have)
+        advisory = render_depgraph_planner(graph)
+        current_map = merge_map(
+            current_map, dep_graph=graph, dep_advisory=advisory, installed=installed,
+        )
+
+    def _runtime_ingest_phase() -> None:
+        nonlocal current_map, _rt_mark
+        if not enable_runtime_feedback or current_map.dep_graph is None:
+            return
+        try:
+            from python_deps.depgraph.advise import render_depgraph_planner
+            from python_deps.depgraph.runtime_ingest import ingest_runtime_failures
+            from python_deps.depgraph.runtime_classify import classify_observation
+            events = ledger.events()
+            new_events = events[_rt_mark:]
+            obs = [(e.cmd, e.stdout) for e in new_events if e.rc != 0]
+            if not obs:
+                return
+            pre_graph = current_map.dep_graph
+
+            # Deterministic regex classifier only — no LLM tier in the v1 arm.
+            classifiers = (classify_observation,)
+
+            new_graph, found = ingest_runtime_failures(pre_graph, obs, classifiers=classifiers)
+            # Advance the mark ONLY after a successful ingest call returns — so an
+            # exception mid-ingest does not permanently drop those events (they are
+            # re-read next cycle). (spec §11; C4 event-loss fix.)
+            _rt_mark = len(events)
+            if not found:
+                return
+            advisory = render_depgraph_planner(new_graph)
+            current_map = merge_map(current_map, dep_graph=new_graph, dep_advisory=advisory)
+        except (NameError, AttributeError, ImportError, TypeError) as exc:
+            # Programming errors are always bugs, never operational. Still don't
+            # break the run (spec §11), but log LOUDLY with a traceback — a bare
+            # suppress here once hid a missing `import os` that silently disabled
+            # the runtime-feedback loop for an entire benchmark arm.
+            import logging
+            logging.getLogger(__name__).error(
+                "runtime_ingest_phase: PROGRAMMING BUG suppressed: %s", exc,
+                exc_info=True,
+            )
+        except Exception as exc:  # noqa: BLE001 — operational errors must never break the run (spec §11)
+            import logging
+            logging.getLogger(__name__).warning(
+                "runtime_ingest_phase: exception suppressed: %s", exc
+            )
+
+    current_map = host_refresh_facts(current_map, probe, manifest)
+
+    for cycle in range(1, max_cycles + 1):
+        # ── 0. Graph-first: certify + emit the certified closure ────────────
+        _dep_emit_phase(cycle)
+        # ── 0b. Runtime feedback: ingest ledger failures from the PREVIOUS cycle
+        #        into the live dep-graph. Runs once per cycle before any branch so
+        #        it fires regardless of which branch returns (I2 done-path fix).
+        _runtime_ingest_phase()
+        # ── 1. Planner decides what to do next ──────────────────────────────
+        decision: PlannerDecision = planner.decide(current_map)
+
+        if decision.action == "done":
+            if on_cycle is not None:
+                on_cycle(cycle, current_map, decision, None)
+            return current_map, _to_stop_reason(TerminationReason.DONE)
+
+        if decision.action == "giveup":
+            if on_cycle is not None:
+                on_cycle(cycle, current_map, decision, None)
+            return current_map, _to_stop_reason(TerminationReason.GIVEUP_RESIDUAL)
+
+        # ── 2. Recipe patch branch ───────────────────────────────────────────
+        if decision.action == "apply_recipe_patch":
+            recipe: RecipePatch | None = decision.recipe_patch
+            if recipe is None or not recipe.steps:
+                # Empty recipe — nothing to execute; let maintainer decide.
+                empty_report = TaskReport("recipe", "done", (), "empty recipe")
+                current_map = maintainer.update(current_map, empty_report)
+                if on_cycle is not None:
+                    on_cycle(cycle, current_map, decision, empty_report)
+                if current_map.done_flag:
+                    return current_map, _to_stop_reason(TerminationReason.DONE_FLAG)
+                continue
+
+            # Execute the whole recipe as a single unified run.
+            report: TaskReport = build_agent.run_recipe(
+                recipe,
+                sandbox_execute,
+                ledger,
+                step_offset=global_step,
+            )
+            global_step += len(report.commands)
+
+            # Deterministic facts after recipe (before the maintainer).
+            current_map = host_refresh_facts(current_map, probe, manifest)
+
+            # ── 3. Maintainer updates the world model ─────────────────────
+            current_map = maintainer.update(current_map, report)
+
+            if on_cycle is not None:
+                on_cycle(cycle, current_map, decision, report)
+
+            # ── 4. Hard-stop on done_flag — do NOT check mid-recipe ───────
+            if current_map.done_flag:
+                return current_map, _to_stop_reason(TerminationReason.DONE_FLAG)
+
+            continue
+
+        # ── 3. Legacy build-agent flow (action == "task") ────────────────────
+        assert decision.task is not None, (
+            f"PlannerDecision action='task' but .task is None (cycle {cycle})"
+        )
+        task = decision.task
+
+        report = build_agent.run(
+            task,
+            sandbox_execute,
+            ledger,
+            step_offset=global_step,
+            check=None,
+            budget=local_budget,
+        )
+        global_step += len(report.commands)
+
+        # ── 3b. Deterministic facts (read-only probe, OFF the ledger) ────────
+        current_map = host_refresh_facts(current_map, probe, manifest)
+
+        # ── 4. Maintainer updates the world model ────────────────────────────
+        current_map = maintainer.update(current_map, report)
+
+        # ── 5. Notify caller (optional telemetry hook) ───────────────────────
+        if on_cycle is not None:
+            on_cycle(cycle, current_map, decision, report)
+
+        # ── 6. Hard-stop on done_flag — do NOT re-enter planner ──────────────
+        if current_map.done_flag:
+            return current_map, _to_stop_reason(TerminationReason.DONE_FLAG)
+
+    # Exhausted all cycles without termination.
+    return current_map, _to_stop_reason(TerminationReason.MAX_CYCLES)
+
+
+# ---------------------------------------------------------------------------
+# run_v3 — graph-scheduler loop (no planner)
+# ---------------------------------------------------------------------------
+
+def _build_install_evidence(
+    result,
+    failed_id,
+    cycle,
+    *,
+    node_id=None,
+    block_id=None,
+    container_kind="fresh_replay",
+):
+    """Wrap a FAILED binding-install InstallResult as a single-item EvidenceBundle so the
+    repair proposer sees the install stderr (RepairScope.failed_output) AND can cite it
+    (PatchGate requires every proposed requirement/script-patch to reference a known evidence
+    id). The install runs from a fresh-from-base container = 'fresh_replay'.
+
+    ``failed_id`` is whatever localize_install_failure resolved — a #@node id OR a #@block id —
+    so it is written to BOTH Evidence.node_id and Evidence.block_id. run_structured_repair looks
+    the id up as a block_id, and build_repair_scope copies stderr only when
+    ``ev.block_id == failed_block.block_id``; setting block_id keeps the stderr visible on a
+    #@block failure, while node_id stays correct for the common graph-node case.
+    """
+    from python_deps.depgraph.evidence_log import Evidence, EvidenceBundle
+    ev = Evidence(
+        evidence_id=f"install.{cycle}.{failed_id or 'unknown'}",
+        container_kind=container_kind,
+        command=result.failing_command or "(install script)",
+        rc=result.rc,
+        output_excerpt=(result.stderr or "")[-2000:],
+        cycle=cycle,
+        node_id=node_id if node_id is not None else failed_id,
+        block_id=block_id if block_id is not None else failed_id,
+    )
+    return EvidenceBundle().with_item(ev)
+
+
+def run_v3(
+    build_agent,
+    maintainer,
+    initial_world_map: WorldModelMap,
+    ledger: ActionLedger,
+    sandbox_execute: Executor,
+    max_cycles: int = MAX_CYCLES,
+    on_cycle=None,
+    *,
+    probe=None,
+    manifest=None,
+    exec_readonly=None,
+    enable_dep_emit: bool = True,
+    enable_runtime_feedback: bool = True,
+    graph_scheduler_attempt_cap: int = 3,
+    enable_gate_observability: bool = False,   # Stage 1 — observability only, byte-identical off
+    gate_observer=None,                        # Callable[[tuple[GateResult, GateResult]], None] | None
+    reset_to_base=None,                        # Callable[[], None] | None  (Sandbox.reset_to_base) — REQUIRED
+    run_install_script=None,                   # Callable[[str], InstallResult] | None — REQUIRED
+    repo_path: str | None = None,              # repo root — seeds RepoContext.local_names for
+                                                # the diagnosis router (Phase 6); None -> empty set
+    tracer=None,                                # RunTracer | None (Task 8) — append-only, host-owned
+                                                # observability recorder. Every ``tracer.record_*``/
+                                                # ``tracer.set_*`` call below is guarded by
+                                                # ``if tracer is not None:`` so passing ``None`` (the
+                                                # default) leaves run_v3's behavior byte-identical —
+                                                # the tracer only OBSERVES, it never influences a
+                                                # decision, a certify, or a write.
+    incremental_execute=None,                    # Callable[[graph, manual_blocks, cycle],
+                                                # IncrementalExecutionResult] | None. When set,
+                                                # search reuses verified prefixes; final success
+                                                # still requires a fresh full replay.
+    candidate_validate=None,                     # Transactional candidate validator used only
+                                                # by the canonical incremental GraphExecuteAgent.
+    verify_test_commands: tuple[str, ...] | None = None,
+):
+    """Top-level v3 graph-scheduler orchestrator loop (no planner).
+
+    Returns ``(final_map, stop_reason)`` where ``stop_reason`` is one of:
+      ``'done_flag'``      — maintainer set WorldModelMap.done_flag=True
+      ``'planner_done'``   — scheduler returned action='done'
+      ``'planner_giveup'`` — scheduler gave up (budget/residual/stuck)
+      ``'max_cycles'``     — loop ran for max_cycles without terminating
+
+    Planner is ABSENT: ``next_decision`` from the dep-graph scheduler drives
+    every cycle. dep_emit and runtime_feedback are on by default (their params
+    are kept for caller/test compatibility — the bodies treat them as always-on
+    once the guards below are passed).
+
+    The graph scheduler replaces the three-role LLM planner with a pure-function
+    certify → emit → decide pipeline. LLM turns are bounded by ``_repair_turns``
+    (seeded to ``max_cycles``).
+
+    With ``incremental_execute=None`` the historical Model-B behavior is
+    preserved: every cycle renders and freshly replays the complete setup.sh.
+    When ``incremental_execute`` is supplied, the search loop executes the
+    graph-linked Build Plan block-by-block and reuses only host-verified prefix
+    checkpoints. Both modes retain the same mandatory success certificate: a
+    complete setup.sh replay from the raw base plus the verified test gate.
+
+    Every failure bundle is diagnosed (``python_deps.depgraph.diagnose``) BEFORE
+    typed repair is attempted (Phase 6): a repo-internal reference or a residual
+    bug never spends a repair turn, and a pip-disproven package name is never
+    retried. ``repo_path`` (optional) seeds the router's ``RepoContext.local_names``
+    so a repo-local import is never mistaken for a missing PyPI package.
+    """
+    from src.envstate.graph_scheduler import next_decision
+    # Task 8: pure record-type imports (no behavior). Cheap/unconditional — only
+    # the actual ``tracer.record_*``/``tracer.set_*`` CALLS below are guarded by
+    # ``if tracer is not None:``, not this import.
+    from src.envstate.run_trace import (
+        AgentActionRecord,
+        CandidateCheckRecord,
+        CandidateTransactionRecord,
+        DiscoverRecord,
+        FreshReplayRecord,
+        PatchGateRecord,
+    )
+    # reset/full-script execution remains mandatory even in incremental mode:
+    # it is the terminal reproducibility certificate, never a search shortcut.
+    if reset_to_base is None or run_install_script is None:
+        raise ValueError(
+            "run_v3 requires reset_to_base and run_install_script for final fresh replay")
+    test_commands = tuple(
+        command.strip()
+        for command in (verify_test_commands or (VERIFY_TEST_CMD,))
+        if command and command.strip()
+    ) or (VERIFY_TEST_CMD,)
+    verify_test_command = " && ".join(test_commands)
+    current_map: WorldModelMap = initial_world_map
+    # Monotonic step counter for ledger offsets (avoids cycle-based aliasing).
+    global_step: int = 0
+    # Runtime-feedback high-water mark (same semantics as in run_v1).
+    _rt_mark: int = 0
+    _residual_giveup: str | None = None   # set when a residual is non-env / divergent (spec §3 G3, §8)
+    _handed: dict[str, int] = {}          # per-obligation hand-out counts
+    _sched_stuck: int = 0                 # consecutive discover cycles with no new obligations
+    _sched_last_nodes: int = -1           # dep-graph node count at the last discover cycle
+    _repair_turns: int = max_cycles       # LLM-repair budget (NOT mechanical installs)
+    _budget_exhausted: bool = False
+    _known_invalid: set[str] = set()
+    _manual_blocks: tuple = ()            # persists ScriptPatch blocks across cycles
+    MAX_REPAIRS_PER_BLOCK: int = 5
+    # Latest full fresh-replay result. In the historical arm this is refreshed
+    # every cycle; in incremental mode it is set only by the terminal clean
+    # replay and therefore remains the binding reproducibility proof.
+    _last_replay_result: "InstallResult | None" = None
+    _last_execution_result: "InstallResult | None" = None
+    _last_failed_node_id: str | None = None
+    # A failed anti-hollow scheduler probe is also the discover branch's exact
+    # runtime evidence. Cache it for that immediately-following branch so a
+    # stateful test suite is not executed twice without an environment reset.
+    _test_gate_cache: tuple[bool, str] | None = None
+
+    def _setup_is_ready(graph) -> bool:
+        """Binding proof required before any full Test execution."""
+        if not enable_dep_emit or graph is None or exec_readonly is None:
+            return True
+        if (
+            _last_execution_result is None
+            or _last_execution_result.rc != 0
+            or _last_failed_node_id is not None
+        ):
+            return False
+        from python_deps.depgraph.emit import _is_reciped
+        from python_deps.depgraph.schema import State
+        return not any(
+            _is_reciped(node)
+            and bool(node.check_command)
+            and node.state is not State.SATISFIED
+            for node in graph.nodes
+        )
+
+    def _run_tests_verified() -> bool:
+        """Run VERIFY_TEST_CMD and return True only if the full anti-hollow-success gate passes.
+
+        Replaces the bare ``sandbox_execute(VERIFY_TEST_CMD)[0]`` rc=0 check used by
+        the v1gs done-gate so the graph scheduler cannot finalize on a hollow pytest
+        exit-code (e.g. zero tests collected, venv-wrapped run, all-skipped).
+        """
+        nonlocal _test_gate_cache
+        ok, out = sandbox_execute(verify_test_command)
+        verify_report = TaskReport(
+            "sched-verify",
+            "done" if ok else "blocked",
+            (CommandRecord(verify_test_command, 0 if ok else 1, (out or "")[-2000:]),),
+            "scheduler test probe",
+        )
+        passed = _gate_passed(verify_report)
+        _test_gate_cache = (passed, out or "")
+        # Back-fill the LAST fresh-replay record with this test-gate result.
+        # The replay records test_rc=None/test_summary="" because the test gate
+        # is a separate call; without this the
+        # replay record's test fields could never reflect a real test run
+        # and `proof.canonical_success` would be permanently unreachable.
+        # Uses the VERIFIED gate result (`passed`), not the raw pytest rc —
+        # a hollow pass (e.g. zero tests collected) must still record test_rc=1.
+        # Incremental preliminary tests run before a replay record exists; the
+        # tracer intentionally no-ops until the terminal clean replay.
+        if tracer is not None:
+            tracer.set_last_replay_tests(0 if passed else 1, (out or "")[-500:])
+        return passed
+
+    def _run_discover_gate(task, cycle: int) -> TaskReport:
+        """Deterministic discover-task gate (Task 5b) — the sole executor for
+        empty-``target_node_ids`` tasks. Runs exactly ``VERIFY_TEST_CMD`` (no
+        LLM, no free-text mutation) and appends ONE ledger event as evidence.
+
+        ``done_when`` must be the canonical gate; discover tasks are built with
+        ``done_when=VERIFY_TEST_CMD`` (``graph_scheduler._discover_task``), so
+        normalize defensively here rather than trusting a possibly-divergent
+        ``task.done_when``.
+
+        Does NOT ingest this cycle's ledger event — that happens at the TOP of
+        the NEXT cycle's ``_runtime_ingest_phase`` (existing seam, keyed off
+        ``_rt_mark``). This runs against the current search container: either
+        freshly replayed in the ablation or checkpoint-derived in incremental
+        mode. No separate environment mutation happens here.
+        """
+        nonlocal _test_gate_cache
+        cmd = verify_test_command
+        if _test_gate_cache is None:
+            ok, out = sandbox_execute(cmd)
+        else:
+            ok, out = _test_gate_cache
+            _test_gate_cache = None
+        ledger.append(make_action_event(
+            step=global_step, cmd=cmd, success=ok, stdout=(out or ""),
+            env_revision_before=global_step, env_revision_after=global_step,  # discover mutates nothing
+            mutation_class=None, container_id=getattr(build_agent, "container_id", ""),
+        ))
+        return TaskReport(
+            task.goal, "done" if ok else "blocked",
+            (CommandRecord(cmd, 0 if ok else 1, (out or "")[-2000:]),),
+            "deterministic discover gate")
+
+    def _target_check_evidence(graph, target_node_id: str, cycle: int):
+        """Capture citable host evidence for a frontier node with no build block.
+
+        A failing Test obligation is also runtime-discovery evidence.  Queue it
+        on the same immutable ledger used by the discover gate so the runtime
+        classifier can create typed Service/Config/Data obligations before an
+        LLM is allowed to patch the generic test node directly.
+        """
+        from python_deps.depgraph.evidence_log import Evidence, EvidenceBundle
+        from python_deps.depgraph.schema import NodeType
+
+        node = graph.get(target_node_id) if graph is not None else None
+        if node is None or not node.check_command or exec_readonly is None:
+            return EvidenceBundle()
+        rc, output = exec_readonly(node.check_command)
+        if rc != 0 and node.type is NodeType.TEST:
+            ledger.append(make_action_event(
+                step=global_step,
+                cmd=node.check_command,
+                success=False,
+                stdout=(output or node.evidence or ""),
+                env_revision_before=global_step,
+                env_revision_after=global_step,
+                mutation_class=None,
+                container_id=getattr(build_agent, "container_id", ""),
+            ))
+        return EvidenceBundle().with_item(Evidence(
+            evidence_id=f"check.{cycle}.{target_node_id}",
+            container_kind=(
+                "incremental_search" if incremental_execute is not None else "fresh_replay"
+            ),
+            command=node.check_command,
+            rc=rc,
+            output_excerpt=(output or node.evidence or "")[-2000:],
+            cycle=cycle,
+            node_id=target_node_id,
+        ))
+
+    def _finish(reason):
+        # Task 8: record the final governed manual-block set on the way out (any
+        # exit path) — same "fires once on exit" contract as the gate
+        # observability block below, kept as a separate guard/statement so the
+        # tracer-off path never even constructs the generator.
+        if tracer is not None:
+            tracer.set_manual_blocks(tuple(b.block_id for b in _manual_blocks))
+        # Stage 1 two-gate observability: fires once on the way out (any exit path).
+        # Reads existing signals, writes nothing. OFF -> no-op (byte-identical result).
+        if enable_gate_observability:
+            from src.envstate.gates import evaluate_gates
+            # Thread the latest full-replay result. Successful incremental
+            # exits have just produced their terminal clean certificate.
+            # Observability reads the binding test certificate; it must not
+            # execute a stateful suite yet again in the same terminal container.
+            # A successful fresh replay always populated this cache via the
+            # mandatory anti-hollow gate immediately before _finish.
+            _cached_gate = _test_gate_cache
+            if not _setup_is_ready(current_map.dep_graph):
+                # Gate observability must remain read-only: do not launch the
+                # suite merely to describe a setup-failure exit.
+                _observe_tests = lambda: False
+            else:
+                _observe_tests = (
+                    (lambda: _cached_gate[0])
+                    if _cached_gate is not None
+                    else _run_tests_verified
+                )
+            _g = evaluate_gates(
+                current_map.dep_graph,
+                _observe_tests,
+                replay=_last_replay_result,
+                test_command=verify_test_command,
+            )
+            if gate_observer is not None:
+                gate_observer(_g)
+        _stop = _to_stop_reason(reason)
+        return current_map, _stop
+
+    def _finalize_if_replayed(reason, cycle: int):
+        """Bind both success doors to a raw-base replay certificate.
+
+        The historical arm already freshly replayed in the current cycle. The
+        incremental arm deliberately has not: its checkpoints are search-only,
+        so this guard performs a complete setup.sh replay and reruns the
+        anti-hollow test gate before success can escape.
+        """
+        nonlocal current_map
+        if incremental_execute is not None:
+            if current_map.dep_graph is None:
+                return _finish(TerminationReason.GIVEUP_REPLAY)
+            for terminal_attempt in range(3):
+                graph, bundle, failed_id = _fresh_replay(
+                    current_map.dep_graph,
+                    _manual_blocks,
+                    cycle + terminal_attempt,
+                )
+                current_map = merge_map(
+                    current_map, dep_graph=graph, manual_blocks=_manual_blocks
+                )
+                replay_green = (
+                    _last_replay_result is not None
+                    and _last_replay_result.rc == 0
+                    and failed_id is None
+                )
+                if replay_green:
+                    if not _run_tests_verified():
+                        import logging
+                        logging.getLogger(__name__).warning(
+                            "graph-execute-agent: terminal fresh replay passed setup "
+                            "but failed tests"
+                        )
+                        return _finish(TerminationReason.GIVEUP_REPLAY)
+                    return _finish(reason)
+
+                can_repair = (
+                    failed_id is not None
+                    and exec_readonly is not None
+                    and getattr(build_agent, "client", None) is not None
+                    and not _budget_exhausted
+                    and _repair_turns > 0
+                )
+                if not can_repair:
+                    break
+                before_graph = graph
+                before_blocks = _manual_blocks
+                repaired = _repair_or_route(
+                    graph,
+                    failed_id,
+                    bundle,
+                    cycle + terminal_attempt,
+                    target_hint=_last_failed_node_id or failed_id,
+                )
+                current_map = merge_map(
+                    current_map, dep_graph=repaired, manual_blocks=_manual_blocks
+                )
+                if repaired == before_graph and _manual_blocks == before_blocks:
+                    break
+
+            import logging
+            logging.getLogger(__name__).warning(
+                "graph-execute-agent: terminal fresh replay failed after feedback "
+                "(rc=%s, failed_node=%r, failing_command=%r)",
+                _last_replay_result.rc if _last_replay_result is not None else None,
+                _last_failed_node_id,
+                (_last_replay_result.failing_command
+                 if _last_replay_result is not None else None),
+            )
+            return _finish(TerminationReason.GIVEUP_REPLAY)
+
+        if _last_replay_result is None or _last_replay_result.rc != 0:
+            import logging
+            logging.getLogger(__name__).warning(
+                "graph-scheduler: %s decided but the latest fresh replay "
+                "did not reproduce from base (rc=%s, failing_command=%r) — "
+                "giving up instead of reporting success",
+                reason,
+                _last_replay_result.rc if _last_replay_result is not None else None,
+                _last_replay_result.failing_command if _last_replay_result is not None else None,
+            )
+            return _finish(TerminationReason.GIVEUP_REPLAY)
+        return _finish(reason)
+
+    def _validate_reciped_checks(graph) -> None:
+        from python_deps.depgraph.emit import _is_reciped
+        missing = [n.id for n in graph.nodes if _is_reciped(n) and not n.check_command]
+        if missing:
+            raise ValueError(
+                f"binding-install repair: reciped nodes lack a check_command: {missing}")
+
+    def _fresh_replay(graph, manual_blocks, cycle):
+        """Render and replay the complete artifact from the raw base image."""
+        nonlocal _last_replay_result, _last_execution_result, _last_failed_node_id
+        nonlocal _test_gate_cache
+        from python_deps.depgraph.build_script import render_build_script
+        from python_deps.depgraph.emit import _is_reciped
+        from src.envstate.install_localizer import localize_install_failure, certify_reciped_only
+
+        _validate_reciped_checks(graph)
+        script = render_build_script(graph, manual_blocks)
+        # A search-container gate is not evidence about the fresh container.
+        # Clear it before reset; the mandatory terminal gate repopulates it only
+        # after setup replay succeeds.
+        _test_gate_cache = None
+        reset_to_base()
+        result = run_install_script(script)
+        _last_replay_result = result
+        _last_execution_result = result
+        graph, unsat = certify_reciped_only(graph, exec_readonly, cycle)
+        if tracer is not None:
+            from python_deps.depgraph.schema import State
+            certified_ids = tuple(sorted(
+                n.id for n in graph.nodes if _is_reciped(n) and n.state is State.SATISFIED
+            ))
+            tracer.record_replay(FreshReplayRecord(
+                ran=True,
+                setup_rc=result.rc,
+                failing_command=result.failing_command if result.rc != 0 else None,
+                certified_node_ids=certified_ids,
+                unsatisfied_node_ids=tuple(unsat),
+                test_rc=None,
+                test_summary="",
+            ))
+        failed_node = None
+        if result.rc != 0:
+            failed_node = (
+                localize_install_failure(script, result.failing_command).node_id
+                or (unsat[0] if unsat else None)
+            )
+        elif unsat:
+            failed_node = unsat[0]
+        _last_failed_node_id = failed_node
+        if result.rc != 0:
+            return (
+                graph,
+                _build_install_evidence(result, failed_node, cycle),
+                failed_node,
+            )
+        if failed_node is not None:
+            node = graph.get(failed_node)
+            certification_failure = type(result)(
+                rc=1,
+                failing_command=node.check_command if node is not None else None,
+                lineno=None,
+                stderr=(
+                    node.evidence
+                    if node is not None and node.evidence
+                    else f"host certification failed for {failed_node}"
+                ),
+            )
+            return (
+                graph,
+                _build_install_evidence(
+                    certification_failure,
+                    failed_node,
+                    cycle,
+                    container_kind="fresh_certification",
+                ),
+                failed_node,
+            )
+        return graph, None, failed_node
+
+    def _binding_emit(graph, manual_blocks, cycle):
+        """Execute either the historical fresh arm or the graph-linked search arm.
+
+        Both the outer dep-emit phase and every accepted structured repair call
+        this closure, so checkpoint reuse and failure localization are applied
+        consistently across the whole search.
+        """
+        nonlocal _last_execution_result, _last_failed_node_id
+        _validate_reciped_checks(graph)
+        if incremental_execute is None:
+            return _fresh_replay(graph, manual_blocks, cycle)
+
+        outcome = incremental_execute(graph, manual_blocks, cycle)
+        graph = outcome.graph
+        result = outcome.install_result
+        _last_execution_result = result
+        _last_failed_node_id = outcome.failed_node_id
+        if tracer is not None and hasattr(tracer, "record_incremental"):
+            from src.envstate.run_trace import IncrementalExecutionRecord
+            tracer.record_incremental(IncrementalExecutionRecord(
+                cycle=cycle,
+                plan_hash=outcome.plan_hash,
+                total_blocks=outcome.total_blocks,
+                reused_blocks=outcome.reused_blocks,
+                executed_block_ids=outcome.executed_block_ids,
+                restored_checkpoint=outcome.restored_checkpoint,
+                created_checkpoints=outcome.created_checkpoints,
+                failed_block_id=outcome.failed_block_id,
+                setup_rc=result.rc,
+            ))
+        failed_id = outcome.failed_block_id or outcome.failed_node_id
+        if failed_id is not None or result.rc != 0:
+            bundle = _build_install_evidence(
+                result,
+                failed_id,
+                cycle,
+                node_id=outcome.failed_node_id,
+                block_id=outcome.failed_block_id,
+                container_kind="incremental_search",
+            )
+            return graph, bundle, failed_id
+        return graph, None, None
+
+    def _validate_candidate_transaction(
+        official_graph,
+        official_blocks,
+        candidate_graph,
+        candidate_blocks,
+        *,
+        failed_id,
+        target_hint,
+        proposal,
+        cycle,
+        transaction_id,
+    ) -> CandidateTransactionOutcome:
+        if candidate_validate is None:
+            return CandidateTransactionOutcome(
+                committed=True,
+                graph=candidate_graph,
+                manual_blocks=candidate_blocks,
+                bundle=None,
+                failed_id=None,
+                transaction_id=transaction_id,
+            )
+
+        result = candidate_validate(
+            official_graph,
+            official_blocks,
+            candidate_graph,
+            candidate_blocks,
+            failed_block_id=failed_id,
+            target_node_id=target_hint,
+            cycle=cycle,
+            transaction_id=transaction_id,
+        )
+        bundle = None
+        transaction_failed_id = result.failed_block_id or result.failed_node_id or failed_id
+        if not result.committed:
+            bundle = _build_install_evidence(
+                result.install_result,
+                transaction_failed_id,
+                cycle,
+                node_id=result.failed_node_id or target_hint,
+                block_id=result.failed_block_id or failed_id,
+                container_kind="candidate_transaction",
+            )
+        if tracer is not None:
+            tracer.record_candidate_transaction(CandidateTransactionRecord(
+                transaction_id=result.transaction_id,
+                cycle=cycle,
+                base_checkpoint=result.base_checkpoint,
+                base_prefix_len=result.base_prefix_len,
+                validation_prefix_len=result.validation_prefix_len,
+                proposal=asdict(proposal),
+                executed_block_ids=result.executed_block_ids,
+                checks=tuple(
+                    CandidateCheckRecord(
+                        node_id=check.node_id,
+                        command=check.command,
+                        rc=check.rc,
+                        output=(check.output or "")[-1000:],
+                    )
+                    for check in result.checks
+                ),
+                status="committed" if result.committed else "aborted",
+                failed_block_id=result.failed_block_id,
+                failed_node_id=result.failed_node_id,
+                failure=(result.install_result.stderr or "")[-2000:],
+                created_checkpoint=result.created_checkpoint,
+            ))
+        return CandidateTransactionOutcome(
+            committed=result.committed,
+            graph=result.graph if result.committed else official_graph,
+            manual_blocks=(candidate_blocks if result.committed else official_blocks),
+            bundle=bundle,
+            failed_id=None if result.committed else transaction_failed_id,
+            transaction_id=result.transaction_id,
+        )
+
+    # ── Diagnosis router (Phase 6) ────────────────────────────────────────────
+    # RepoContext.local_names is built once from the repo (repo_path may be None
+    # in unit tests that never construct a real filesystem tree — the router then
+    # degrades to "no known local names", never REPO_INTERNAL_REF). invalid_names
+    # accumulates as pip disproves package names across cycles; the context is
+    # rebuilt on every call so a name disproven THIS cycle is honored next cycle.
+    from python_deps.depgraph.diagnose import RepoContext, Mode, diagnose_all
+    from python_deps.depgraph import scan
+    from python_deps.import_mapping import normalize_package_name
+    _local_names = frozenset(scan.local_module_names(repo_path)) if repo_path else frozenset()
+    _invalid_names: set[str] = set()
+
+    def _repo_ctx() -> RepoContext:
+        return RepoContext(local_names=_local_names, invalid_names=frozenset(_invalid_names))
+
+    def _repair_or_route(graph, failed_id, bundle, cycle, *, target_hint=None, cap_failed_id=False):
+        """Diagnose the failure that produced ``bundle`` BEFORE typed repair.
+
+        ENVIRONMENT / AMBIGUOUS      -> run_structured_repair (AMBIGUOUS spends a
+                                        propose turn to disambiguate — see repair_scope).
+        REPO_INTERNAL_REF / RESIDUAL -> non-environment: return graph unchanged (no repair).
+        INVALID_ATTEMPT (and nothing environment-shaped) -> record the normalized
+                                        disproven name; no repair.
+
+        This is the SINGLE ``run_structured_repair`` call site in ``run_v3`` — both
+        the main-loop (``_dep_emit_phase``) and the task-branch obligation-repair
+        site route through this helper so diagnosis is applied identically.
+
+        Note (deviation from the design pseudocode): ``diagnose.Diagnosis.discovery``
+        is only ever populated for ``Mode.ENVIRONMENT`` — every ``INVALID_ATTEMPT``
+        diagnosis carries ``discovery=None`` (see diagnose.py's two INVALID_ATTEMPT
+        return sites). The disproven name is therefore re-derived here via
+        ``classify_dependency_failure`` on the SAME (command, output) pair rather
+        than read off ``d.discovery.name`` (which would always be ``None``).
+        """
+        nonlocal _manual_blocks, _known_invalid, _repair_turns, _budget_exhausted
+        observations = (
+            tuple((it.command, it.output_excerpt) for it in bundle.items) if bundle else ()
+        )
+        diags = diagnose_all(observations, _repo_ctx()) if observations else ()
+        modes = {d.mode for d in diags}
+        if Mode.REPO_INTERNAL_REF in modes or Mode.RESIDUAL in modes:
+            return graph
+        if Mode.INVALID_ATTEMPT in modes and not (modes & {Mode.ENVIRONMENT, Mode.AMBIGUOUS}):
+            from python_deps.failure_classifier import classify_dependency_failure
+            for (cmd, out), d in zip(observations, diags):
+                if d.mode is not Mode.INVALID_ATTEMPT:
+                    continue
+                name = classify_dependency_failure(cmd, out).package_name
+                if name:
+                    _invalid_names.add(normalize_package_name(name))
+            return graph
+
+        def _observe_agent_action(event: dict) -> None:
+            if tracer is None:
+                return
+            tracer.record_agent_action(AgentActionRecord(
+                cycle=cycle,
+                action_type=str(event.get("action_type", "unknown")),
+                target_node=event.get("target_node"),
+                probe_command=event.get("probe_command"),
+                validated=event.get("validated"),
+                rejection=str(event.get("rejection", "")),
+                evidence=str(event.get("evidence", ""))[-1000:],
+                classification=event.get("classification"),
+                host_review=str(event.get("host_review", "")),
+            ))
+
+        def _review_abstain(action, scope):
+            host_non_environment = bool(
+                modes & {Mode.REPO_INTERNAL_REF, Mode.RESIDUAL}
+            ) or (
+                Mode.INVALID_ATTEMPT in modes
+                and not (modes & {Mode.ENVIRONMENT, Mode.AMBIGUOUS})
+            )
+            refs_known = bool(action.evidence_refs) and set(action.evidence_refs).issubset(
+                scope.known_evidence_ids
+            )
+            accepted = host_non_environment and refs_known
+            if accepted:
+                review = "confirmed by Host diagnosis router"
+            elif not refs_known:
+                review = "rejected: abstain evidence_refs are absent or not in the failure bundle"
+            else:
+                review = "rejected: Host diagnosis remains environment or ambiguous"
+            _observe_agent_action({
+                "action_type": "abstain_review",
+                "target_node": scope.target_node_id,
+                "validated": accepted,
+                "classification": action.classification,
+                "evidence": ", ".join(action.evidence_refs),
+                "host_review": review,
+            })
+            return accepted, review
+
+        from python_deps.depgraph.execution_plan import compile_execution_plan
+        _out = run_structured_repair(
+            graph, failed_id, bundle, cycle,
+            propose=lambda s, **k: build_agent.propose(
+                s, exec_readonly, action_observer=_observe_agent_action, **k
+            ),
+            emit=lambda g, mb: _binding_emit(g, mb, cycle),
+            manual_blocks=_manual_blocks, known_invalid=_known_invalid,
+            max_repairs=MAX_REPAIRS_PER_BLOCK, repair_budget=_repair_turns,
+            target_hint=target_hint, plan_builder=compile_execution_plan,
+            cap_failed_id=cap_failed_id,
+            validate_candidate=(
+                _validate_candidate_transaction if candidate_validate is not None else None
+            ),
+            review_abstain=_review_abstain)
+        if tracer is not None:
+            # Task 8: RepairOutcome (repair_loop.RepairOutcome) does NOT expose
+            # an "accepted"/"accepted_node_ids"/"errors" surface — it only
+            # returns the resulting graph/manual_blocks/still_failing_id/
+            # turns_spent/budget_exhausted. Derive the PatchGateRecord fields
+            # from a before/after diff instead of inventing fields that don't
+            # exist on RepairOutcome:
+            #   accepted_node_ids  — node ids present in _out.graph but not in
+            #                        the graph passed INTO run_structured_repair
+            #                        (i.e. admitted add_requirements).
+            #   accepted_block_ids — block ids present in _out.manual_blocks but
+            #                        not in the manual_blocks passed in (i.e.
+            #                        admitted script_patches).
+            #   accepted           — True iff the graph OR manual_blocks changed
+            #                        at all (covers a providers-only admission —
+            #                        e.g. a chosen_fix correction — which adds no
+            #                        new node/block id but DOES mutate the graph).
+            #   errors             — RepairOutcome does not surface per-attempt
+            #                        validate_proposal() errors (they are
+            #                        swallowed inside the internal retry loop);
+            #                        left empty rather than fabricated.
+            _before_node_ids = frozenset(n.id for n in graph.nodes) if graph is not None else frozenset()
+            _before_block_ids = frozenset(b.block_id for b in _manual_blocks)
+            _after_node_ids = (frozenset(n.id for n in _out.graph.nodes)
+                               if _out.graph is not None else frozenset())
+            _after_block_ids = frozenset(b.block_id for b in _out.manual_blocks)
+            _new_node_ids = tuple(sorted(_after_node_ids - _before_node_ids))
+            _new_block_ids = tuple(sorted(_after_block_ids - _before_block_ids))
+            _ev_ref = (bundle.items[0].evidence_id
+                      if (bundle is not None and bundle.items) else None)
+            tracer.record_patchgate(PatchGateRecord(
+                cycle=cycle,
+                failed_block_id=failed_id,
+                evidence_ref=_ev_ref,
+                accepted=(_out.graph != graph) or (_out.manual_blocks != _manual_blocks),
+                accepted_node_ids=_new_node_ids,
+                accepted_block_ids=_new_block_ids,
+                errors=(),
+            ))
+        _manual_blocks = _out.manual_blocks
+        _known_invalid = set(_out.known_invalid)
+        _repair_turns -= _out.turns_spent
+        if _out.budget_exhausted or _repair_turns <= 0:
+            _budget_exhausted = True
+        return _out.graph
+
+    def _dep_emit_phase(cycle: int) -> bool:
+        nonlocal current_map, _manual_blocks
+        if not enable_dep_emit or current_map.dep_graph is None:
+            return True
+        if exec_readonly is None:                      # R3(c): no certify path -> no emit
+            return True
+        from python_deps.depgraph.schema import NodeType, State
+        from src.envstate.world_model import Fact
+        from src.envstate.depgraph_live import certify_refresh, ensure_python_shim
+        # Make a bare `python` resolve to python3 before any check runs.
+        ensure_python_shim(sandbox_execute, exec_readonly)
+        graph = certify_refresh(
+            current_map.dep_graph, exec_readonly, cycle, certify_tests=False
+        )
+        # Certify still runs (populating the frontier); the fresh-replay emit
+        # below is the SOLE executor (Phase 4) — LLM turns are counted only
+        # through run_structured_repair (_repair_turns), never global_step,
+        # since the emit itself makes no LLM calls.
+        graph, _bundle, _failed_id = _binding_emit(graph, _manual_blocks, cycle)
+        if _failed_id is not None and getattr(build_agent, "client", None) is not None:
+            # On an install failure, seed the repair with the install stderr as citable
+            # evidence; on an rc0-but-unsatisfied node there is no install command failure,
+            # so the scope falls back to the node's requirement slice (bundle None).
+            # _failed_node is a NODE id (from certify/localize), not a block id; the
+            # binding path has no block-keyed bundle, so seed target_hint so the repair
+            # scope still resolves the unsatisfied node's requirement slice.
+            # Budget note: this call reseeds max_repairs=MAX_REPAIRS_PER_BLOCK for
+            # THIS node; combined with the task-branch call site below, a stubborn
+            # node can be charged up to ~2x MAX_REPAIRS attempts in a single cycle —
+            # the GLOBAL bound is still _repair_turns (checked as `_repair_turns <= 0`).
+            graph = _repair_or_route(
+                graph, _failed_id, _bundle, cycle,
+                target_hint=_last_failed_node_id or _failed_id, cap_failed_id=True)
+        # Final re-certify after the emit: the start-of-cycle certify (above) ran
+        # BEFORE any install this cycle. A node whose install completes during
+        # THIS cycle's emit/repair must be reflected before the scheduler's
+        # done-decision — otherwise it stays MISSING because the next cycle's
+        # certify never runs once the done-gate finalizes the run. Idempotent.
+        graph = certify_refresh(graph, exec_readonly, cycle, certify_tests=False)
+        # A clean scheduler frontier is not proof that deterministic setup
+        # completed: emittable nodes are intentionally excluded from that
+        # frontier.  Keep Test ownership behind this binding readiness gate so
+        # a failed install (or a late certification revocation) cannot launch
+        # pytest against a partial prefix.
+        setup_ready = _setup_is_ready(graph)
+        # Fold emit-certified packages into installed so the synthesizer's closure
+        # recipe includes them even when the planner finalizes immediately.
+        sat = tuple(Fact(n.name, n.version or "") for n in graph.nodes
+                    if n.type is NodeType.PACKAGE and n.state is State.SATISFIED)
+        have = {f.name for f in current_map.installed}
+        installed = current_map.installed + tuple(f for f in sat if f.name not in have)
+        # Under the graph scheduler the planner is bypassed, so the planner-facing
+        # dep_advisory render is dead work; reuse the prior advisory and skip the
+        # compute. The dep_graph + installed merge is UNCHANGED — the scheduler reads
+        # current_map.dep_graph, so it must still be merged every cycle.
+        advisory = current_map.dep_advisory
+        current_map = merge_map(
+            current_map, dep_graph=graph, dep_advisory=advisory, installed=installed,
+            manual_blocks=_manual_blocks,
+        )
+        return setup_ready
+
+    def _runtime_ingest_phase(cycle: int) -> bool:
+        nonlocal current_map, _rt_mark, _residual_giveup
+        if not enable_runtime_feedback or current_map.dep_graph is None:
+            return False
+        try:
+            from python_deps.depgraph.advise import render_depgraph_planner
+            from python_deps.depgraph.runtime_ingest import ingest_runtime_failures
+            from python_deps.depgraph.diagnose import make_diagnostic_classifier, is_local_import
+            from python_deps.depgraph.required_config import enrich_required_config_templates
+            events = ledger.events()
+            new_events = events[_rt_mark:]
+            obs = [(e.cmd, e.stdout) for e in new_events if e.rc != 0]
+            if not obs:
+                return False
+            pre_graph = current_map.dep_graph
+            _out_of_scope: list[tuple[str, str]] = []   # non-env diagnoses; Task 6 reads this
+
+            # Deterministic tier: route through the SAME diagnosis router used by
+            # ``_repair_or_route`` (Phase 6), not the raw ``classify_observation``
+            # regex classifier — otherwise a repo-local import surfaced by the
+            # discover gate (``VERIFY_TEST_CMD``) would be mis-ingested as a PyPI
+            # package here even though ``_repair_or_route`` would have refused to
+            # repair it (the local-import guard must hold on BOTH the install-
+            # failure/repair path and this discover-gate/ingest path). The temp-0
+            # LLM tier is appended when a client exists (spec §6 cascade).
+            classifiers = (make_diagnostic_classifier(_repo_ctx()),)
+            if getattr(build_agent, "client", None) is not None:
+                from src.envstate.llm_classifier import make_llm_classifier
+                from src.envstate.llm_response import complete_with_retry
+                from src.envstate.jsonutil import extract_json_object
+
+                def _complete(messages):
+                    text, _usage, _resp = complete_with_retry(
+                        build_agent.client, build_agent.model, messages,
+                        accept=lambda t: extract_json_object(t) is not None,
+                        temperature=0, max_attempts=2,
+                    )
+                    return text
+
+                _llm = make_llm_classifier(
+                    _complete,
+                    note_out_of_scope=lambda c, r: _out_of_scope.append((c, r)),
+                )
+                # Bound LLM fan-out: spec §6 is "LLM only on the misses", but a cycle
+                # with 30 failed events would fire 30 synchronous temp-0 calls. Classify
+                # each UNIQUE error tail at most once, capped per cycle.
+                _seen_errs: set[str] = set()
+                _MAX_LLM_PER_CYCLE = 5
+
+                def _bounded_llm(cmd, out):
+                    key = (out or "")[-500:]
+                    if key in _seen_errs or len(_seen_errs) >= _MAX_LLM_PER_CYCLE:
+                        return None
+                    _seen_errs.add(key)
+                    return _llm(cmd, out)
+
+                # The deterministic tier above already applies the local-import
+                # guard; the LLM tier bypasses ``diagnose()`` entirely (it is a
+                # free-text classifier), so it must be guarded independently here
+                # or a repo-local import that dodges the deterministic regexes
+                # could still be proposed as a package by the LLM.
+                _ctx = _repo_ctx()
+
+                def _guarded_llm(cmd, out):
+                    disc = _bounded_llm(cmd, out)
+                    if disc is None:
+                        return None
+                    imp = (disc.data or {}).get("import_name") or disc.name
+                    if is_local_import(imp, _ctx.local_names):
+                        return None
+                    return disc
+
+                classifiers = (make_diagnostic_classifier(_repo_ctx()), _guarded_llm)
+
+            new_graph, found = ingest_runtime_failures(pre_graph, obs, classifiers=classifiers)
+            if repo_path is not None:
+                new_graph = enrich_required_config_templates(new_graph, repo_path)
+            if tracer is not None:
+                # Task 8: runtime observations come only from deterministic host
+                # test checks: either the empty-target discover gate or a typed
+                # Test frontier check with no block. Neither path performs a
+                # free-text mutation, so one DiscoverRecord per ingest call is
+                # still the correct observational unit.
+                #
+                # diagnosis_modes is computed here PURELY for observability via
+                # the SAME diagnose_all/_repo_ctx() used by _repair_or_route —
+                # this is a read-only, side-effect-free re-classification of
+                # the same (command, output) pairs already computed above; it
+                # does not feed into `found`/`new_graph` or any decision.
+                _pre_ids = frozenset(n.id for n in pre_graph.nodes) if pre_graph is not None else frozenset()
+                _post_ids = frozenset(n.id for n in new_graph.nodes) if new_graph is not None else frozenset()
+                _new_ids = tuple(sorted(_post_ids - _pre_ids))
+                _diags = diagnose_all(tuple(obs), _repo_ctx())
+                tracer.record_discover(DiscoverRecord(
+                    cycle=cycle,
+                    command=verify_test_command,
+                    used_llm_mutation=False,
+                    new_node_ids=_new_ids,
+                    diagnosis_modes=tuple(d.mode.value for d in _diags),
+                ))
+            # Advance the mark ONLY after a successful ingest call returns — so an
+            # exception mid-ingest does not permanently drop those events (they are
+            # re-read next cycle). (spec §11; C4 event-loss fix.)
+            _rt_mark = len(events)
+            # Honest give-up (spec §3 G3 / §8): a residual that maps to an already-
+            # SATISFIED node (divergence) or that the LLM judged non-env, when the
+            # deterministic frontier is clean, is not fixable by adding nodes. Record
+            # the reason; the main loop returns planner_giveup. done_flag is NEVER set.
+            import logging
+            from python_deps.depgraph.runtime_ingest import diverged_node_ids
+            from python_deps.depgraph.emit import partition
+            from python_deps.depgraph.schedule import scheduler_frontier
+            diverged = diverged_node_ids(pre_graph, found)
+            # Match the real scheduler call (next_decision): the give-up
+            # frontier must see Service/binding obligations on-arm, or it
+            # reports "no actionable" while a binding is genuinely pending
+            # and the agent gives up prematurely (spurious give-up).
+            _allow_services = (
+                os.environ.get("DOCKERAGENT_ENABLE_SERVICE_PROVISION") == "1"
+            )
+            no_actionable = not scheduler_frontier(
+                new_graph, allow_services=_allow_services
+            )
+            if diverged and no_actionable and not partition(new_graph).emittable:
+                _residual_giveup = (
+                    f"graph-scheduler: residual not an environment obligation "
+                    f"(diverged={list(diverged)}, out_of_scope={len(_out_of_scope)})"
+                )
+                logging.getLogger(__name__).info(
+                    "residual-handler give-up: %s", _residual_giveup
+                )
+            if not found:
+                return False
+            advisory = render_depgraph_planner(new_graph)
+            current_map = merge_map(current_map, dep_graph=new_graph, dep_advisory=advisory)
+            return True
+        except (NameError, AttributeError, ImportError, TypeError) as exc:
+            # Programming errors are always bugs, never operational. Still don't
+            # break the run (spec §11), but log LOUDLY with a traceback — a bare
+            # suppress here once hid a missing `import os` that silently disabled
+            # the runtime-feedback loop for an entire benchmark arm.
+            import logging
+            logging.getLogger(__name__).error(
+                "runtime_ingest_phase: PROGRAMMING BUG suppressed: %s", exc,
+                exc_info=True,
+            )
+            return False
+        except Exception as exc:  # noqa: BLE001 — operational errors must never break the run (spec §11)
+            import logging
+            logging.getLogger(__name__).warning(
+                "runtime_ingest_phase: exception suppressed: %s", exc
+            )
+            return False
+
+    # Refresh contract — why each host_refresh_facts call is necessary and not
+    # redundant with the next _dep_emit_phase certify:
+    #
+    #   host_refresh_facts  → probe() → apply_deterministic()
+    #     Updates: installed (full set), env, language, system_installed,
+    #              import_results, build_system, required, open_problems, progress.
+    #
+    #   _dep_emit_phase certify → certify_refresh() → merge_map()
+    #     Updates: dep_graph (node states) + installed (PACKAGE nodes that reached
+    #              State.SATISFIED).  Does NOT call probe(); never touches env,
+    #              language, system_installed, import_results, build_system,
+    #              required, open_problems, or progress.
+    #
+    # ① Pre-loop (here): initial_world_map may be stale from the caller; the
+    #   first cycle's _dep_emit_phase certify does NOT call probe(), so it
+    #   cannot fill in these fields.  Required.
+    #
+    # ② Post-task (inside task branch): build_agent just mutated the container.
+    #   The NEXT cycle's certify won't call probe(), and maintainer.update in
+    #   THIS cycle needs the fresh probe facts.  Required.
+    #
+    # Conclusion: both sites are the minimal set — neither can be removed
+    # without leaving the maintainer or the scheduler with stale probe data.
+    current_map = host_refresh_facts(current_map, probe, manifest)
+
+    for cycle in range(1, max_cycles + 1):
+        # ── 0. Runtime feedback from the PREVIOUS cycle ──────────────────────
+        # Ingest before emit so a newly discovered deterministic requirement is
+        # installed in THIS cycle.  Emitting the old graph first leaves a one-
+        # cycle gap in which next_decision can rerun the same failing test and
+        # later misread that stale duplicate after the service is satisfied.
+        _runtime_ingest_phase(cycle)
+        if _residual_giveup is not None:
+            return _finish(TerminationReason.GIVEUP_RESIDUAL)
+        # ── 0b. Graph-first: certify + emit the updated closure ──────────────
+        setup_ready = _dep_emit_phase(cycle)
+        if _budget_exhausted:
+            # graph-scheduler: LLM turn budget exhausted — bounded repair gave up
+            return _finish(TerminationReason.GIVEUP_BUDGET)
+        if not setup_ready:
+            # Deterministic setup/repair has not completed.  The scheduler
+            # excludes emittable nodes from its LLM frontier, so calling it here
+            # would mistake a partial prefix for a test-ready environment.
+            if cycle >= max_cycles:
+                return _finish(TerminationReason.GIVEUP_REPLAY)
+            continue
+        # ── 1. Graph-scheduler decides what to do next ──────────────────────
+        decision, chosen = next_decision(
+            current_map.dep_graph,
+            _run_tests_verified,
+            handed=_handed,
+            attempt_cap=graph_scheduler_attempt_cap,
+        )
+        if chosen is not None:
+            _handed[chosen] = _handed.get(chosen, 0) + 1
+            _sched_stuck = 0
+        elif decision.action == "task":          # discover task → sufficiency-stuck
+            n_nodes = len(current_map.dep_graph.nodes) if current_map.dep_graph else 0
+            _sched_stuck = _sched_stuck + 1 if n_nodes <= _sched_last_nodes else 0
+            _sched_last_nodes = n_nodes
+            # Bound is intentional (Task 5c): the discover gate (Task 5b) never spends
+            # LLM-repair budget, so without this counter an all-discover run with an
+            # unclassifiable failure would loop until max_cycles instead of giving up.
+            if _sched_stuck >= 2:                # consecutive discover rounds revealed no new obligations
+                if on_cycle is not None:
+                    on_cycle(cycle, current_map, decision, None)
+                return _finish(TerminationReason.GIVEUP_STUCK)
+
+        if decision.action == "done":
+            # Both arms use the same success guard. Incremental mode performs
+            # its raw-base full replay here; the fresh ablation validates the
+            # replay already run in this cycle.
+            if on_cycle is not None:
+                on_cycle(cycle, current_map, decision, None)
+            return _finalize_if_replayed(TerminationReason.DONE, cycle)
+
+        if decision.action == "giveup":
+            if on_cycle is not None:
+                on_cycle(cycle, current_map, decision, None)
+            return _finish(TerminationReason.GIVEUP_RESIDUAL)
+
+        # ── 3. Graph-scheduler task branch (action == "task") ────────────────
+        assert decision.task is not None, (
+            f"PlannerDecision action='task' but .task is None (cycle {cycle})"
+        )
+        task = decision.task
+        _targets = getattr(task, "target_node_ids", ()) or ()
+        if _targets:
+            if exec_readonly is None or getattr(build_agent, "client", None) is None:
+                # Canonical v3 cannot do typed repair without a read-only executor +
+                # client. Do NOT silently downgrade to free-text mutation (that path
+                # no longer exists in run_v3) — give up honestly instead.
+                return _finish(TerminationReason.GIVEUP_CONFIG)
+            from python_deps.depgraph.execution_plan import compile_execution_plan
+            _g = current_map.dep_graph
+            _blocks = compile_execution_plan(_g, _manual_blocks) if _g is not None else ()
+            _tid = _targets[0]
+            _fb = next((b.block_id for b in _blocks if _tid in b.target_node_ids), None)
+            # Budget note (both branches below): each _repair_or_route call reseeds
+            # max_repairs=MAX_REPAIRS_PER_BLOCK per node, so a stubborn node routed
+            # through both this task-branch call and the main-loop call above can be
+            # charged up to ~2x MAX_REPAIRS attempts in a single cycle — the GLOBAL
+            # bound is still _repair_turns (checked as `_repair_turns <= 0`).
+            if _fb is None:
+                # Structural obligations (for example Import -> Package) have
+                # no execution block yet. Capture their host check as citable
+                # evidence so PatchGate can admit the typed requirement/provider
+                # that creates one.
+                _bundle = _target_check_evidence(_g, _tid, cycle)
+                from python_deps.depgraph.schema import NodeType
+                _target_node = _g.get(_tid) if _g is not None else None
+                _failed_test_check = bool(
+                    _target_node is not None
+                    and _target_node.type is NodeType.TEST
+                    and any(item.rc != 0 for item in _bundle.items)
+                )
+                _ingested_runtime = False
+                if _failed_test_check:
+                    # Make the just-observed Test failure visible to the runtime
+                    # ingestion closure immediately. Waiting until the next cycle
+                    # would make dep-emit recertify the same hanging test first.
+                    current_map = merge_map(
+                        current_map, dep_graph=_g, manual_blocks=_manual_blocks
+                    )
+                    _ingested_runtime = _runtime_ingest_phase(cycle)
+                    _g = current_map.dep_graph
+                if not _ingested_runtime:
+                    _g = _repair_or_route(
+                        _g, _tid, _bundle, cycle, target_hint=_tid
+                    )
+            else:
+                # A block already targets this node. Execute the selected arm
+                # once to see whether it still fails before another repair turn.
+                _g, _b2, _f2 = _binding_emit(_g, _manual_blocks, cycle)
+                if _f2 is not None:
+                    _g = _repair_or_route(_g, _f2, _b2, cycle, target_hint=_tid)
+            current_map = merge_map(current_map, dep_graph=_g, manual_blocks=_manual_blocks)
+            report = TaskReport(task.goal, "done", (), "structured-repair task")
+        else:
+            # Discover task (empty target_node_ids): run the deterministic gate and
+            # record ledger evidence; the NEXT cycle's _runtime_ingest_phase turns a
+            # failure into typed obligations. No LLM call here, so _repair_turns is
+            # untouched — the discover path is bounded by _sched_stuck (Task 5c), not
+            # the LLM-repair budget.
+            report = _run_discover_gate(task, cycle)
+        if _budget_exhausted or _repair_turns <= 0:
+            return _finish(TerminationReason.GIVEUP_BUDGET)
+        # Scheduler mode: a passing host check can return zero commands; floor the
+        # advance at 1 so the ledger step offset never aliases across cycles.
+        global_step += max(len(report.commands), 1)
+
+        # ② Probe refresh after task — see refresh contract above.
+        # Task mutated the container; next cycle's certify won't call probe(),
+        # and maintainer.update below needs fresh probe facts (OFF the ledger).
+        current_map = host_refresh_facts(current_map, probe, manifest)
+
+        # ── 4. Maintainer updates the world model ────────────────────────────
+        current_map = maintainer.update(current_map, report)
+
+        # ── 5. Notify caller (optional telemetry hook) ───────────────────────
+        if on_cycle is not None:
+            on_cycle(cycle, current_map, decision, report)
+
+        # ── 6. Hard-stop on done_flag — do NOT re-enter scheduler ────────────
+        # Review fix wave: done_flag is the SECOND success door (the maintainer
+        # can set it in the task branch independently of the scheduler's "done"
+        # decision) — it must be bound to a green replay exactly like DONE is,
+        # via the same `_finalize_if_replayed` guard, not left ungated.
+        if current_map.done_flag:
+            return _finalize_if_replayed(TerminationReason.DONE_FLAG, cycle)
+
+    # Exhausted all cycles without termination.
+    return _finish(TerminationReason.MAX_CYCLES)

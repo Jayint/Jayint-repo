@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sample Static-Probe Certified Dependency Graph (concrete model, design doc section 5)
+  Node types : Test | Import | Package | SystemLib | Tool | Runtime
+  Edges      : requires | alternative_to | conflicts_with
+  discovered_by encodes the pipeline stage: static_scan -> resolver -> probe -> runtime
+  state is host-certified: unknown | missing | satisfied
+  Scenario: repo imports cv2, PIL, sklearn, psycopg2 with a native lib gap (libGL),
+  a build-tool gap (pg_config), a numpy version conflict, and a runtime env var.
+-->
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns">
+  <key id="d0" for="node" attr.name="label" attr.type="string"/>
+  <key id="d1" for="node" attr.name="type" attr.type="string"/>
+  <key id="d2" for="node" attr.name="layer" attr.type="string"/>
+  <key id="d3" for="node" attr.name="state" attr.type="string"/>
+  <key id="d4" for="node" attr.name="discovered_by" attr.type="string"/>
+  <key id="d5" for="node" attr.name="check" attr.type="string"/>
+  <key id="d6" for="node" attr.name="fix" attr.type="string"/>
+  <key id="d7" for="node" attr.name="evidence" attr.type="string"/>
+  <key id="e0" for="edge" attr.name="relation" attr.type="string"/>
+
+  <graph edgedefault="directed">
+
+    <!-- Goal -->
+    <node id="t_tests">
+      <data key="d0">repo_tests_pass</data>
+      <data key="d1">Test</data>
+      <data key="d2">tests</data>
+      <data key="d3">unknown</data>
+      <data key="d4">goal</data>
+      <data key="d5">python -m pytest -q</data>
+    </node>
+
+    <!-- Imports (stage 1: static_scan) -->
+    <node id="i_cv2">
+      <data key="d0">cv2</data>
+      <data key="d1">Import</data>
+      <data key="d2">naming</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">static_scan</data>
+      <data key="d5">python -c "import cv2; print(cv2.__version__)"</data>
+    </node>
+    <node id="i_pil">
+      <data key="d0">PIL</data>
+      <data key="d1">Import</data>
+      <data key="d2">naming</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">static_scan</data>
+      <data key="d5">python -c "import PIL"</data>
+    </node>
+    <node id="i_sklearn">
+      <data key="d0">sklearn</data>
+      <data key="d1">Import</data>
+      <data key="d2">naming</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">static_scan</data>
+      <data key="d5">python -c "import sklearn"</data>
+    </node>
+    <node id="i_psyco">
+      <data key="d0">psycopg2</data>
+      <data key="d1">Import</data>
+      <data key="d2">naming</data>
+      <data key="d3">missing</data>
+      <data key="d4">static_scan</data>
+      <data key="d5">python -c "import psycopg2"</data>
+    </node>
+
+    <!-- Packages (stage 2: resolver) -->
+    <node id="p_opencv">
+      <data key="d0">opencv-python==4.9.0.80</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show opencv-python</data>
+      <data key="d6">pip:opencv-python</data>
+    </node>
+    <node id="p_opencv_hl">
+      <data key="d0">opencv-python-headless (alt)</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">unknown</data>
+      <data key="d4">resolver</data>
+      <data key="d6">pip:opencv-python-headless</data>
+      <data key="d7">alternative with no libGL requirement</data>
+    </node>
+    <node id="p_pillow">
+      <data key="d0">Pillow==10.3.0</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show Pillow</data>
+      <data key="d6">pip:Pillow</data>
+    </node>
+    <node id="p_sklearn">
+      <data key="d0">scikit-learn==1.4.2</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show scikit-learn</data>
+      <data key="d6">pip:scikit-learn</data>
+    </node>
+    <node id="p_psyco">
+      <data key="d0">psycopg2==2.9.9</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">missing</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show psycopg2</data>
+      <data key="d6">pip:psycopg2</data>
+      <data key="d7">build fails: pg_config not found</data>
+    </node>
+    <node id="p_numpy_ge2">
+      <data key="d0">numpy&gt;=2 (opencv)</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">missing</data>
+      <data key="d4">resolver</data>
+      <data key="d7">ResolutionImpossible</data>
+    </node>
+    <node id="p_numpy_lt2">
+      <data key="d0">numpy&lt;2 (sklearn pin)</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">missing</data>
+      <data key="d4">resolver</data>
+      <data key="d7">ResolutionImpossible</data>
+    </node>
+
+    <!-- SystemLib (stage 3: probe) -->
+    <node id="s_libgl">
+      <data key="d0">libGL.so.1</data>
+      <data key="d1">SystemLib</data>
+      <data key="d2">system</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">probe</data>
+      <data key="d5">ldconfig -p | grep libGL.so.1</data>
+      <data key="d6">apt:libgl1</data>
+      <data key="d7">ImportError: libGL.so.1: cannot open shared object file</data>
+    </node>
+
+    <!-- Tool (stage 3: probe) -->
+    <node id="tool_pgconfig">
+      <data key="d0">pg_config</data>
+      <data key="d1">Tool</data>
+      <data key="d2">toolchain</data>
+      <data key="d3">missing</data>
+      <data key="d4">probe</data>
+      <data key="d5">command -v pg_config</data>
+      <data key="d6">apt:libpq-dev</data>
+      <data key="d7">pg_config executable not found</data>
+    </node>
+
+    <!-- Runtime (stage 4: runtime) -->
+    <node id="r_dburl">
+      <data key="d0">DATABASE_URL</data>
+      <data key="d1">Runtime</data>
+      <data key="d2">runtime</data>
+      <data key="d3">missing</data>
+      <data key="d4">runtime</data>
+      <data key="d5">python -c "import os; assert os.environ.get('DATABASE_URL')"</data>
+      <data key="d6">env:DATABASE_URL=sqlite:///test.db</data>
+      <data key="d7">KeyError: DATABASE_URL</data>
+    </node>
+
+    <!-- requires: Test -> Imports + Runtime -->
+    <edge source="t_tests" target="i_cv2"><data key="e0">requires</data></edge>
+    <edge source="t_tests" target="i_pil"><data key="e0">requires</data></edge>
+    <edge source="t_tests" target="i_sklearn"><data key="e0">requires</data></edge>
+    <edge source="t_tests" target="i_psyco"><data key="e0">requires</data></edge>
+    <edge source="t_tests" target="r_dburl"><data key="e0">requires</data></edge>
+
+    <!-- requires: Import -> Package -->
+    <edge source="i_cv2" target="p_opencv"><data key="e0">requires</data></edge>
+    <edge source="i_pil" target="p_pillow"><data key="e0">requires</data></edge>
+    <edge source="i_sklearn" target="p_sklearn"><data key="e0">requires</data></edge>
+    <edge source="i_psyco" target="p_psyco"><data key="e0">requires</data></edge>
+
+    <!-- requires: Package -> Package (transitive) -->
+    <edge source="p_opencv" target="p_numpy_ge2"><data key="e0">requires</data></edge>
+    <edge source="p_sklearn" target="p_numpy_lt2"><data key="e0">requires</data></edge>
+
+    <!-- requires: Package -> SystemLib / Tool -->
+    <edge source="p_opencv" target="s_libgl"><data key="e0">requires</data></edge>
+    <edge source="p_psyco" target="tool_pgconfig"><data key="e0">requires</data></edge>
+
+    <!-- alternative_to: headless is a swap for opencv-python; note it has NO requires->libGL -->
+    <edge source="p_opencv" target="p_opencv_hl"><data key="e0">alternative_to</data></edge>
+
+    <!-- conflicts_with -->
+    <edge source="p_numpy_ge2" target="p_numpy_lt2"><data key="e0">conflicts_with</data></edge>
+
+  </graph>
+</graphml>

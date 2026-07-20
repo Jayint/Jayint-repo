@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Concise Contract Graph V1</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --ink: #172033;
+      --muted: #5d6878;
+      --panel: #ffffff;
+      --border: #d9dee7;
+      --line: #7c8798;
+      --contract: #e8f1ff;
+      --contract-border: #2f6fd6;
+      --blocker: #fff0e8;
+      --blocker-border: #c2410c;
+      --attempt: #e7f6f4;
+      --attempt-border: #0f766e;
+      --frontier: #fef7df;
+      --frontier-border: #b7791f;
+      --ok: #15803d;
+      --bad: #c62828;
+      --pending: #a16207;
+      --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+      --body: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 14px/1.45 var(--body);
+    }
+
+    header {
+      padding: 24px 32px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      max-width: 1040px;
+    }
+
+    main {
+      padding: 24px 32px 32px;
+      display: grid;
+      grid-template-columns: minmax(760px, 1fr) 370px;
+      gap: 20px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .panel h2 {
+      margin: 0;
+      padding: 14px 16px;
+      font-size: 15px;
+      border-bottom: 1px solid var(--border);
+      background: #fbfcfe;
+    }
+
+    .graph-wrap {
+      overflow: auto;
+      padding: 12px;
+    }
+
+    svg {
+      display: block;
+      min-width: 930px;
+      width: 100%;
+      height: auto;
+      background:
+        linear-gradient(#eef1f5 1px, transparent 1px),
+        linear-gradient(90deg, #eef1f5 1px, transparent 1px);
+      background-size: 28px 28px;
+      background-color: #fbfcfe;
+    }
+
+    .lane {
+      fill: rgba(255,255,255,.82);
+      stroke: #e2e8f0;
+      stroke-width: 1;
+    }
+
+    .lane-title {
+      fill: #475569;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .lane-note {
+      fill: #64748b;
+      font-size: 11px;
+    }
+
+    .node rect {
+      stroke-width: 1.35;
+      rx: 7;
+      ry: 7;
+      filter: drop-shadow(0 4px 9px rgba(15, 23, 42, .08));
+    }
+
+    .node text {
+      fill: #111827;
+      font-size: 12px;
+    }
+
+    .node .kind {
+      fill: #475569;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .node .id {
+      fill: #475569;
+      font-size: 10px;
+      font-family: var(--mono);
+    }
+
+    .node .status {
+      font-size: 10px;
+      font-family: var(--mono);
+      font-weight: 700;
+    }
+
+    .node.contract rect {
+      fill: var(--contract);
+      stroke: var(--contract-border);
+    }
+
+    .node.blocker rect {
+      fill: var(--blocker);
+      stroke: var(--blocker-border);
+    }
+
+    .node.attempt rect {
+      fill: var(--attempt);
+      stroke: var(--attempt-border);
+    }
+
+    .node.frontier rect {
+      fill: var(--frontier);
+      stroke: var(--frontier-border);
+    }
+
+    .satisfied {
+      fill: var(--ok);
+    }
+
+    .violated {
+      fill: var(--bad);
+    }
+
+    .unknown {
+      fill: #64748b;
+    }
+
+    .pending {
+      fill: var(--pending);
+    }
+
+    .edge {
+      stroke: var(--line);
+      stroke-width: 1.7;
+      fill: none;
+      marker-end: url(#arrow);
+    }
+
+    .edge.depends {
+      stroke: var(--contract-border);
+    }
+
+    .edge.violates {
+      stroke: var(--blocker-border);
+    }
+
+    .edge.addresses {
+      stroke: var(--attempt-border);
+    }
+
+    .edge.ref {
+      stroke: #9ca3af;
+      stroke-dasharray: 5 4;
+    }
+
+    .edge.frontier {
+      stroke: var(--frontier-border);
+      stroke-dasharray: 7 4;
+      stroke-width: 2;
+    }
+
+    .edge-label {
+      fill: #263241;
+      font-size: 10px;
+      font-weight: 650;
+      paint-order: stroke;
+      stroke: #ffffff;
+      stroke-width: 4px;
+      stroke-linejoin: round;
+    }
+
+    .side {
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+
+    .box {
+      padding: 14px 16px;
+    }
+
+    .box h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+
+    .box p {
+      margin: 0 0 10px;
+      color: var(--muted);
+    }
+
+    .legend {
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .legend-row {
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .swatch {
+      width: 15px;
+      height: 15px;
+      border-radius: 4px;
+      border: 1px solid #9ca3af;
+    }
+
+    .swatch.contract {
+      background: var(--contract);
+      border-color: var(--contract-border);
+    }
+
+    .swatch.blocker {
+      background: var(--blocker);
+      border-color: var(--blocker-border);
+    }
+
+    .swatch.attempt {
+      background: var(--attempt);
+      border-color: var(--attempt-border);
+    }
+
+    pre {
+      margin: 0;
+      padding: 12px;
+      overflow: auto;
+      background: #0f172a;
+      color: #e5e7eb;
+      border-radius: 6px;
+      font: 12px/1.45 var(--mono);
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+    }
+
+    li + li {
+      margin-top: 6px;
+    }
+
+    code {
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .rule {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      gap: 10px;
+      padding-top: 8px;
+      margin-top: 8px;
+      border-top: 1px solid #eef1f5;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .rule b {
+      color: var(--ink);
+    }
+
+    @media (max-width: 1180px) {
+      main {
+        grid-template-columns: 1fr;
+        padding: 16px;
+      }
+
+      header {
+        padding: 20px 16px 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Concise Contract Graph V1</h1>
+    <p class="subtitle">
+      The new graph has only three durable node types: Contract, Blocker, and Attempt.
+      This view intentionally omits WorldModelMap evidence so the contract graph shape is clear.
+    </p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>Graph View</h2>
+      <div class="graph-wrap">
+        <svg viewBox="250 42 930 650" role="img" aria-label="Concise contract graph">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c8798"></path>
+            </marker>
+          </defs>
+
+          <rect class="lane" x="270" y="42" width="405" height="650"></rect>
+          <rect class="lane" x="700" y="42" width="215" height="650"></rect>
+          <rect class="lane" x="940" y="42" width="220" height="650"></rect>
+
+          <text class="lane-title" x="288" y="68">Contract Nodes</text>
+          <text class="lane-note" x="288" y="86">Obligations that must become true</text>
+
+          <text class="lane-title" x="718" y="68">Blocker Nodes</text>
+          <text class="lane-note" x="718" y="86">Runtime symptoms that violate contracts</text>
+
+          <text class="lane-title" x="958" y="68">Attempt Nodes</text>
+          <text class="lane-note" x="958" y="86">Repairs proposed or executed</text>
+
+          <g class="node contract" transform="translate(302 112)">
+            <rect width="180" height="82"></rect>
+            <text class="kind" x="12" y="19">Contract: Goal</text>
+            <text x="12" y="40">repo tests pass</text>
+            <text class="id" x="12" y="57">contract:goal:tests_pass</text>
+            <text class="status unknown" x="12" y="73">status: unknown</text>
+          </g>
+
+          <g class="node contract" transform="translate(302 250)">
+            <rect width="180" height="82"></rect>
+            <text class="kind" x="12" y="19">Contract: Goal</text>
+            <text x="12" y="40">repo imports work</text>
+            <text class="id" x="12" y="57">contract:goal:imports</text>
+            <text class="status violated" x="12" y="73">status: violated</text>
+          </g>
+
+          <g class="node contract" transform="translate(302 398)">
+            <rect width="180" height="82"></rect>
+            <text class="kind" x="12" y="19">Contract: Atomic</text>
+            <text x="12" y="40">cv2 importable</text>
+            <text class="id" x="12" y="57">contract:py_import:cv2</text>
+            <text class="status violated" x="12" y="73">status: violated</text>
+          </g>
+
+          <g class="node contract frontier" transform="translate(510 398)">
+            <rect width="140" height="82"></rect>
+            <text class="kind" x="12" y="19">Contract: Atomic</text>
+            <text x="12" y="40">libGL present</text>
+            <text class="id" x="12" y="57">contract:lib:libGL</text>
+            <text class="status violated" x="12" y="73">frontier target</text>
+          </g>
+
+          <g class="node contract" transform="translate(302 552)">
+            <rect width="180" height="82"></rect>
+            <text class="kind" x="12" y="19">Contract: Goal</text>
+            <text x="12" y="40">services ready</text>
+            <text class="id" x="12" y="57">contract:goal:services</text>
+            <text class="status violated" x="12" y="73">status: violated</text>
+          </g>
+
+          <g class="node contract" transform="translate(510 552)">
+            <rect width="140" height="82"></rect>
+            <text class="kind" x="12" y="19">Contract: Atomic</text>
+            <text x="12" y="40">redis reachable</text>
+            <text class="id" x="12" y="57">contract:svc:redis</text>
+            <text class="status violated" x="12" y="73">status: violated</text>
+          </g>
+
+          <g class="node blocker" transform="translate(725 402)">
+            <rect width="165" height="86"></rect>
+            <text class="kind" x="12" y="19">Blocker</text>
+            <text x="12" y="40">missing native lib</text>
+            <text x="12" y="56">libGL.so.1</text>
+            <text class="id" x="12" y="72">blocker:missing_libGL</text>
+          </g>
+
+          <g class="node blocker" transform="translate(725 560)">
+            <rect width="165" height="86"></rect>
+            <text class="kind" x="12" y="19">Blocker</text>
+            <text x="12" y="40">connection refused</text>
+            <text x="12" y="56">redis localhost:6379</text>
+            <text class="id" x="12" y="72">blocker:redis_refused</text>
+          </g>
+
+          <g class="node attempt" transform="translate(968 282)">
+            <rect width="165" height="92"></rect>
+            <text class="kind" x="12" y="19">Attempt</text>
+            <text x="12" y="40">pip install opencv</text>
+            <text x="12" y="56">targeted cv2</text>
+            <text class="id" x="12" y="72">attempt:pip_opencv</text>
+            <text class="status pending" x="12" y="86">ok_but_still_blocked</text>
+          </g>
+
+          <g class="node attempt frontier" transform="translate(968 424)">
+            <rect width="165" height="92"></rect>
+            <text class="kind" x="12" y="19">Attempt</text>
+            <text x="12" y="40">apt install libgl1</text>
+            <text x="12" y="56">validate import cv2</text>
+            <text class="id" x="12" y="72">attempt:apt_libgl1</text>
+            <text class="status pending" x="12" y="86">outcome: pending</text>
+          </g>
+
+          <g class="node attempt" transform="translate(968 584)">
+            <rect width="165" height="78"></rect>
+            <text class="kind" x="12" y="19">Attempt</text>
+            <text x="12" y="40">start redis service</text>
+            <text class="id" x="12" y="57">attempt:start_redis</text>
+            <text class="status pending" x="12" y="72">outcome: pending</text>
+          </g>
+
+          <path class="edge depends" d="M 392 250 C 392 230, 392 214, 392 194"></path>
+          <text class="edge-label" x="405" y="224">depends_on</text>
+
+          <path class="edge depends" d="M 392 398 C 392 375, 392 355, 392 332"></path>
+          <text class="edge-label" x="405" y="367">depends_on</text>
+
+          <path class="edge depends" d="M 482 438 C 492 438, 500 438, 510 438"></path>
+          <text class="edge-label" x="486" y="425">depends_on</text>
+
+          <path class="edge depends" d="M 482 592 C 494 592, 499 592, 510 592"></path>
+          <text class="edge-label" x="486" y="579">depends_on</text>
+
+          <path class="edge depends" d="M 390 552 C 386 496, 381 430, 390 332"></path>
+          <text class="edge-label" x="333" y="499">goal path</text>
+
+          <path class="edge violates" d="M 725 445 C 690 445, 682 438, 650 438"></path>
+          <text class="edge-label" x="670" y="425">violates</text>
+
+          <path class="edge violates" d="M 725 604 C 694 604, 682 592, 650 592"></path>
+          <text class="edge-label" x="670" y="583">violates</text>
+
+          <path class="edge addresses" d="M 968 328 C 795 326, 645 340, 482 438"></path>
+          <text class="edge-label" x="719" y="318">addresses</text>
+
+          <path class="edge addresses" d="M 968 470 C 835 478, 771 444, 650 438"></path>
+          <text class="edge-label" x="795" y="464">addresses</text>
+
+          <path class="edge addresses" d="M 968 625 C 833 638, 758 605, 650 592"></path>
+          <text class="edge-label" x="793" y="624">addresses</text>
+
+          <path class="edge frontier" d="M 455 480 C 482 522, 533 524, 571 480"></path>
+          <text class="edge-label" x="486" y="529">lowest violated target</text>
+        </svg>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="panel box">
+        <h3>What Changed From The Old V1 Page</h3>
+        <p>
+          Repo artifacts, capabilities, validators, failures, transitions, and revisions are no longer
+          separate contract-graph node types. Most of that belongs in WorldModelMap or command evidence.
+        </p>
+        <div class="legend">
+          <div class="legend-row"><span class="swatch contract"></span><span><b>Contract</b>: what must become true</span></div>
+          <div class="legend-row"><span class="swatch blocker"></span><span><b>Blocker</b>: runtime symptom violating a contract</span></div>
+          <div class="legend-row"><span class="swatch attempt"></span><span><b>Attempt</b>: repair action aimed at a contract</span></div>
+        </div>
+      </section>
+
+      <section class="panel box">
+        <h3>Three Edges</h3>
+        <div class="rule">
+          <b>depends_on</b>
+          <span><code>Contract -> Contract</code>. One obligation cannot hold unless another holds.</span>
+        </div>
+        <div class="rule">
+          <b>violates</b>
+          <span><code>Blocker -> Contract</code>. A runtime symptom proves or suggests the obligation is not true.</span>
+        </div>
+        <div class="rule">
+          <b>addresses</b>
+          <span><code>Attempt -> Contract</code>. A repair was proposed or executed to make that obligation true.</span>
+        </div>
+      </section>
+
+      <section class="panel box">
+        <h3>Planner Reading</h3>
+        <ul>
+          <li>Start from <code>contract:goal:tests_pass</code>.</li>
+          <li>Traverse <code>depends_on</code> to the violated frontier.</li>
+          <li>See that <code>cv2</code> is blocked by <code>libGL</code>, not another pip install.</li>
+          <li>Avoid repeating attempts with bad or incomplete outcomes.</li>
+          <li>Emit a recipe patch targeting <code>contract:lib:libGL</code>.</li>
+        </ul>
+      </section>
+
+      <section class="panel box">
+        <h3>Minimal Records</h3>
+        <pre>{
+  "contract": {
+    "id": "contract:lib:libGL",
+    "type": "Contract",
+    "kind": "system_library",
+    "subject": "libGL.so.1",
+    "check": "python -c \"import cv2\"",
+    "evidence_refs": ["world.command:22"]
+  },
+  "blocker": {
+    "id": "blocker:missing_libGL",
+    "type": "Blocker",
+    "kind": "missing_system_library",
+    "evidence_refs": ["world.command:22"]
+  },
+  "attempt": {
+    "id": "attempt:apt_libgl1",
+    "type": "Attempt",
+    "commands": ["apt-get install -y libgl1"],
+    "outcome": "pending"
+  }
+}</pre>
+      </section>
+    </aside>
+  </main>
+</body>
+</html>

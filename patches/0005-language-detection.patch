@@ -1,0 +1,86 @@
+--- a/libkit/utils/language_detector.py
++++ b/libkit/utils/language_detector.py
+@@ -58,6 +58,25 @@
+             try:
+                 language = self._detect_from_github_api(full_name)
+                 if language:
++                    # CORRECTED VARIANT (RAT-bench fidelity fix D): the GitHub API
++                    # ranks by majority bytes, which mislabels Python/infra repos
++                    # whose byte count is dominated by JS/config (e.g.
++                    # conor-is-my-name/n8n-autoscaling -> "node", despite having no
++                    # package.json, zero .js/.ts files, and real Python +
++                    # requirements.txt). A vacuous "npm test: exit 0" then fakes a
++                    # pass. Cross-check a non-python API verdict against the local
++                    # tree: if the repo clearly looks like Python and has no real JS
++                    # project, override to python rather than trusting the byte count.
++                    if (
++                        language == "node"
++                        and project_path
++                        and self._looks_like_python_not_node(project_path)
++                    ):
++                        print(
++                            "  ⚠️  GitHub API said 'node' but local tree looks like "
++                            "Python with no real JS project; overriding to 'python'"
++                        )
++                        return "python"
+                     return language
+             except Exception as e:
+                 print(
+@@ -147,6 +166,57 @@
+ 
+         return None
+ 
++    def _looks_like_python_not_node(self, project_path: str) -> bool:
++        """CORRECTED VARIANT (RAT-bench fidelity fix D) helper.
++
++        Decide whether a repo the GitHub API tagged 'node' is actually a Python
++        repo with no real JS project. We do NOT trust majority bytes here; we look
++        at the actual project layout:
++
++          - "real JS project" == a package.json anywhere in the tree.
++          - "substantial Python" == any of: a Python config file (requirements*.txt,
++            setup.py, pyproject.toml, setup.cfg, Pipfile, poetry.lock) anywhere, OR
++            at least a few .py source files.
++
++        Returns True only when there is NO package.json AND the repo has substantial
++        Python. This is deliberately conservative: a repo with both package.json and
++        Python (a genuine polyglot) is left as 'node' (paper-faithful).
++        """
++        try:
++            path = Path(project_path)
++            if not path.exists():
++                return False
++
++            # A real JS project advertises itself with a package.json. If one exists
++            # anywhere, do not override (could be a genuine node/polyglot repo).
++            for _ in path.rglob("package.json"):
++                return False
++
++            # Python config files anywhere in the tree (incl. subdir requirements).
++            python_config_globs = (
++                "requirements*.txt",
++                "setup.py",
++                "pyproject.toml",
++                "setup.cfg",
++                "Pipfile",
++                "poetry.lock",
++            )
++            for pattern in python_config_globs:
++                for _ in path.rglob(pattern):
++                    return True
++
++            # Otherwise, fall back to counting Python source files.
++            py_count = 0
++            for _ in path.rglob("*.py"):
++                py_count += 1
++                if py_count >= 3:  # "substantial" threshold
++                    return True
++
++            return False
++        except Exception as e:
++            print(f"⚠️  Python-vs-node cross-check failed: {e}")
++            return False
++
+     def _normalize_language_name(self, language: str) -> str:
+         """
+         Normalize language name.

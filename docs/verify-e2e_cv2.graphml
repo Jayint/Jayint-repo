@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns">
+  <key id="d0" for="node" attr.name="label" attr.type="string"/>
+  <key id="d1" for="node" attr.name="type" attr.type="string"/>
+  <key id="d2" for="node" attr.name="layer" attr.type="string"/>
+  <key id="d3" for="node" attr.name="state" attr.type="string"/>
+  <key id="d4" for="node" attr.name="discovered_by" attr.type="string"/>
+  <key id="d5" for="node" attr.name="check" attr.type="string"/>
+  <key id="d6" for="node" attr.name="fix" attr.type="string"/>
+  <key id="d7" for="node" attr.name="evidence" attr.type="string"/>
+  <key id="d8" for="node" attr.name="build_from_source" attr.type="string"/>
+  <key id="e0" for="edge" attr.name="relation" attr.type="string"/>
+  <key id="e1" for="edge" attr.name="marker" attr.type="string"/>
+  <key id="e2" for="edge" attr.name="constraint" attr.type="string"/>
+  <graph edgedefault="directed">
+    <node id="project:visionapp">
+      <data key="d0">visionapp</data>
+      <data key="d1">Project</data>
+      <data key="d2">pip</data>
+      <data key="d3">unknown</data>
+      <data key="d4">static_scan</data>
+    </node>
+    <node id="syslib:libglib2.0-0">
+      <data key="d0">libglib2.0-0</data>
+      <data key="d1">SystemLib</data>
+      <data key="d2">system</data>
+      <data key="d3">missing</data>
+      <data key="d4">resolver</data>
+      <data key="d5">dpkg -s libglib2.0-0</data>
+      <data key="d6">apt:libglib2.0-0</data>
+      <data key="d7">dpkg-query: package 'libglib2.0-0' is not installed and no information is available
+Use dpkg --info (= dpkg-deb --info) to examine archive files.
+</data>
+    </node>
+    <node id="syslib:libgl1">
+      <data key="d0">libgl1</data>
+      <data key="d1">SystemLib</data>
+      <data key="d2">system</data>
+      <data key="d3">missing</data>
+      <data key="d4">resolver</data>
+      <data key="d5">ldconfig -p | grep libGL.so.1</data>
+      <data key="d6">apt:libgl1</data>
+    </node>
+    <node id="pkg:opencv-python==4.9.0.80">
+      <data key="d0">opencv-python==4.9.0.80</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show opencv-python</data>
+      <data key="d6">pip:opencv-python</data>
+      <data key="d8">false</data>
+    </node>
+    <node id="pkg:numpy==2.4.6">
+      <data key="d0">numpy==2.4.6</data>
+      <data key="d1">Package</data>
+      <data key="d2">pip</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">resolver</data>
+      <data key="d5">python -m pip show numpy</data>
+      <data key="d6">pip:numpy</data>
+      <data key="d8">false</data>
+    </node>
+    <node id="import:numpy">
+      <data key="d0">numpy</data>
+      <data key="d1">Import</data>
+      <data key="d2">naming</data>
+      <data key="d3">satisfied</data>
+      <data key="d4">static_scan</data>
+      <data key="d5">python -c "import numpy"</data>
+    </node>
+    <node id="import:cv2">
+      <data key="d0">cv2</data>
+      <data key="d1">Import</data>
+      <data key="d2">naming</data>
+      <data key="d3">missing</data>
+      <data key="d4">static_scan</data>
+      <data key="d5">python -c "import cv2"</data>
+      <data key="d7">Traceback (most recent call last):
+  File "&lt;string&gt;", line 1, in &lt;module&gt;
+  File "/usr/local/lib/python3.11/site-packages/cv2/__init__.py", line 181, in &lt;module&gt;
+    bootstrap()
+  File "/usr/local/lib/python3.11/site-packages/cv2/__init__.py", line 153, in bootstrap
+    native_module = importlib.import_module("cv2")
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ImportError: libGL.so.1: cannot open shared object file: No such file or directory
+</data>
+    </node>
+    <node id="test:repo_tests_pass">
+      <data key="d0">repo_tests_pass</data>
+      <data key="d1">Test</data>
+      <data key="d2">tests</data>
+      <data key="d3">missing</data>
+      <data key="d4">goal</data>
+      <data key="d5">python -m pytest -q</data>
+      <data key="d7">/usr/local/bin/python: No module named pytest
+</data>
+    </node>
+    <edge source="test:repo_tests_pass" target="import:cv2"><data key="e0">requires</data></edge>
+    <edge source="test:repo_tests_pass" target="import:numpy"><data key="e0">requires</data></edge>
+    <edge source="pkg:opencv-python==4.9.0.80" target="pkg:numpy==2.4.6"><data key="e0">requires</data><data key="e1">python_full_version &lt; '3.12'</data></edge>
+    <edge source="import:numpy" target="pkg:numpy==2.4.6"><data key="e0">requires</data></edge>
+    <edge source="import:cv2" target="pkg:opencv-python==4.9.0.80"><data key="e0">requires</data></edge>
+    <edge source="test:repo_tests_pass" target="project:visionapp"><data key="e0">requires</data></edge>
+    <edge source="project:visionapp" target="pkg:opencv-python==4.9.0.80"><data key="e0">requires</data></edge>
+    <edge source="pkg:opencv-python==4.9.0.80" target="syslib:libgl1"><data key="e0">requires</data></edge>
+    <edge source="pkg:opencv-python==4.9.0.80" target="syslib:libglib2.0-0"><data key="e0">requires</data></edge>
+  </graph>
+</graphml>

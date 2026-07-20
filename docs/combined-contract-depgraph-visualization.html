@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Combined Contract + Dependency Graph — sample</title>
+  <script src="vis-network.min.js"></script>
+  <style>
+    :root { --bg: #0f172a; --panel: #1e293b; --ink: #e2e8f0; --muted: #94a3b8; --line: #334155; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--ink); }
+    #app { display: grid; grid-template-columns: 1fr 360px; grid-template-rows: auto 1fr; height: 100vh; min-height: 0; }
+    #graph { min-height: 0; min-width: 0; height: 100%; background: radial-gradient(circle at 30% 20%, #15233f, #0f172a); }
+    header { grid-column: 1 / -1; padding: 12px 18px; border-bottom: 1px solid var(--line); }
+    header h1 { font-size: 16px; margin: 0; }
+    header p { font-size: 12px; color: var(--muted); margin: 4px 0 0; max-width: 1100px; }
+    header code { background: #0b1220; color: #7dd3fc; padding: 1px 5px; border-radius: 4px; }
+    header .dep { color: #60a5fa; } header .con { color: #2dd4bf; } header .seam { color: #f472b6; }
+    aside { border-left: 1px solid var(--line); padding: 14px; overflow-y: auto; background: var(--panel); }
+    aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; }
+    .legend-row { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 5px 0; }
+    .swatch { width: 14px; height: 14px; border-radius: 3px; flex: 0 0 auto; }
+    .shape { width: 16px; flex: 0 0 auto; display: inline-block; text-align: center; }
+    .sep { height: 1px; background: var(--line); margin: 14px 0; }
+    #detail { font-size: 12px; line-height: 1.5; }
+    #detail .k { color: var(--muted); }
+    #detail code { background: #0b1220; color: #7dd3fc; padding: 1px 5px; border-radius: 4px; word-break: break-all; display: inline-block; margin-top: 2px; white-space: pre-wrap; }
+    .pill { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .s-satisfied, .o-ok { background: #064e3b; color: #6ee7b7; }
+    .s-missing, .o-failed { background: #7f1d1d; color: #fca5a5; }
+    .s-unknown { background: #334155; color: #cbd5e1; }
+    .s-open, .o-ok_but_still_blocked { background: #78350f; color: #fcd34d; }
+    .o-proposed { background: #1e3a8a; color: #93c5fd; }
+    .kindtag { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; padding: 1px 6px; border-radius: 4px; }
+    .kind-dep { background: #1e3a5f; color: #93c5fd; } .kind-contract { background: #134e4a; color: #5eead4; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Combined Contract + Dependency Graph — one graph, two layers</h1>
+      <p>
+        <span class="dep">DepGraph (prediction)</span> seeds <span class="con">ContractGraph (runtime + memory)</span>; the
+        <span class="seam">maps_to</span> edge is the entire integration. Dep-node fill = <em>discovered_by</em>; contract-node fill = <em>role</em>;
+        shape = node type; border = host-certified state / status / attempt outcome. Mid-loop snapshot: <code>pip install opencv-python</code>
+        came back <em>ok_but_still_blocked</em> → marked ineffective; frontier is now <code>libGL.so.1</code> with <code>apt:libgl1</code> proposed.
+        Click a node for its fields.
+      </p>
+    </header>
+    <div id="graph"></div>
+    <aside>
+      <h2>Layer</h2>
+      <div id="legend-kind"></div>
+      <div class="sep"></div>
+      <h2>Dep fill = discovered_by</h2>
+      <div id="legend-disc"></div>
+      <div class="sep"></div>
+      <h2>Contract fill = role</h2>
+      <div id="legend-role"></div>
+      <div class="sep"></div>
+      <h2>Node type (shape)</h2>
+      <div id="legend-types"></div>
+      <div class="sep"></div>
+      <h2>Border = state / status / outcome</h2>
+      <div id="legend-states"></div>
+      <div class="sep"></div>
+      <h2>Edges</h2>
+      <div id="legend-edges"></div>
+      <div class="sep"></div>
+      <h2>Selection</h2>
+      <div id="detail"><span class="k">Click a node…</span></div>
+    </aside>
+  </div>
+
+  <!-- Inline mirror of combined-contract-depgraph.graphml so the page renders
+       over file:// too. When served over HTTP the external file is fetched first. -->
+  <script type="application/xml" id="graphml-inline"><?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns">
+  <key id="d0" for="node" attr.name="label" attr.type="string"/>
+  <key id="d1" for="node" attr.name="type" attr.type="string"/>
+  <key id="d2" for="node" attr.name="layer" attr.type="string"/>
+  <key id="d3" for="node" attr.name="state" attr.type="string"/>
+  <key id="d4" for="node" attr.name="discovered_by" attr.type="string"/>
+  <key id="d5" for="node" attr.name="check" attr.type="string"/>
+  <key id="d6" for="node" attr.name="fix" attr.type="string"/>
+  <key id="d7" for="node" attr.name="evidence" attr.type="string"/>
+  <key id="d8" for="node" attr.name="build_from_source" attr.type="string"/>
+  <key id="d9" for="node" attr.name="kind" attr.type="string"/>
+  <key id="d10" for="node" attr.name="outcome" attr.type="string"/>
+  <key id="d11" for="node" attr.name="status" attr.type="string"/>
+  <key id="d12" for="node" attr.name="command" attr.type="string"/>
+  <key id="d13" for="node" attr.name="note" attr.type="string"/>
+  <key id="e0" for="edge" attr.name="relation" attr.type="string"/>
+  <key id="e1" for="edge" attr.name="marker" attr.type="string"/>
+  <key id="e2" for="edge" attr.name="constraint" attr.type="string"/>
+  <graph edgedefault="directed">
+    <node id="test:repo_tests_pass"><data key="d0">repo_tests_pass</data><data key="d1">Test</data><data key="d2">tests</data><data key="d3">missing</data><data key="d4">goal</data><data key="d9">dep</data><data key="d5">python -m pytest -q</data><data key="d7">collection error: import cv2 failed (libGL.so.1)</data></node>
+    <node id="import:cv2"><data key="d0">cv2</data><data key="d1">Import</data><data key="d2">naming</data><data key="d3">missing</data><data key="d4">static_scan</data><data key="d9">dep</data><data key="d5">python -c "import cv2"</data><data key="d7">ImportError: libGL.so.1: cannot open shared object file: No such file or directory</data></node>
+    <node id="import:numpy"><data key="d0">numpy</data><data key="d1">Import</data><data key="d2">naming</data><data key="d3">satisfied</data><data key="d4">static_scan</data><data key="d9">dep</data><data key="d5">python -c "import numpy"</data></node>
+    <node id="pkg:opencv-python==4.9.0.80"><data key="d0">opencv-python==4.9.0.80</data><data key="d1">Package</data><data key="d2">pip</data><data key="d3">satisfied</data><data key="d4">resolver</data><data key="d9">dep</data><data key="d5">python -m pip show opencv-python</data><data key="d6">pip:opencv-python</data><data key="d8">false</data></node>
+    <node id="pkg:numpy==2.4.6"><data key="d0">numpy==2.4.6</data><data key="d1">Package</data><data key="d2">pip</data><data key="d3">satisfied</data><data key="d4">resolver</data><data key="d9">dep</data><data key="d5">python -m pip show numpy</data><data key="d6">pip:numpy</data><data key="d8">false</data></node>
+    <node id="syslib:libgl1"><data key="d0">libGL.so.1</data><data key="d1">SystemLib</data><data key="d2">system</data><data key="d3">missing</data><data key="d4">resolver</data><data key="d9">dep</data><data key="d5">ldconfig -p | grep libGL.so.1</data><data key="d6">apt:libgl1</data><data key="d13">FRONTIER: deepest unsatisfied node reachable from the root test goal.</data></node>
+    <node id="contract:cv2-importable"><data key="d0">cv2 importable</data><data key="d1">Contract</data><data key="d2">naming</data><data key="d9">contract</data><data key="d11">open</data><data key="d13">Seeded from import:cv2. Obligation: `import cv2` must succeed.</data></node>
+    <node id="contract:libGL-present"><data key="d0">libGL.so.1 present</data><data key="d1">Contract</data><data key="d2">system</data><data key="d9">contract</data><data key="d11">open</data><data key="d13">Seeded from syslib:libgl1. Obligation: libGL.so.1 resolvable by the loader.</data></node>
+    <node id="blocker:missing-libGL"><data key="d0">libGL.so.1 missing</data><data key="d1">Blocker</data><data key="d2">system</data><data key="d9">contract</data><data key="d7">ImportError: libGL.so.1: cannot open shared object file</data><data key="d13">Root native-layer cause; surfaced by certifying import:cv2 against the real container.</data></node>
+    <node id="attempt:pip-install-opencv"><data key="d0">pip install opencv-python</data><data key="d1">Attempt</data><data key="d2">pip</data><data key="d9">contract</data><data key="d10">ok_but_still_blocked</data><data key="d12">python -m pip install opencv-python</data><data key="d13">Install exited 0 but the node check `import cv2` still failed -> fix marked INEFFECTIVE for contract:cv2-importable; next_action will not re-propose it.</data></node>
+    <node id="attempt:apt-install-libgl1"><data key="d0">apt install libgl1</data><data key="d1">Attempt</data><data key="d2">system</data><data key="d9">contract</data><data key="d10">proposed</data><data key="d12">apt-get update &amp;&amp; apt-get install -y libgl1</data><data key="d13">Next deterministic action: frontier node libGL.so.1 has untried-effective fix candidate apt:libgl1. Runs host-side, no Planner LLM.</data></node>
+    <edge source="test:repo_tests_pass" target="import:cv2"><data key="e0">requires</data></edge>
+    <edge source="test:repo_tests_pass" target="import:numpy"><data key="e0">requires</data></edge>
+    <edge source="import:cv2" target="pkg:opencv-python==4.9.0.80"><data key="e0">requires</data></edge>
+    <edge source="import:numpy" target="pkg:numpy==2.4.6"><data key="e0">requires</data></edge>
+    <edge source="pkg:opencv-python==4.9.0.80" target="pkg:numpy==2.4.6"><data key="e0">requires</data><data key="e1">python_full_version &lt; '3.12'</data></edge>
+    <edge source="pkg:opencv-python==4.9.0.80" target="syslib:libgl1"><data key="e0">requires</data></edge>
+    <edge source="contract:cv2-importable" target="contract:libGL-present"><data key="e0">depends_on</data></edge>
+    <edge source="blocker:missing-libGL" target="contract:libGL-present"><data key="e0">violates</data></edge>
+    <edge source="attempt:pip-install-opencv" target="contract:cv2-importable"><data key="e0">addresses</data></edge>
+    <edge source="attempt:apt-install-libgl1" target="blocker:missing-libGL"><data key="e0">addresses</data></edge>
+    <edge source="contract:cv2-importable" target="import:cv2"><data key="e0">maps_to</data></edge>
+    <edge source="contract:libGL-present" target="syslib:libgl1"><data key="e0">maps_to</data></edge>
+  </graph>
+</graphml>
+  </script>
+
+  <script>
+    const DISC_COLOR = { goal: "#10b981", static_scan: "#a78bfa", resolver: "#3b82f6", probe: "#f97316", runtime: "#ec4899" };
+    const ROLE_FILL  = { Contract: "#1d4ed8", Blocker: "#c2410c", Attempt: "#0f766e" };
+    const TYPE_SHAPE = {
+      Test: "star", Project: "square", Import: "dot", Package: "box",
+      SystemLib: "triangle", Tool: "diamond", Runtime: "hexagon",
+      Contract: "ellipse", Blocker: "triangleDown", Attempt: "database",
+    };
+    const TYPE_GLYPH = {
+      Test: "★", Project: "▣", Import: "●", Package: "▮", SystemLib: "▲", Tool: "◆", Runtime: "⬡",
+      Contract: "⬭", Blocker: "▽", Attempt: "▭",
+    };
+    // Border encodes the strongest "where does this stand" signal a node carries.
+    const STATE_BORDER = { satisfied: "#22c55e", missing: "#ef4444", unknown: "#64748b" };
+    const STATUS_BORDER = { open: "#f59e0b", satisfied: "#22c55e" };
+    const OUTCOME_BORDER = { ok: "#22c55e", ok_but_still_blocked: "#f59e0b", failed: "#ef4444", proposed: "#3b82f6" };
+    const EDGE_STYLE = {
+      requires:   { color: "#64748b", arrows: { to: { enabled: true, scaleFactor: 0.6 } } },
+      depends_on: { color: "#60a5fa", arrows: { to: { enabled: true, scaleFactor: 0.6 } } },
+      violates:   { color: "#ef4444", dashes: [2, 4], arrows: { to: { enabled: true, scaleFactor: 0.6 } } },
+      addresses:  { color: "#2dd4bf", arrows: { to: { enabled: true, scaleFactor: 0.6 } } },
+      maps_to:    { color: "#f472b6", dashes: [7, 5], width: 2.5, arrows: { to: { enabled: true, scaleFactor: 0.7 } } },
+    };
+
+    function row(html) { const e = document.createElement("div"); e.className = "legend-row"; e.innerHTML = html; return e; }
+
+    function buildLegend() {
+      const K = document.getElementById("legend-kind");
+      K.appendChild(row(`<span class="kindtag kind-dep">dep</span> prediction — what the build needs`));
+      K.appendChild(row(`<span class="kindtag kind-contract">contract</span> runtime + memory — the loop runs on this`));
+      const D = document.getElementById("legend-disc");
+      Object.entries(DISC_COLOR).forEach(([k, c]) => D.appendChild(row(`<span class="swatch" style="background:${c}"></span>${k}`)));
+      const R = document.getElementById("legend-role");
+      Object.entries(ROLE_FILL).forEach(([k, c]) => R.appendChild(row(`<span class="swatch" style="background:${c}"></span>${k}`)));
+      const T = document.getElementById("legend-types");
+      Object.keys(TYPE_SHAPE).forEach((k) => T.appendChild(row(`<span class="shape">${TYPE_GLYPH[k]}</span>${k}`)));
+      const S = document.getElementById("legend-states");
+      [["satisfied / ok", "#22c55e"], ["missing / failed", "#ef4444"], ["open / blocked", "#f59e0b"], ["proposed", "#3b82f6"], ["unknown", "#64748b"]]
+        .forEach(([k, c]) => S.appendChild(row(`<span class="swatch" style="background:transparent;border:3px solid ${c}"></span>${k}`)));
+      const E = document.getElementById("legend-edges");
+      Object.entries(EDGE_STYLE).forEach(([k, st]) =>
+        E.appendChild(row(`<span class="swatch" style="background:transparent;border-top:3px ${st.dashes ? "dashed" : "solid"} ${st.color};height:0;border-radius:0"></span>${k}${k === "maps_to" ? " ← the seam" : ""}`)));
+    }
+
+    function fail(msg) {
+      document.getElementById("graph").innerHTML = '<p style="padding:20px;color:#fca5a5;font-size:13px">' + msg + '</p>';
+    }
+
+    function borderColor(n) {
+      if (n.kind === "contract") {
+        if (n.type === "Contract") return STATUS_BORDER[n.status] || "#64748b";
+        if (n.type === "Attempt") return OUTCOME_BORDER[n.outcome] || "#64748b";
+        if (n.type === "Blocker") return "#ef4444";
+      }
+      return STATE_BORDER[n.state] || "#64748b";
+    }
+    function fillColor(n) {
+      return n.kind === "contract" ? (ROLE_FILL[n.type] || "#475569") : (DISC_COLOR[n.discovered_by] || "#64748b");
+    }
+
+    async function loadXml() {
+      // Prefer the standalone file (so edits to the .graphml show up when served);
+      // fall back to the inline mirror (works over file://).
+      try {
+        const res = await fetch("combined-contract-depgraph.graphml");
+        if (res.ok) {
+          const doc = new DOMParser().parseFromString(await res.text(), "application/xml");
+          if (!doc.getElementsByTagName("parsererror").length) return doc;
+        }
+      } catch (e) { /* fall through to inline */ }
+      const inline = document.getElementById("graphml-inline").textContent;
+      return new DOMParser().parseFromString(inline, "application/xml");
+    }
+
+    async function main() {
+      buildLegend();
+      if (typeof vis === "undefined") {
+        fail("vis-network library did not load. Make sure <code>vis-network.min.js</code> is next to this file.");
+        return;
+      }
+      const xml = await loadXml();
+      if (xml.getElementsByTagName("parsererror").length) { fail("GraphML parse error."); return; }
+
+      const keyName = {};
+      for (const k of xml.getElementsByTagName("key")) keyName[k.getAttribute("id")] = k.getAttribute("attr.name");
+      const readData = (el) => {
+        const o = {};
+        for (const d of el.getElementsByTagName("data")) {
+          if (d.parentNode === el) o[keyName[d.getAttribute("key")]] = d.textContent;
+        }
+        return o;
+      };
+
+      const rawNodes = [];
+      for (const n of xml.getElementsByTagName("node")) rawNodes.push({ id: n.getAttribute("id"), ...readData(n) });
+      const rawEdges = [];
+      for (const e of xml.getElementsByTagName("edge"))
+        rawEdges.push({ source: e.getAttribute("source"), target: e.getAttribute("target"), ...readData(e) });
+
+      const standing = (n) => n.kind === "contract"
+        ? (n.type === "Attempt" ? n.outcome : n.type === "Contract" ? n.status : "blocker")
+        : n.state;
+
+      const nodes = new vis.DataSet(rawNodes.map((n) => ({
+        id: n.id,
+        label: n.label,
+        title: `${n.type} · ${n.kind} · ${standing(n) || "—"}` + (n.check ? `\ncheck: ${n.check}` : "") + (n.command ? `\ncmd: ${n.command}` : ""),
+        shape: TYPE_SHAPE[n.type] || "dot",
+        color: {
+          background: fillColor(n),
+          border: borderColor(n),
+          highlight: { background: fillColor(n), border: "#f8fafc" },
+        },
+        borderWidth: 4,
+        shapeProperties: { borderDashes: n.outcome === "proposed" ? [4, 4] : false },
+        font: { color: "#e2e8f0", size: 13, face: "ui-monospace, monospace", strokeWidth: 3, strokeColor: "#0b1220" },
+        size: n.type === "Test" ? 24 : n.kind === "contract" ? 18 : 16,
+        _raw: n,
+      })));
+
+      const edges = new vis.DataSet(rawEdges.map((e, i) => {
+        const st = EDGE_STYLE[e.relation] || { color: "#64748b" };
+        return {
+          id: "e" + i, from: e.source, to: e.target, label: e.relation,
+          arrows: st.arrows !== undefined ? st.arrows : { to: { enabled: true, scaleFactor: 0.6 } },
+          dashes: st.dashes || false,
+          width: st.width || 1,
+          color: { color: st.color, highlight: "#f8fafc", opacity: 0.9 },
+          font: { color: e.relation === "maps_to" ? "#f9a8d4" : "#94a3b8", size: 10, strokeWidth: 4, strokeColor: "#0f172a", align: "middle" },
+          smooth: { type: "dynamic" },
+        };
+      }));
+
+      const network = new vis.Network(document.getElementById("graph"), { nodes, edges }, {
+        physics: {
+          solver: "forceAtlas2Based",
+          forceAtlas2Based: { gravitationalConstant: -75, springLength: 140, springConstant: 0.08, avoidOverlap: 0.8 },
+          stabilization: { iterations: 350 },
+        },
+        interaction: { hover: true, tooltipDelay: 120, multiselect: true },
+      });
+
+      const detail = document.getElementById("detail");
+      const esc = (s) => (s || "").replace(/</g, "&lt;");
+      const mapsTo = {};
+      rawEdges.filter((e) => e.relation === "maps_to").forEach((e) => { mapsTo[e.source] = e.target; });
+
+      network.on("click", (params) => {
+        if (!params.nodes.length) { detail.innerHTML = '<span class="k">Click a node…</span>'; return; }
+        const n = nodes.get(params.nodes[0])._raw;
+        const standClass = n.kind === "contract"
+          ? (n.type === "Attempt" ? `o-${n.outcome}` : n.type === "Contract" ? `s-${n.status}` : "s-missing")
+          : `s-${n.state}`;
+        const standVal = standing(n) || "—";
+        const standKey = n.kind === "contract" ? (n.type === "Attempt" ? "outcome" : n.type === "Contract" ? "status" : "state") : "state";
+        detail.innerHTML =
+          `<div style="font-weight:600;margin-bottom:6px">${esc(n.label)} <span class="kindtag kind-${n.kind}">${n.kind}</span></div>` +
+          `<div><span class="k">type:</span> ${n.type}</div>` +
+          `<div><span class="k">layer:</span> ${n.layer || "—"}</div>` +
+          (n.discovered_by ? `<div><span class="k">discovered_by:</span> ${n.discovered_by}</div>` : "") +
+          `<div><span class="k">${standKey}:</span> <span class="pill ${standClass}">${standVal}</span></div>` +
+          (mapsTo[n.id] ? `<div style="margin-top:6px"><span class="k">maps_to:</span> <code>${esc(mapsTo[n.id])}</code></div>` : "") +
+          (n.fix ? `<div style="margin-top:6px"><span class="k">fix:</span> <code>${esc(n.fix)}</code></div>` : "") +
+          (n.command ? `<div style="margin-top:6px"><span class="k">command:</span><br><code>${esc(n.command)}</code></div>` : "") +
+          (n.check ? `<div style="margin-top:6px"><span class="k">check_command:</span><br><code>${esc(n.check)}</code></div>` : "") +
+          (n.build_from_source ? `<div style="margin-top:6px"><span class="k">build_from_source:</span> ${n.build_from_source}</div>` : "") +
+          (n.evidence ? `<div style="margin-top:6px"><span class="k">evidence:</span><br><code>${esc(n.evidence)}</code></div>` : "") +
+          (n.note ? `<div style="margin-top:6px"><span class="k">note:</span><br>${esc(n.note)}</div>` : "");
+      });
+    }
+
+    main().catch((e) => fail("Render error: " + (e && e.message ? e.message : e)));
+  </script>
+</body>
+</html>
