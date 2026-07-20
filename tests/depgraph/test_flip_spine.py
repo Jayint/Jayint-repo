@@ -124,6 +124,122 @@ def test_first_party_names_never_reach_the_dist_guesser(tmp_path, monkeypatch):
     assert "mypkg" not in seen, "first-party module name reached the dist-guesser"
 
 
+def test_host_only_stdlib_name_routes_external_not_dropped(tmp_path):
+    """F4/§17: a name in the HOST stdlib but NOT the TARGET stdlib is a real external
+    for the target and must route external — NEVER silently dropped by a host backstop.
+    ``graphlib`` is host-stdlib (3.9+) but absent from a target that lacks it."""
+    import sys as _sys
+    host_stdlib = getattr(_sys, "stdlib_module_names", frozenset())
+    assert "graphlib" in host_stdlib   # premise: the runner's host has graphlib
+    (tmp_path / "app.py").write_text("import graphlib\nimport requests\n")
+
+    from graph.python.route.classify import classify
+    routing = classify(str(tmp_path), target_stdlib=frozenset({"os"}), declared=frozenset())
+    assert "graphlib" in routing.external   # host-only-stdlib -> real target external
+    assert "requests" in routing.external
+
+
+def test_first_party_top_colliding_with_host_stdlib_routes_internal(tmp_path):
+    """F4: a repo module whose name collides with a HOST-stdlib name (and which
+    ``scan_imports`` therefore mis-classifies stdlib because it is not a plain
+    root/src child) still routes INTERNAL — the sys.path-accurate tops rung catches it
+    once the forbidden host backstop is gone. ``pkgs/graphlib`` is a repo top-level."""
+    (tmp_path / "pkgs" / "graphlib").mkdir(parents=True)
+    (tmp_path / "pkgs" / "graphlib" / "__init__.py").write_text("")
+    (tmp_path / "app.py").write_text("import graphlib\n")
+
+    from graph.python.read.repo_modules import top_level_names
+    assert "graphlib" in top_level_names(str(tmp_path))   # premise: a real repo top
+
+    from graph.python.route.classify import classify
+    routing = classify(str(tmp_path), target_stdlib=frozenset({"os"}), declared=frozenset())
+    assert "graphlib" in {t for t, _ in routing.internal}  # internal, NOT dropped
+    assert "graphlib" not in routing.external
+
+
+def test_probe_returns_none_when_unavailable():
+    """F4: ``probe_target_stdlib`` returns None (not an empty frozenset) when the
+    target cannot answer, so the caller can distinguish 'unavailable' and fail CLOSED
+    instead of proceeding with an empty stdlib set."""
+    from graph.python.route.classify import probe_target_stdlib
+
+    class _NotOk:
+        def run(self, *_a, **_k):
+            class R:
+                returncode, stdout, stderr = 1, "", "boom"
+                @property
+                def ok(self): return False
+            return R()
+
+    assert probe_target_stdlib(_NotOk()) is None
+
+
+def test_unavailable_target_stdlib_fails_closed(tmp_path):
+    """F4: when the stdlib probe is unavailable (returns non-ok, so None), the lane
+    fails CLOSED — first-party/collision names are dropped, ``routing=None`` — rather
+    than classifying against an empty stdlib set (which would misroute)."""
+    from graph.python.pipeline import _route_config_lane
+    (tmp_path / "mypkg").mkdir()
+    (tmp_path / "mypkg" / "__init__.py").write_text("")
+    (tmp_path / "mypkg" / "app.py").write_text("import requests\nimport items\n")
+    (tmp_path / "mypkg" / "tutorial001").mkdir()
+    (tmp_path / "mypkg" / "tutorial001" / "__init__.py").write_text("")
+    (tmp_path / "mypkg" / "tutorial001" / "items.py").write_text("")
+
+    class _NoStdlib:
+        def run(self, *_a, **_k):   # never answers the stdlib probe
+            class R:
+                returncode, stdout, stderr = 1, "", ""
+                @property
+                def ok(self): return False
+            return R()
+
+    graph = scan_to_nodes(str(tmp_path))
+    out, routing = _route_config_lane(graph, str(tmp_path), _NoStdlib(), declared=frozenset())
+    names = {n.name for n in out.nodes if n.type is NodeType.IMPORT}
+    assert routing is None                       # unavailable -> fail closed
+    assert "requests" in names                   # clear-external kept
+    assert "items" not in names and "mypkg" not in names  # first-party/collision dropped
+
+
+def test_internal_cross_module_import_gets_a_resolves_edge(tmp_path):
+    """F3: an internal import of ANOTHER module draws ``import(X) --resolves--> module(X)``
+    (a non-self resolution edge). ``foo`` imports ``bar`` (both repo top-levels)."""
+    (tmp_path / "bar.py").write_text("VALUE = 1\n")
+    (tmp_path / "foo.py").write_text("import bar\n")
+    graph, routing = _spine(str(tmp_path))
+    req = _requires(graph)
+    assert "bar" in routing.resolution
+    assert (module_id("foo"), import_id("bar"), "imports") in req     # foo imports bar
+    assert (import_id("bar"), module_id("bar"), "resolves") in req    # bar resolves to module(bar)
+
+
+def test_relink_skips_module_routed_imports(tmp_path):
+    """F3: relink must NOT draw an Import->Package edge for an import stamped
+    ``routed_provider='module'`` — it is provided by a local Module, not a PyPI dist,
+    so a same-named wheel must never be laundered onto it."""
+    from graph.model import (DepGraph, DiscoveredBy, Layer, Node, NodeType,
+                             package_id)
+    from graph.python.lanes.install.link import import_to_package_edges
+
+    imp = Node(id=import_id("items"), type=NodeType.IMPORT, name="items",
+               layer=Layer.NAMING, discovered_by=DiscoveredBy.STATIC_SCAN
+               ).with_data(routed_provider="module")
+    pkg = Node(id=package_id("items", "1.0"), type=NodeType.PACKAGE, name="items",
+               version="1.0", layer=Layer.PIP, discovered_by=DiscoveredBy.RESOLVER)
+    g = DepGraph().with_node(imp).with_node(pkg)
+    edges = import_to_package_edges(g, {"items": ["items"]})
+    assert edges == []   # module-routed import: no Import->Package edge drawn
+
+    # control: an ordinary (non-module-routed) import DOES get the edge.
+    imp2 = Node(id=import_id("requests"), type=NodeType.IMPORT, name="requests",
+                layer=Layer.NAMING, discovered_by=DiscoveredBy.STATIC_SCAN)
+    pkg2 = Node(id=package_id("requests", "2.0"), type=NodeType.PACKAGE, name="requests",
+                version="2.0", layer=Layer.PIP, discovered_by=DiscoveredBy.RESOLVER)
+    g2 = DepGraph().with_node(imp2).with_node(pkg2)
+    assert len(import_to_package_edges(g2, {"requests": ["requests"]})) == 1
+
+
 def test_classify_failure_fails_closed_end_to_end(tmp_path, monkeypatch):
     """F1: post-flip the classifier is load-bearing for SAFETY. If it RAISES,
     construction must fail CLOSED — the collision name (``items``) must NOT reach the

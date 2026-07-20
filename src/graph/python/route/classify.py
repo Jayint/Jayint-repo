@@ -67,17 +67,24 @@ _STDLIB_PROBE = (
 )
 
 
-def probe_target_stdlib(executor) -> frozenset[str]:
+def probe_target_stdlib(executor) -> frozenset[str] | None:
     """One-shot: the TARGET container's own stdlib module names. Uses
     ``sys.stdlib_module_names`` (3.10+); falls back to ``builtin_module_names``
-    on 3.9. Never a host fallback — the executor is the target."""
+    on 3.9. Never a host fallback — the executor is the target.
+
+    Returns ``None`` when the probe could not produce a usable answer (command
+    failed, or the output did not parse) — distinct from a genuinely-parsed set.
+    An UNAVAILABLE target stdlib means classification cannot be done safely, so the
+    caller must fail CLOSED rather than proceed with an empty set (spec §17: an
+    empty/host stdlib would silently drop a real target external or misroute a name).
+    """
     result = executor.run(_STDLIB_PROBE, timeout=60)
     if not result.ok:
-        return frozenset()
+        return None
     try:
         return frozenset(json.loads(result.stdout.strip()))
     except (ValueError, TypeError):
-        return frozenset()
+        return None
 
 
 def _module_node(top: str, dotted_paths: tuple[tuple[str, str], ...]) -> Node:
@@ -146,12 +153,16 @@ def classify(repo_path: str, *, target_stdlib: frozenset[str], declared: frozens
     deferred: set[str] = set()
     internal_tops: set[str] = set()
 
-    # Ladder order is a SAFETY property (review §, F4 adjudication):
+    # Ladder order is a SAFETY property (spec §17, review F4 adjudication):
     #   0. ``_``-prefix       -> drop (classifier owns it; private/typing, never a dist)
     #   1. declared           -> external  ("you never declare your own modules")
-    #   2. stdlib             -> drop  (TARGET probe OR the host-scan classification as a
-    #                                    backstop, so an empty/failed probe cannot leak a
-    #                                    stdlib name into the install lane)
+    #   2. stdlib             -> drop  --- the TARGET probe ONLY. NO host fallback: a
+    #                                    host-only-stdlib name (tomllib/graphlib on a 3.8
+    #                                    target) is a real EXTERNAL for the target and must
+    #                                    not be silently dropped (the roots.py:246 / §17
+    #                                    bug). ``target_stdlib`` is the resolved target's
+    #                                    own set; when it is unavailable the caller fails
+    #                                    CLOSED (never runs the classifier with an empty set).
     #   3. repo top-level     -> internal (sys.path-accurate)
     #   collision / excluded-dir / project-local-not-a-top -> collision zone (deferred),
     #                          gating only names NOT already routed declared/stdlib/internal,
@@ -165,23 +176,22 @@ def classify(repo_path: str, *, target_stdlib: frozenset[str], declared: frozens
         if top in declared_norm:
             external.add(name)                         # rung 1: declared wins -> external
             continue
-        if top in target_stdlib or finding.classification == "stdlib":
-            continue                                   # rung 2: stdlib -> drop (target OR host backstop)
+        if top in target_stdlib:
+            continue                                   # rung 2: TARGET stdlib -> drop (no host fallback)
         if top in tops:
             internal_tops.add(top)                     # rung 3: sys.path-accurate -> internal
             continue
         if top in collisions:
             deferred.add(top)                          # collision zone (non-declared, non-top)
             continue
-        # excluded-dir-ONLY imports (seen only under examples/docs/scripts/tools).
-        # A locally-shadowed one routes to the collision zone (the §12 false-green:
-        # a conftest sys.path.insert + a local shadow); a pure external there is out
-        # of "run the repo properly" scope and is DROPPED — never clear-external, so
-        # it never installs (pre-flip parity; keeps setup.sh byte-identical).
+        # excluded-dir-ONLY imports (seen only under examples/docs/scripts/tools) ALL
+        # route to the collision zone — SKIP_WALK_DIRS hides locals under those dirs from
+        # BOTH top_level_names and stem_collisions, so a vendored local and a real external
+        # are statically indistinguishable there (spec §12). Arbitration decides post-cure;
+        # never clear-external.
         in_scope = tuple(f for f in finding.source_files if not _is_excluded_path(f))
         if finding.source_files and not in_scope:
-            if top in by_top:
-                deferred.add(top)
+            deferred.add(top)
             continue
         # A name the host scan flagged project-local but the sys.path-accurate tops
         # rung did NOT catch (the two walks disagreed) must NEVER be treated as a

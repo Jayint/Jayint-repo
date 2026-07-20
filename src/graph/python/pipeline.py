@@ -375,15 +375,22 @@ def _route_config_lane(
 
     Fail CLOSED (not open): post-flip the classifier is load-bearing for SAFETY — the
     raw ``scan`` graph carries first-party/collision Import nodes, and if classification
-    raised they would flow into Phase A and the LLM dist-guesser (the false-green
-    vector). So on ANY classify exception, construction still proceeds (never aborts),
-    but the LANE fails closed: the graph is reduced to the PRE-FLIP clear-external set
-    (:func:`scan.clear_external_names`) — first-party/unclassifiable Import nodes are
-    DROPPED, never treated as external — and ``routing=None`` signals the caller to
-    stamp ``routing_failed`` on the Project node for attribution.
+    raised (or could not run) they would flow into Phase A and the LLM dist-guesser (the
+    false-green vector). So on ANY classify exception -- OR when the TARGET stdlib probe
+    is UNAVAILABLE (``None``/empty; classification cannot be done safely without the
+    target's own stdlib, spec §17) -- construction still proceeds but the LANE fails
+    closed: the graph is reduced to the PRE-FLIP clear-external set
+    (:func:`scan.clear_external_names`), first-party/unclassifiable Import nodes DROPPED,
+    and ``routing=None`` signals the caller to stamp ``routing_failed`` on the Project.
     """
     try:
         stdlib = probe_target_stdlib(container_executor)
+        if not stdlib:  # None (probe failed) or empty -> target stdlib UNAVAILABLE
+            logger.error(
+                "target stdlib probe unavailable; config lane failing CLOSED (no host "
+                "fallback — a host-only-stdlib name is a real target external, §17)"
+            )
+            return _fail_closed_lane(graph, repo_path), None
         routing = classify(repo_path, target_stdlib=stdlib, declared=declared)
         return apply_routing(graph, routing), routing
     except Exception:  # classify raised -> lane fails CLOSED, construction proceeds
@@ -392,23 +399,31 @@ def _route_config_lane(
             "clear-external set (first-party names dropped, never installed)",
             exc_info=True,
         )
-        try:
-            keep = clear_external_names(repo_path)
-            reduced = graph
-            for node in graph.nodes:
-                if node.type is NodeType.IMPORT and node.name.split(".", 1)[0] not in keep:
-                    reduced = reduced.without_node(node.id)
-            return reduced, None
-        except Exception:  # even the fallback failed -> drop ALL Import nodes (max-safe)
-            logger.critical(
-                "config-lane fail-closed fallback ALSO failed; dropping every Import "
-                "node so no unclassified name can reach the install lane", exc_info=True
-            )
-            reduced = graph
-            for node in graph.nodes:
-                if node.type is NodeType.IMPORT:
-                    reduced = reduced.without_node(node.id)
-            return reduced, None
+        return _fail_closed_lane(graph, repo_path), None
+
+
+def _fail_closed_lane(graph: DepGraph, repo_path: str) -> DepGraph:
+    """Reduce the raw scan graph to the PRE-FLIP clear-external set — the config lane's
+    fail-closed fallback. First-party/collision/unclassifiable Import nodes are DROPPED
+    (never treated as external), reproducing pre-flip safety. If even the fallback scan
+    fails, DROP every Import node (max-safe: no unclassified name reaches the lane)."""
+    try:
+        keep = clear_external_names(repo_path)
+        reduced = graph
+        for node in graph.nodes:
+            if node.type is NodeType.IMPORT and node.name.split(".", 1)[0] not in keep:
+                reduced = reduced.without_node(node.id)
+        return reduced
+    except Exception:
+        logger.critical(
+            "config-lane fail-closed fallback ALSO failed; dropping every Import node "
+            "so no unclassified name can reach the install lane", exc_info=True
+        )
+        reduced = graph
+        for node in graph.nodes:
+            if node.type is NodeType.IMPORT:
+                reduced = reduced.without_node(node.id)
+        return reduced
 
 
 def _finalize_config_lane(

@@ -22,6 +22,8 @@ documented coverage tradeoff.
 
 from __future__ import annotations
 
+import json
+
 from graph.core.orchestrate import build_dep_graph
 from graph.contracts.executor import CommandResult
 from graph.model import (
@@ -79,6 +81,12 @@ def _make_executor():
 
     return FakeExecutor(
         responses={
+            # THE FLIP: the config lane fails CLOSED without a TARGET stdlib answer, so
+            # the fake container must answer the one-shot stdlib probe (os/sys cover the
+            # fixture's stdlib imports; cv2/PIL/psycopg2 stay external).
+            "stdlib_module_names": _r(stdout=json.dumps(
+                ["os", "sys", "json", "typing", "collections", "re", "subprocess"]
+            )),
             "uv pip compile": _r(stdout=CANNED_CLOSURE),
             "pip install": _r(returncode=1, stderr=INSTALL_STDERR),
             # Stage 4a certified relink: the CONTAINER's packages_distributions()

@@ -49,12 +49,21 @@ def test_external_imports_become_import_nodes(tmp_path: Path) -> None:
     assert pil.check_command == 'python -c "import PIL"'
 
 
-def test_stdlib_import_excluded(tmp_path: Path) -> None:
+def test_scan_mints_stdlib_raw_classifier_drops_it(tmp_path: Path) -> None:
+    """THE FLIP: scan does NOT consult stdlib (that host signal would drop a
+    host-only-stdlib name that is a real TARGET external — §17). ``os`` is minted RAW
+    and the classifier's TARGET-stdlib rung drops it via ``apply_routing``."""
+    from graph.python.route.classify import classify, apply_routing
+
     _write_fixture_repo(tmp_path)
 
-    graph = scan_to_nodes(str(tmp_path))
+    raw = scan_to_nodes(str(tmp_path))
+    assert raw.get(import_id("os")) is not None      # scan mints stdlib RAW
 
-    assert graph.get(import_id("os")) is None
+    routing = classify(str(tmp_path), target_stdlib=frozenset({"os"}), declared=frozenset())
+    routed = apply_routing(raw, routing)
+    assert routed.get(import_id("os")) is None        # classifier (TARGET stdlib) drops it
+    assert routed.get(import_id("cv2")) is not None    # externals survive
 
 
 def test_provenance_records_source_file(tmp_path: Path) -> None:
@@ -80,16 +89,19 @@ def test_scan_no_longer_mints_the_test_hub(tmp_path: Path) -> None:
     assert graph.get(TEST_NODE_ID) is None                       # no Test node
     assert all(n.type is NodeType.IMPORT for n in graph.nodes)   # imports only
     assert graph.edges == ()                                     # no hub edges
-    assert {n.id for n in graph.nodes} == {import_id("cv2"), import_id("PIL")}
+    # scan mints RAW (incl. stdlib ``os``); the classifier drops stdlib downstream.
+    assert {n.id for n in graph.nodes} == {import_id("cv2"), import_id("PIL"), import_id("os")}
 
 
-def test_no_external_imports_yields_empty_graph(tmp_path: Path) -> None:
+def test_scan_mints_stdlib_imports_raw(tmp_path: Path) -> None:
+    """Scan no longer consults stdlib: a stdlib-only file yields raw Import nodes for
+    ``os``/``sys`` (the classifier's TARGET-stdlib rung drops them later)."""
     (tmp_path / "plain.py").write_text("import os\nimport sys\n", encoding="utf-8")
 
     graph = scan_to_nodes(str(tmp_path))
 
-    assert graph.nodes == ()   # no Test node, no imports (all stdlib)
-    assert graph.edges == ()
+    assert {n.name for n in graph.nodes if n.type is NodeType.IMPORT} == {"os", "sys"}
+    assert graph.edges == ()   # no hub edges
 
 
 def _external_after_routing(repo: str) -> frozenset[str]:

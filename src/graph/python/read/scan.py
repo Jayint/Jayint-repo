@@ -141,33 +141,26 @@ def _build_import_node(
 def scan_to_nodes(repo_path: str) -> DepGraph:
     """Scan ``repo_path`` and return a graph of raw top-level Import nodes (no edges).
 
-    THE FLIP (route-not-drop): first-party/local names are NO LONGER dropped here.
-    Scan mints an Import node for every ``external`` OR ``project_local`` finding and
-    hands routing to ``route.classify``, which owns ALL four pre-flip drops:
-    ``_``-prefix (dropped by the classifier), ``local_names`` and non-external
-    classifications (routed by the ladder), and excluded-dir-only names (routed to the
-    collision zone). ``classify.apply_routing`` then REMOVES any Import node the ladder
-    did not route, so an unroutable name never reaches the install lane.
+    THE FLIP (route-not-drop): scan applies NO routing. It mints a raw Import node for
+    EVERY top-level finding — external, project-local, ``_``-prefixed, excluded-dir,
+    AND stdlib — and hands ALL routing to ``route.classify``. Scan does NOT consult
+    stdlib: stdlib membership is TARGET-relative (rung 2 uses the resolved target's own
+    stdlib), and the host ``scan_imports`` classification would drop a host-only-stdlib
+    name (``tomllib``/``graphlib`` on a 3.8 target) that is a real target external — the
+    spec §17 / roots.py:246 host-contamination bug. ``classify.apply_routing`` then
+    REMOVES every Import node the ladder did not route (stdlib, ``_``-prefix, an
+    unroutable local), so an Import node reaches the install lane only if the classifier
+    put its name in ``external``.
 
-    The ONE drop scan keeps is ``stdlib``: a stdlib name has no lane role (never a
-    dist, never a Module, never on the spine), so minting it only to have the
-    classifier remove it is pointless churn — and ``scan_imports``' classification is a
-    reliable host-side signal for it. First-party (``project_local``) names ARE now
-    minted, so internal imports appear on the spine.
-
-    The ``Test`` goal node and the goal spine (``project -> module -> import``) are
-    minted downstream by ``skeleton._add_project_node`` and the config-lane wiring.
+    First-party (``project_local``) names are minted, so internal imports appear on the
+    spine. The ``Test`` goal node and the goal spine (``project -> module -> import``)
+    are minted downstream by ``skeleton._add_project_node`` and the config-lane wiring.
     """
     findings, _project_local, _errors = scan_imports(repo_path)
 
     graph = DepGraph()
 
     for finding in findings:
-        # stdlib: the one relocated drop scan keeps (see docstring). Every other name
-        # — external, project-local, ``_``-prefixed, excluded-dir-only — is minted raw
-        # and routed (or dropped) by the classifier.
-        if finding.classification == "stdlib":
-            continue
         in_scope = _in_scope_files(finding.source_files)
         provenance_files = in_scope or finding.source_files
         graph = graph.with_node(

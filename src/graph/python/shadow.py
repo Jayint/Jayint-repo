@@ -29,7 +29,10 @@ class ShadowRecord:
 
 
 def run_shadow_config_lane(graph, repo_path, container_executor, *, declared) -> ShadowRecord:
-    stdlib = probe_target_stdlib(container_executor)
+    # probe_target_stdlib returns None when unavailable; the shadow pass only MEASURES
+    # (graph effect discarded), so a missing target stdlib degrades to an empty set here
+    # rather than the live lane's fail-closed path.
+    stdlib = probe_target_stdlib(container_executor) or frozenset()
     routing = classify(repo_path, target_stdlib=stdlib, declared=declared)
     plan = resolve(repo_path)
     cure = run_cure(container_executor, plan)
