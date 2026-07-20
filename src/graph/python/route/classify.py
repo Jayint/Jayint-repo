@@ -189,6 +189,15 @@ def classify(repo_path: str, *, target_stdlib: frozenset[str], declared: frozens
         # BOTH top_level_names and stem_collisions, so a vendored local and a real external
         # are statically indistinguishable there (spec §12). Arbitration decides post-cure;
         # never clear-external.
+        #
+        # ORDERING (deliberate): the rung-0 ``_``-prefix drop and the rung-2 target-stdlib
+        # drop fire BEFORE this deferral, and that is correct. §12 guards against a
+        # false-INSTALL (deferring a name so arbitration installs the wrong PyPI namesake);
+        # a DROPPED name never installs, so an excluded-dir ``_private`` name (rung 0) is
+        # safely dropped, not deferred. And a target-stdlib name is provided by the
+        # interpreter itself — deferring it to arbitration (which would try to install its
+        # PyPI namesake) would be actively WRONG — so an excluded-dir stdlib name (rung 2)
+        # is dropped, not deferred.
         in_scope = tuple(f for f in finding.source_files if not _is_excluded_path(f))
         if finding.source_files and not in_scope:
             deferred.add(top)

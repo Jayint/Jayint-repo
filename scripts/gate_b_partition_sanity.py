@@ -96,9 +96,14 @@ def _ratio(num: int, den: int) -> float:
 
 
 def _is_errored(record: dict) -> bool:
-    """A record carrying an ``"error"`` key is an errored/excluded repo (a synthetic
-    dict the driver injects per construction failure), not a shadow measurement."""
-    return "error" in record
+    """A record excluded from the numeric aggregate — NOT a usable shadow measurement.
+
+    Two shapes qualify: one carrying an ``"error"`` key (a synthetic dict the driver
+    injects per construction failure), and one flagged ``"probe_unavailable"`` (the
+    TARGET stdlib probe could not answer, so the shadow pass short-circuited WITHOUT
+    classifying — its zeroed partition sizes are meaningless and must not pollute the
+    aggregate). ``.get`` tolerates the missing key on every ordinary record."""
+    return "error" in record or bool(record.get("probe_unavailable"))
 
 
 def aggregate_shadow_records(records: list[dict]) -> dict:

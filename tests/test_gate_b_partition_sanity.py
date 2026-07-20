@@ -112,6 +112,20 @@ def test_aggregate_errored_sorted_and_excluded_from_numerics():
     assert [e["repo"] for e in agg["errored"]] == ["a/first", "z/last"]  # sorted
 
 
+def test_probe_unavailable_record_is_excluded_from_numerics():
+    """A shadow record flagged ``probe_unavailable`` (the target stdlib probe could not
+    answer, so the pass did NOT classify) must be excluded from every numeric aggregate —
+    its zeroed partitions are meaningless and must never pollute the report."""
+    unavailable = _rec("work/org__probe", n_internal=0, n_external=0, n_deferred=0)
+    unavailable["probe_unavailable"] = True
+    agg = gate.aggregate_shadow_records([_R_CLEAN, unavailable])
+    assert agg["total"] == 1                        # only the clean OK record counts
+    assert agg["total_internal"] == 3               # the unavailable record contributes nothing
+    # ordinary records (no probe_unavailable key) are tolerated as usable measurements.
+    assert gate._is_errored(_R_CLEAN) is False
+    assert gate._is_errored(unavailable) is True
+
+
 def test_aggregate_empty_input_is_all_zero_no_div_error():
     agg = gate.aggregate_shadow_records([])
     assert agg["total"] == 0

@@ -26,13 +26,27 @@ class ShadowRecord:
     fallthrough: tuple[str, ...]
     unresolved: tuple[str, ...]
     provisional_flags: tuple[str, ...]
+    # True when the TARGET stdlib probe was UNAVAILABLE: the pass short-circuited
+    # WITHOUT classifying (no empty-set classification), so the partition sizes below
+    # are meaningless zeros. The Gate B aggregator excludes such records from every
+    # numeric aggregate (``_is_errored``), so they can never silently report garbage.
+    probe_unavailable: bool = False
 
 
 def run_shadow_config_lane(graph, repo_path, container_executor, *, declared) -> ShadowRecord:
-    # probe_target_stdlib returns None when unavailable; the shadow pass only MEASURES
-    # (graph effect discarded), so a missing target stdlib degrades to an empty set here
-    # rather than the live lane's fail-closed path.
-    stdlib = probe_target_stdlib(container_executor) or frozenset()
+    # probe_target_stdlib returns None when unavailable. The invariant "no code path
+    # classifies against an empty stdlib set" holds here too: rather than degrade to an
+    # empty set (which would misroute a real stdlib name to external and report a garbage
+    # partition), the shadow pass short-circuits with a probe_unavailable record the
+    # aggregator excludes.
+    stdlib = probe_target_stdlib(container_executor)
+    if stdlib is None:
+        return ShadowRecord(
+            repo=repo_path, n_internal=0, n_external=0, n_deferred=0,
+            cure_ok=False, cure_rung="", collect_ok=False,
+            resolves_local=(), fallthrough=(), unresolved=(), provisional_flags=(),
+            probe_unavailable=True,
+        )
     routing = classify(repo_path, target_stdlib=stdlib, declared=declared)
     plan = resolve(repo_path)
     cure = run_cure(container_executor, plan)

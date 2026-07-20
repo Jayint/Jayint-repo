@@ -70,3 +70,39 @@ def test_pep420_namespace_root_routes_to_collision(tmp_path):
     routing = classify(str(tmp_path), target_stdlib=frozenset(), declared=frozenset())
     assert "pkga" in routing.deferred                      # namespace-suspect → collision zone
     assert "pkga" not in {n for n, _ in routing.internal}  # NOT a trusted top-level
+
+
+def test_excluded_dir_only_private_name_is_dropped_not_deferred(tmp_path):
+    """Ordering: the rung-0 ``_``-prefix drop fires BEFORE the §12 excluded-dir
+    deferral, and that is correct — a DROPPED name never installs, so §12's
+    false-INSTALL concern does not apply. An excluded-dir-only ``_private`` name is
+    dropped: not deferred, not external, not internal."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text("import requests\n")
+    (tmp_path / "examples").mkdir()
+    (tmp_path / "examples" / "demo.py").write_text("import _secretmod\n")
+
+    from graph.python.route.classify import classify
+    routing = classify(str(tmp_path), target_stdlib=frozenset({"os"}), declared=frozenset())
+    assert "_secretmod" not in routing.deferred
+    assert "_secretmod" not in routing.external
+    assert "_secretmod" not in {t for t, _ in routing.internal}
+    assert "requests" in routing.external          # control: the real dep still routes
+
+
+def test_excluded_dir_only_stdlib_name_is_dropped_not_deferred(tmp_path):
+    """Ordering: the rung-2 TARGET-stdlib drop fires BEFORE the §12 excluded-dir
+    deferral, and that is correct — a stdlib name is provided by the interpreter, so
+    deferring it to arbitration (which would try to install its PyPI namesake) would be
+    WRONG. An excluded-dir-only target-stdlib name is dropped: not deferred, not
+    external."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text("import requests\n")
+    (tmp_path / "examples").mkdir()
+    (tmp_path / "examples" / "demo.py").write_text("import json\n")
+
+    from graph.python.route.classify import classify
+    routing = classify(str(tmp_path), target_stdlib=frozenset({"json"}), declared=frozenset())
+    assert "json" not in routing.deferred
+    assert "json" not in routing.external
+    assert "requests" in routing.external          # control
