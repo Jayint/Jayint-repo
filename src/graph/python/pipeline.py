@@ -42,6 +42,8 @@ from graph.model import (
     State,
 )
 from graph.python.fixpoint import _phase_a_fixpoint
+from graph.python.invocation_resolver import resolve
+from graph.python.lanes.config.cure import run_cure, stamp_scratch_certified
 from graph.python.lanes.install.ground import (
     DistGuesser,
     RecordProvider,
@@ -393,6 +395,43 @@ def _apply_live_config_lane(
         return graph
 
 
+def _apply_live_config_cure(
+    graph: DepGraph,
+    repo_path: str,
+    container_executor: Executor,
+) -> DepGraph:
+    """Stage C Task 2 — run the editable-install cure LIVE and reconcile it with
+    the render-time poison.
+
+    Resolves the deterministic :class:`TestEnvPlan` (:func:`resolve`), runs the
+    2-rung editable-install + ``pytest --collect-only`` collect-gate inside the
+    scratch container (:func:`run_cure`, which ``cd``s into the mounted repo), and
+    stamps the ``Project`` node ``scratch_certified`` (+ ``cure_rung`` /
+    ``cure_collect_ok`` evidence) via :func:`stamp_scratch_certified`.
+
+    The stamp is a no-op unless the cure actually installed the project
+    (``cure.ok``): a repo with no installable metadata (no ``pyproject``/
+    ``setup.py``, e.g. proxy_pool) fails both rungs fast, is never stamped, and the
+    render-time poison (``emit._poison_project_certificate``) applies exactly as
+    today -- its ``setup.sh`` stays byte-identical. Only a CURED repo keeps its
+    capstone ``check_command`` (the poison gate honours ``scratch_certified``), so
+    a ``#@check`` renders on its capstone -- the intended behavioural change.
+
+    Fail-open like the Task-1 classify pass: any exception (Docker hiccup, resolver
+    error) is logged and the ORIGINAL graph is returned unchanged, so the live cure
+    can never introduce a new construction failure mode.
+    """
+    try:
+        plan = resolve(repo_path)
+        cure = run_cure(container_executor, plan)
+        return stamp_scratch_certified(graph, cure)
+    except Exception:  # never let the live config cure fail construction
+        logger.warning(
+            "live config-lane cure failed; leaving project uncertified", exc_info=True
+        )
+        return graph
+
+
 def _python_package_obligations(
     repo_path: str,
     container_executor: Executor,
@@ -705,6 +744,12 @@ def _python_package_obligations(
             container_executor,
             declared=frozenset(declared_package_names),
         )
+        # Stage C Task 2 — run the editable-install cure LIVE immediately after the
+        # classify pass and reconcile the render-time poison: a successful in-
+        # container cure stamps the Project node scratch_certified (so its capstone
+        # check survives render as a #@check); a failed/absent cure leaves the graph
+        # -- and the rendered setup.sh -- byte-identical to today.
+        graph = _apply_live_config_cure(graph, repo_path, container_executor)
     return graph, roots, target_env, exclude_newer
 
 

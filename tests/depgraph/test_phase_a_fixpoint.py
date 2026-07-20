@@ -260,7 +260,11 @@ def test_fixpoint_well_declared_repo_does_zero_repair(tmp_path):
 
     assert counter["resolve"] == 1
     assert _audit_packages(graph) == []
-    assert sum(1 for c in ex.calls if "pip install" in c) == 1
+    # Count the Phase-A closure install only. The Stage C Task-2 config-lane cure
+    # adds its own, orthogonal editable `pip install -e .` at the pipeline tail;
+    # excluding it keeps this asserting "zero repair" == one closure install (no
+    # repair re-installs), which is what this test is about.
+    assert sum(1 for c in ex.calls if "pip install" in c and "-e ." not in c) == 1
 
 
 def test_fixpoint_bound_and_honest_residue(tmp_path, caplog):

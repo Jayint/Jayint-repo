@@ -381,7 +381,14 @@ def build_advisory_for_repo(
         # toolchain was present; construction must observe every gap cold. The
         # intra-repo round>=2 speedup comes from the persistent container's own
         # installed state, not the volume, so nothing is lost here.
-        with DockerExecutor(base_image, bootstrap_uv=True) as scratch:
+        # mount_repo threads the repo into the scratch container at repo_mount_dir
+        # (/workspace/repo) so the Task-2 config cure's `cd <mount> && pip install
+        # -e .` (graph.python.lanes.config.cure.run_cure) has the source to install
+        # -- without it the cure runs against an empty dir and can never certify.
+        # cache_volumes stays OFF (see the note above) so construction observes
+        # every gap cold; the mount is rw, so `-e .` may write egg-info/build
+        # artifacts back into the host checkout (accepted, per the Stage B design).
+        with DockerExecutor(base_image, bootstrap_uv=True, mount_repo=repo_path) as scratch:
             graph = build_dep_graph(
                 repo_path, scratch, host_executor=host, target_python=target_python,
                 uv_sources_enabled=uv_sources_enabled,

@@ -83,6 +83,11 @@ def stamp_scratch_certified(graph: DepGraph, cure: CureResult) -> DepGraph:
     new = graph
     for node in graph.nodes:
         if node.type is NodeType.PROJECT:
-            data = {**node.data, "scratch_certified": True, "cure_rung": cure.rung}
+            data = {
+                **node.data,
+                "scratch_certified": True,
+                "cure_rung": cure.rung,
+                "cure_collect_ok": cure.collect_ok,
+            }
             new = new.with_node(replace(node, state=State.SATISFIED, data=data))
     return new
