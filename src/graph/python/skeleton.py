@@ -118,22 +118,56 @@ def _project_import_target(project_name: str, evidence) -> str | None:
     return canon if canon in set(evidence.project_local_modules) else None
 
 
-def _add_project_node(graph: DepGraph, repo_path: str) -> DepGraph:
-    """Add a Project hub node and connect declared direct deps to it.
+# Goal node (design 5): "the repo's tests pass". Minted HERE (not by ``scan``)
+# since THE FLIP replaced the flat Test->Import hub with the ``project -> module
+# -> import`` spine — ``scan`` no longer mints it. It stays the graph goal
+# (``declared_anchor``/certify/advise read it), rooted above the Project node.
+TEST_NODE_NAME = "repo_tests_pass"
+TEST_CHECK_COMMAND = "python -m pytest -q"
 
-    The repo under test is otherwise only reachable through the Test->Import
-    chain, so its declared direct dependencies have no shared parent (e.g.
-    ``certifi`` had no incoming Package->Package edge).  This node makes "what
-    does the project directly require" a single explorable subtree:
+
+def _build_test_node() -> Node:
+    return Node(
+        id=TEST_NODE_ID,
+        type=NodeType.TEST,
+        name=TEST_NODE_NAME,
+        layer=Layer.TESTS,
+        discovered_by=DiscoveredBy.GOAL,
+        state=State.UNKNOWN,
+        check_command=TEST_CHECK_COMMAND,
+        # The goal node IS the scan-stage goal conceptually (pre-flip ``scan`` minted
+        # it at _SCAN_CYCLE); stamp it so moving the mint here doesn't shift the
+        # debug-only discovery-cycle metadata. The resolver-cycle restamp excludes
+        # GOAL nodes (pipeline), so this stamp survives.
+        discovered_cycle=_SCAN_CYCLE,
+    )
+
+
+def _add_project_node(graph: DepGraph, repo_path: str) -> DepGraph:
+    """Mint the Test goal + Project hub and re-home declared direct deps.
+
+    THE FLIP moved goal minting here: ``scan`` no longer mints the ``Test`` node,
+    so this stage mints it (idempotently — a caller that already seeded a Test node
+    keeps theirs) BEFORE drawing the ``Test --requires--> Project`` edge, which the
+    edge's endpoint validation requires. The goal spine is then
+    ``Test -> Project -> Module -> Import -> {Module|Package}`` (module/import edges
+    wired by the config-lane pass); declared-but-unimported deps keep their
+    ``declared`` flag (re-homed from a Project->Package edge — commit 8c912ea5/
+    7af28513) and are reconstructed at render (``advise.declared_anchor`` /
+    ``build_script._annotation``), so this hub's declared-flag stamping is unchanged
+    and byte-stable for a repo with no first-party routing changes.
 
     * ``Test --requires--> Project``
-    * ``Project --requires--> <runtime declared dep Package>``  (kind=dependency)
-    * ``Test --requires--> <test/optional declared dep Package>`` (kind=optional)
+    * declared direct dep -> ``Package.data['declared']='direct'`` (was an edge)
+    * declared optional dep -> ``Package.data['declared']='optional'`` (was an edge)
 
     Runtime vs test classification reuses ``evidence`` (kind ``dependency`` vs
-    ``optional_dependency``); no new parsing.  Transitive deps still hang off
-    their parents, and Import->Package reconciliation is unchanged.
+    ``optional_dependency``); scope is read from the manifest group only, never
+    re-derived from a carrying module.  Transitive deps still hang off their
+    parents, and Import->Package reconciliation is unchanged.
     """
+    if graph.get(TEST_NODE_ID) is None:
+        graph = graph.with_node(_build_test_node())
     name = _project_name(repo_path)
     proj_id = project_id(name)
     manifest = _project_build_manifest(repo_path)

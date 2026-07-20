@@ -68,34 +68,27 @@ def test_provenance_records_source_file(tmp_path: Path) -> None:
     assert "vision.py" in cv2.provenance
 
 
-def test_test_node_present_with_requires_edges(tmp_path: Path) -> None:
+def test_scan_no_longer_mints_the_test_hub(tmp_path: Path) -> None:
+    """THE FLIP: ``scan`` no longer mints the ``Test`` goal node or the flat
+    ``Test -> Import`` hub — the goal node is minted downstream by
+    ``_add_project_node`` and the imports are connected via the config-lane spine.
+    ``scan`` now returns ONLY external Import nodes and NO edges."""
     _write_fixture_repo(tmp_path)
 
     graph = scan_to_nodes(str(tmp_path))
 
-    test_node = graph.get(TEST_NODE_ID)
-    assert test_node is not None
-    assert test_node.type is NodeType.TEST
-    assert test_node.layer is Layer.TESTS
-    assert test_node.discovered_by is DiscoveredBy.GOAL
-    assert test_node.check_command == "python -m pytest -q"
-
-    required = {n.id for n in graph.requires_of(TEST_NODE_ID)}
-    assert required == {import_id("cv2"), import_id("PIL")}
-
-    for edge in graph.edges:
-        assert edge.relation is EdgeType.REQUIRES
-        assert edge.src == TEST_NODE_ID
-        assert edge.origin == "scan"
+    assert graph.get(TEST_NODE_ID) is None                       # no Test node
+    assert all(n.type is NodeType.IMPORT for n in graph.nodes)   # imports only
+    assert graph.edges == ()                                     # no hub edges
+    assert {n.id for n in graph.nodes} == {import_id("cv2"), import_id("PIL")}
 
 
-def test_no_external_imports_yields_only_test_node(tmp_path: Path) -> None:
+def test_no_external_imports_yields_empty_graph(tmp_path: Path) -> None:
     (tmp_path / "plain.py").write_text("import os\nimport sys\n", encoding="utf-8")
 
     graph = scan_to_nodes(str(tmp_path))
 
-    assert graph.get(TEST_NODE_ID) is not None
-    assert all(n.type is NodeType.TEST for n in graph.nodes)
+    assert graph.nodes == ()   # no Test node, no imports (all stdlib)
     assert graph.edges == ()
 
 
@@ -137,9 +130,13 @@ def test_scan_scopes_out_tools_dir(tmp_path: Path) -> None:
     assert "click" not in names  # tools dropped
 
 
-def test_scan_drops_local_fixture_packages_and_typing(tmp_path: Path) -> None:
-    """In-repo fixture packages (nested under tests/) and typing-only modules are
-    not external PyPI deps and must not become Import nodes."""
+def test_scan_routes_local_fixture_packages_but_still_drops_typing(tmp_path: Path) -> None:
+    """THE FLIP (route-not-drop): an in-repo fixture package nested under tests/
+    (flask's ``blueprintapp`` pattern) is NO LONGER dropped by ``scan`` — it is
+    minted as an Import node for ``classify`` to route to the collision zone (its
+    PyPI namesake installs only after a cure-verified certificate). ``_``-prefixed
+    typing-only modules (``_typeshed``) stay dropped here: they can never carry an
+    install-lane Import node."""
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "app.py").write_text(
         "import requests\n"
@@ -159,5 +156,5 @@ def test_scan_drops_local_fixture_packages_and_typing(tmp_path: Path) -> None:
     names = {n.name for n in graph.nodes if n.type is NodeType.IMPORT}
 
     assert "requests" in names  # real external dep kept
-    assert "blueprintapp" not in names  # local fixture package dropped
-    assert "_typeshed" not in names  # typing-only dropped
+    assert "blueprintapp" in names  # local fixture NOW routed (classifier defers it)
+    assert "_typeshed" not in names  # typing-only STILL dropped (never installable)

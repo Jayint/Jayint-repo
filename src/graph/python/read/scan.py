@@ -1,4 +1,4 @@
-"""Stage 1: static import scan -> Import + Test nodes.
+"""Stage 1: static import scan -> Import nodes (route-not-drop; Stage C flip).
 
 Wraps :func:`graph.python.read.import_graph.scan_imports` (which classifies each
 top-level import as ``stdlib`` / ``project_local`` / ``external``) and lifts the
@@ -8,10 +8,20 @@ top-level import as ``stdlib`` / ``project_local`` / ``external``) and lifts the
   * one ``Import`` node per external import
     (``type=IMPORT``, ``layer=NAMING``, ``discovered_by=STATIC_SCAN``,
     ``state=UNKNOWN``, ``provenance`` = the source file(s),
-    ``check_command = python -c "import <name>"``);
-  * one ``Test`` goal node (``TEST_NODE_ID``, ``layer=TESTS``,
-    ``discovered_by=GOAL``, ``check_command = "python -m pytest -q"``) with a
-    ``requires`` edge to every Import.
+    ``check_command = python -c "import <name>"``).
+
+THE FLIP (2026-07-17 config-lane spec, "Relocated scan drops"): this stage no
+longer drops first-party/local names, and no longer mints the ``Test`` goal node
+or the flat ``Test -> Import`` hub. The lane classifier (``route.classify``) is now
+the routing authority — a locally-shadowed name (``items``, ``blueprintapp``) is
+minted here as an Import node and routed by the classifier to the collision zone
+(deferred) or to a first-party ``Module``, never left to Phase-A's dist-guesser.
+The goal spine (``project -> module -> import -> {module|package}``) and the ``Test``
+goal node are minted downstream by ``skeleton._add_project_node``. Two drops stay
+here (they must never become install-lane Import nodes): ``_``-prefixed private/
+typing names, and excluded-dir-only imports (examples/docs/scripts/tools — a name
+seen ONLY there is out of the "run the repo properly" scope and pre-flip was never
+installed; keeping the drop preserves install-line byte-identity).
 
 Static scanning is evidence, not completeness (design 4.1 / 10.1): dynamic and
 plugin imports are not visible here.  This stage never sets ``state`` beyond
@@ -25,20 +35,15 @@ import re
 
 from graph.python.read.import_graph import scan_imports
 
-from graph.model import TEST_NODE_ID, import_id
+from graph.model import import_id
 from graph.model import (
     DepGraph,
     DiscoveredBy,
-    Edge,
-    EdgeType,
     Layer,
     Node,
     NodeType,
     State,
 )
-
-TEST_NODE_NAME = "repo_tests_pass"
-TEST_CHECK_COMMAND = "python -m pytest -q"
 
 # Directory segments whose imports are NOT part of "running the repo properly":
 # examples/docs/build artifacts pull in non-project deps (and sometimes non-PyPI
@@ -107,18 +112,6 @@ def _import_check_command(name: str) -> str:
     return f'python -c "import {name}"'
 
 
-def _build_test_node() -> Node:
-    return Node(
-        id=TEST_NODE_ID,
-        type=NodeType.TEST,
-        name=TEST_NODE_NAME,
-        layer=Layer.TESTS,
-        discovered_by=DiscoveredBy.GOAL,
-        state=State.UNKNOWN,
-        check_command=TEST_CHECK_COMMAND,
-    )
-
-
 def _build_import_node(
     name: str, source_files: tuple[str, ...], *,
     optional: bool = False, symbols: tuple[str, ...] = (),
@@ -146,16 +139,28 @@ def _build_import_node(
 
 
 def scan_to_nodes(repo_path: str) -> DepGraph:
-    """Scan ``repo_path`` and return a graph of external Import nodes plus the
-    Test goal node, joined by ``requires`` edges (Test -> each Import).
+    """Scan ``repo_path`` and return a graph of external Import nodes (no edges).
 
-    Only ``external`` imports become nodes; stdlib and project-local imports are
-    dropped (their classification is reused from ``scan_imports``).
+    THE FLIP: first-party/local names are NO LONGER dropped here — a name that is
+    ``external`` per ``scan_imports`` but also shadows a repo module (``items``,
+    ``blueprintapp``) is minted as an Import node and left for ``route.classify`` to
+    route (collision zone / first-party Module). The two drops that stay are the
+    ONLY names that must never carry an install-lane Import node:
+
+      * ``_``-prefixed private/typing modules (``_typeshed``) — never installable;
+      * excluded-dir-ONLY imports (examples/docs/scripts/tools) — out of the "run
+        the repo properly" scope, and never installed pre-flip; dropping them keeps
+        the rendered setup.sh byte-identical across the flip.
+
+    The ``Test`` goal node and the goal spine are minted downstream by
+    ``skeleton._add_project_node`` / the pipeline's config-lane wiring, not here.
+    Non-external (stdlib / project-local) findings still contribute no Import node:
+    stdlib is not installable, and a project-local top-level is represented by its
+    ``Module`` node, not an Import node.
     """
     findings, _project_local, _errors = scan_imports(repo_path)
-    local_names = _local_module_names(repo_path)
 
-    graph = DepGraph().with_node(_build_test_node())
+    graph = DepGraph()
 
     for finding in findings:
         if finding.classification != "external":
@@ -164,12 +169,9 @@ def scan_to_nodes(repo_path: str) -> DepGraph:
         # Typing-only / private modules (e.g. ``_typeshed``) are not installable.
         if name.startswith("_"):
             continue
-        # In-repo packages/modules (incl. nested test fixtures like flask's
-        # ``blueprintapp``) are local, not PyPI distributions — drop them.
-        if name in local_names:
-            continue
         # Scope to project source + tests: drop imports seen ONLY in
-        # examples/docs/build (they pull non-project / non-PyPI names).
+        # examples/docs/build (they pull non-project / non-PyPI names). A name that
+        # ALSO appears in-scope survives — the classifier then routes it.
         in_scope = _in_scope_files(finding.source_files)
         if finding.source_files and not in_scope:
             continue
@@ -178,14 +180,6 @@ def scan_to_nodes(repo_path: str) -> DepGraph:
             _build_import_node(
                 finding.import_name, provenance_files,
                 optional=finding.optional, symbols=finding.symbols,
-            )
-        )
-        graph = graph.with_edge(
-            Edge(
-                src=TEST_NODE_ID,
-                dst=import_id(finding.import_name),
-                relation=EdgeType.REQUIRES,
-                origin="scan",
             )
         )
 

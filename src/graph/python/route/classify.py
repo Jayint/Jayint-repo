@@ -32,8 +32,13 @@ from graph.python.read.scan import (
     _is_excluded_path, scan_imports,
 )
 from graph.model import (
-    DiscoveredBy, Layer, Node, NodeType,
+    DiscoveredBy, Edge, EdgeType, Layer, Node, NodeType, import_id,
 )
+
+
+def module_id(top: str) -> str:
+    """Node id for a first-party ``Module`` node (config-cured lane)."""
+    return f"module:{top}"
 
 
 @dataclass(frozen=True)
@@ -42,6 +47,14 @@ class LaneRouting:
     external: frozenset[str]
     deferred: frozenset[str]
     modules: tuple[Node, ...]
+    # Spine attribution: sorted, unique ``(module_top, import_top)`` pairs — each
+    # is a prospective ``module(owner) --imports--> import(name)`` edge, derived by
+    # mapping every external finding's source files back to their top-level module
+    # (``repo_modules``). Self-references (``owner == import_top``) are omitted (the
+    # top-level import of a module's own package). ``wire_spine`` draws only the
+    # pairs whose BOTH endpoints exist as nodes, so excluded/private drops never
+    # produce a dangling edge.
+    spine: tuple[tuple[str, str], ...] = ()
 
 
 _STDLIB_PROBE = (
@@ -69,7 +82,7 @@ def _module_node(top: str, dotted_paths: tuple[tuple[str, str], ...]) -> Node:
     path) pairs (JSON) so two dirs each defining ``utils`` don't collapse into a
     false single-provider node (review §14)."""
     return Node(
-        id=f"module:{top}",
+        id=module_id(top),
         type=NodeType.MODULE,
         name=top,
         layer=Layer.NAMING,
@@ -113,13 +126,17 @@ def classify(repo_path: str, *, target_stdlib: frozenset[str], declared: frozens
     declared_norm = frozenset(d.lower().replace("-", "_") for d in declared)
 
     # Module-node evidence: group repo modules by their top-level name, keeping
-    # both the (sys_path_root, path) evidence pairs and the dotted names.
+    # both the (sys_path_root, path) evidence pairs and the dotted names. The
+    # ``path -> top`` map (same walk) attributes each import's source files back to
+    # the owning top-level module for the ``module -> import`` spine edges.
     by_top: dict[str, list[tuple[str, str]]] = {}
     dotted_by_top: dict[str, list[str]] = {}
+    path_to_top: dict[str, str] = {}
     for mod in repo_modules(repo_path):
         top = mod.dotted.split(".", 1)[0]
         by_top.setdefault(top, []).append((mod.sys_path_root, mod.path))
         dotted_by_top.setdefault(top, []).append(mod.dotted)
+        path_to_top[mod.path] = top
 
     internal: list[tuple[str, str]] = []
     external: set[str] = set()
@@ -157,20 +174,100 @@ def classify(repo_path: str, *, target_stdlib: frozenset[str], declared: frozens
     for top in sorted(internal_tops):
         dotteds = dotted_by_top.get(top, [])
         internal.append((top, min(dotteds) if dotteds else top))  # lexicographically-first dotted
-    modules = tuple(_module_node(top, tuple(by_top.get(top, ()))) for top in sorted(internal_tops))
+
+    # Spine attribution: map each external finding's source files back to their
+    # owning top-level module (``path_to_top``). ``owner --imports--> import(name)``,
+    # self-references omitted. Restricted to ``external`` findings (the classification
+    # that mints an Import node); ``wire_spine`` further gates on node existence, so
+    # a private/excluded-dir drop never yields a dangling edge.
+    spine_pairs: set[tuple[str, str]] = set()
+    for finding in findings:
+        if finding.classification != "external":
+            continue
+        imp_top = finding.import_name
+        for source_file in finding.source_files:
+            owner = path_to_top.get(source_file)
+            if owner is not None and owner != imp_top:
+                spine_pairs.add((owner, imp_top))
+
+    # Module nodes = the repo's top-level first-party modules that PARTICIPATE in the
+    # dependency spine: the imported-internal reconciliation set (``internal_tops``)
+    # PLUS every top-level module that OWNS an external import (a spine ``owner``),
+    # so a flat repo whose top-level module is never itself imported (``app.py``
+    # importing ``requests``) still anchors ``project -> module(app) -> import``. A
+    # declared name (rung 1, external — "you never declare your own modules"), a
+    # collision, or a namespace-suspect top is NOT a first-party module node.
+    owner_tops = {
+        owner for owner, _imp in spine_pairs
+        if owner not in declared_norm and owner not in collisions and owner not in suspect
+    }
+    module_tops = internal_tops | owner_tops
+    modules = tuple(
+        _module_node(top, tuple(by_top.get(top, ()))) for top in sorted(module_tops)
+    )
+
     return LaneRouting(
         internal=tuple(internal),
         external=frozenset(external),
         deferred=frozenset(deferred),
         modules=modules,
+        spine=tuple(sorted(spine_pairs)),
     )
 
 
 def apply_routing(graph, routing: LaneRouting):
-    """Emit the Module nodes onto a graph. The spine wiring (project→module→
-    import replacing the flat Test→Import hub) is the Stage C flip; here we only
-    add the Module nodes so the shadow pass can measure them."""
+    """Emit the Module nodes AND stamp first-party import nodes (route-not-drop).
+
+    Runs BEFORE the Phase-A fixpoint: it attaches the edge-less ``Module`` nodes and
+    stamps ``data['routed_provider']='module'`` on every Import node whose top-level
+    name the classifier routed internal — that is the flag the lane-aware fixpoint
+    filter (``fixpoint._missing_import_nodes``) reads to keep a first-party name out
+    of the repair bound and away from the dist-guesser. The spine EDGES
+    (``project->module``, ``module->import``) are drawn post-Project by
+    :func:`wire_spine`, since they need the Project node. Additive to render: Module/
+    Import nodes carry no recipe, so the emitted ``setup.sh`` is unchanged."""
+    internal_tops = {top for top, _dotted in routing.internal}
     new = graph
     for node in routing.modules:
         new = new.with_node(node)
+    for node in graph.nodes:
+        if (
+            node.type is NodeType.IMPORT
+            and node.name.split(".", 1)[0] in internal_tops
+            and node.data.get("routed_provider") != "module"
+        ):
+            new = new.with_node(node.with_data(routed_provider="module"))
+    return new
+
+
+def wire_spine(graph, routing: LaneRouting):
+    """Draw the goal spine's config-lane edges — the flat ``Test -> Import`` hub's
+    replacement — once the Project node exists.
+
+    * ``project --requires--> module(top)`` (``origin='contains'``) for every
+      first-party Module node (``routing.modules``).
+    * ``module(owner) --requires--> import(name)`` (``origin='imports'``) for each
+      ``routing.spine`` pair whose BOTH endpoints exist.
+
+    ``import --requires--> module`` (internal resolution) is intentionally absent:
+    findings are top-level-aggregated, so an internal import resolves to its own
+    module — a top-level self-reference the spec omits. Both endpoints of every edge
+    are gated on existence, so a private/excluded-dir drop never dangles. A pure
+    graph transform (no ``repo_modules``); returns a NEW graph."""
+    project = next((n for n in graph.nodes if n.type is NodeType.PROJECT), None)
+    new = graph
+    if project is not None:
+        for module in routing.modules:
+            if new.get(module.id) is not None:
+                new = new.with_edge(
+                    Edge(src=project.id, dst=module.id,
+                         relation=EdgeType.REQUIRES, origin="contains")
+                )
+    for owner, imp_top in routing.spine:
+        mod_id, imp_id = module_id(owner), import_id(imp_top)
+        if new.get(mod_id) is not None and new.get(imp_id) is not None:
+            new = new.with_edge(
+                Edge(src=mod_id, dst=imp_id,
+                     relation=EdgeType.REQUIRES, origin="imports")
+            )
     return new

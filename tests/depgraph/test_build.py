@@ -167,9 +167,16 @@ def test_build_requires_topology(tmp_path):
     graph = _build(tmp_path)
 
     edges = {(e.src, e.dst) for e in graph.edges}
-    # Test -> Imports
-    assert (TEST_NODE_ID, import_id("cv2")) in edges
-    assert (TEST_NODE_ID, import_id("psycopg2")) in edges
+    # THE FLIP: the flat Test->Import hub is replaced by the goal spine
+    # Test -> Project -> Module(app) -> Import -> Package. `app.py` (the repo's
+    # top-level first-party module) owns every import, so it anchors them to the goal.
+    from graph.model import project_id
+    from graph.python.route.classify import module_id
+    pid = project_id("fx")
+    assert (TEST_NODE_ID, pid) in edges                          # Test -> Project
+    assert (pid, module_id("app")) in edges                      # Project -> Module (contains)
+    assert (module_id("app"), import_id("cv2")) in edges         # Module -> Import (imports)
+    assert (module_id("app"), import_id("psycopg2")) in edges
     # Import -> Package
     assert (import_id("cv2"), package_id("opencv-python", "4.9.0.80")) in edges
     assert (import_id("PIL"), package_id("Pillow", "10.3.0")) in edges

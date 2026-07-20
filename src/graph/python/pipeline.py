@@ -68,9 +68,11 @@ from graph.python.read.subprocess_scan import add_subprocess_tool_nodes
 from graph.python.read.target_env import detect_target_env
 from graph.python.route.arbitrate import arbitrate
 from graph.python.route.classify import (
+    LaneRouting,
     apply_routing,
     classify,
     probe_target_stdlib,
+    wire_spine,
 )
 from graph.python.skeleton import (
     _PROBE_CYCLE,
@@ -349,37 +351,68 @@ def _soft_declared_dist_names(evidence) -> frozenset[str]:
     )
 
 
-def _apply_live_config_lane(
+def _route_config_lane(
     graph: DepGraph,
     repo_path: str,
     container_executor: Executor,
     *,
     declared: frozenset[str],
-) -> DepGraph:
-    """Stage C Task 1 — the config-lane classifier, LIVE and additive.
+) -> tuple[DepGraph, LaneRouting | None]:
+    """THE FLIP, first half — the config-lane classifier, LIVE and BEFORE Phase A.
 
     Probe the TARGET stdlib once, statically route every scanned top-level import
-    into internal / external / deferred (``classify``), attach the edge-less
-    internal ``Module`` nodes (``apply_routing``), and record the routing partition
-    AS GRAPH DATA on the ``Project`` node -- ``routing_internal`` (internal tops)
-    and ``routing_deferred`` (collision-zone names) -- so Tasks 2-4 read it from the
-    graph, not a side channel. Tuples keep ``Node.data`` immutable (matching
-    ``_add_project_node``'s ``soft_requirements_files``).
+    into internal / external / deferred (``classify``), attach the edge-less internal
+    ``Module`` nodes AND stamp ``data['routed_provider']='module'`` on first-party
+    Import nodes (``apply_routing``). Runs BEFORE the Phase-A fixpoint on purpose: the
+    stamp + the returned ``deferred`` set are exactly what the lane-aware
+    ``_missing_import_nodes`` filter reads, so a first-party name (now minted as an
+    Import node by the route-not-drop ``scan``) never inflates the repair bound nor
+    reaches the LLM dist-guesser.
 
-    Purely additive: ``Module`` nodes carry no install recipe and no edges, and the
-    two project-data keys are read by no renderer, so the emitted ``setup.sh`` stays
-    byte-identical (``emit`` only orders REQUIRES edges between installable nodes).
+    Returns ``(graph, routing)``; the caller threads ``routing.deferred`` into the
+    fixpoint and re-uses ``routing`` to wire the spine after the Project node exists
+    (:func:`_finalize_config_lane`) — the classifier runs ONCE per construction.
 
-    Fail-open: the pipeline has no try/except idiom, so this pass wraps its own --
-    any exception (e.g. a probe/scan hiccup) is logged and the ORIGINAL graph is
-    returned unchanged, so the live lane can never introduce a new construction
-    failure mode. The cure/arbitrate steps stay in ``run_shadow_config_lane`` for
-    now; a later task wires them live and drops the shadow redundancy.
+    Fail-open: any exception (probe/scan hiccup) is logged and the ORIGINAL graph is
+    returned with ``routing=None``, so the live lane can never introduce a new
+    construction failure mode; the spine finalize then no-ops.
     """
     try:
         stdlib = probe_target_stdlib(container_executor)
         routing = classify(repo_path, target_stdlib=stdlib, declared=declared)
-        new = apply_routing(graph, routing)
+        return apply_routing(graph, routing), routing
+    except Exception:  # never let the advisory config lane fail construction
+        logger.warning(
+            "live config-lane classify failed; leaving graph unrouted", exc_info=True
+        )
+        return graph, None
+
+
+def _finalize_config_lane(
+    graph: DepGraph,
+    routing: LaneRouting | None,
+) -> DepGraph:
+    """THE FLIP, second half — wire the goal spine + record routing AS GRAPH DATA.
+
+    Runs AFTER ``_add_project_node`` (the spine's ``project->module`` /
+    ``module->import`` edges need the Project node). Draws the spine (``wire_spine``,
+    the flat ``Test->Import`` hub's replacement) and stamps the routing partition on
+    the ``Project`` node -- ``routing_internal`` (internal tops) and
+    ``routing_deferred`` (collision-zone names) -- the durable record Task-3
+    arbitration, ``relink``'s launder guard, and the repair agent all read (never a
+    side channel). Tuples keep ``Node.data`` immutable.
+
+    Additive to render: Module/Import nodes and the spine edges between them are not
+    reciped, and the project-data keys are inert to the renderer, so the emitted
+    ``setup.sh`` is byte-identical to pre-flip apart from Task-2's capstone ``#@check``.
+
+    Fail-open (``routing is None`` -> no-op; any exception logged, graph returned
+    as-is), mirroring the classify pass.
+    """
+    if routing is None:
+        return graph
+    try:
+        new = wire_spine(graph, routing)
         project = next((n for n in new.nodes if n.type is NodeType.PROJECT), None)
         if project is not None:
             new = new.with_node(
@@ -389,11 +422,36 @@ def _apply_live_config_lane(
                 )
             )
         return new
-    except Exception:  # never let the advisory config lane fail construction
+    except Exception:  # never let spine wiring fail construction
         logger.warning(
-            "live config-lane classify failed; leaving graph unrouted", exc_info=True
+            "live config-lane spine wiring failed; leaving graph unrouted",
+            exc_info=True,
         )
         return graph
+
+
+def _assert_no_causal_recipe(graph: DepGraph) -> DepGraph:
+    """Construction invariant: a causal node (IMPORT / MODULE) must never carry an
+    install recipe. IMPORT/MODULE are naming/first-party nodes — the renderer emits
+    a pip/apt line only for a reciped Package/SystemLib/Tool (or the installable
+    Project capstone), never for these; the spine must keep that invariant.
+
+    Fails LOUDLY under test (``assert`` — active with ``__debug__``, i.e. pytest) and
+    logs-and-continues in production (``python -O`` strips the assert), matching the
+    pipeline's fail-open idiom. A no-op transform; returns ``graph`` unchanged."""
+    from graph.compile.emit import _is_reciped  # lazy: avoid load-order coupling
+    offenders = [
+        n.id for n in graph.nodes
+        if n.type in (NodeType.IMPORT, NodeType.MODULE)
+        and (_is_reciped(n) or n.setup_commands)
+    ]
+    if offenders:
+        logger.error(
+            "construction invariant violated: causal node(s) carry an install "
+            "recipe (IMPORT/MODULE must carry none): %s", offenders
+        )
+        assert not offenders, f"IMPORT/MODULE nodes must carry no recipe: {offenders}"
+    return graph
 
 
 def _apply_live_config_cure(
@@ -724,7 +782,6 @@ def _python_package_obligations(
     # under-declarations by adding AUDIT roots -> re-resolve until stable (P1.4).
     # Install stays inside the loop (re-install each round). The loop only rebinds
     # ``graph``; every round returns a new immutable graph.
-    pre_resolve_ids = {n.id for n in graph.nodes}
     # Single evidence read backs BOTH the repair-candidate name set and the
     # `[tool.uv.sources]` config threaded into resolve_closure below -- see
     # `_declared_package_names_for_repair` for the repair-ladder HIGH-bug
@@ -732,6 +789,28 @@ def _python_package_obligations(
     # unrelated public PyPI package of the same name).
     evidence_for_resolve = collect_python_dependency_evidence(repo_path)
     declared_package_names = _declared_package_names_for_repair(evidence_for_resolve)
+
+    # Stage 2.5 — LIVE config-lane classify (THE FLIP: route-not-drop). Runs BEFORE
+    # Phase A so the lane-aware fixpoint filter is armed: Module nodes are attached
+    # and every first-party Import node (now minted by the route-not-drop ``scan``)
+    # is stamped ``routed_provider='module'``, while the collision-zone ``deferred``
+    # set is threaded into the fixpoint below -- so a first-party name never inflates
+    # the repair bound nor reaches the LLM dist-guesser. ``routing`` is re-used to
+    # wire the spine after the Project node exists (``_finalize_config_lane``).
+    routing = None
+    deferred_names: frozenset[str] = frozenset()
+    if repo_path is not None:
+        graph, routing = _route_config_lane(
+            graph, repo_path, container_executor,
+            declared=frozenset(declared_package_names),
+        )
+        if routing is not None:
+            deferred_names = routing.deferred
+
+    # pre_resolve_ids captured AFTER the classify pass so its Module/Import nodes are
+    # "pre-resolve" state (kept out of the resolver-cycle restamp -- they retain their
+    # CLASSIFIER / STATIC_SCAN discovery stamps).
+    pre_resolve_ids = {n.id for n in graph.nodes}
     uv_sourced_names = _uv_sourced_dist_names(evidence_for_resolve)
     # Soft-declared dist names (canonical): deps the repo declared in a *soft*
     # requirements file (no matching pyproject entry). Fed to Phase A's declared
@@ -794,6 +873,7 @@ def _python_package_obligations(
         workspace_members=workspace_members,
         repo_path=repo_path,
         llm=llm_dist_guesser,
+        deferred=deferred_names,
         resume=phase_a_state,
     )
 
@@ -855,21 +935,18 @@ def _python_package_obligations(
     resolver_ids = {
         n.id
         for n in graph.nodes
-        if n.id not in pre_resolve_ids and n.discovered_by is not DiscoveredBy.PROBE
+        if n.id not in pre_resolve_ids
+        and n.discovered_by not in (DiscoveredBy.PROBE, DiscoveredBy.GOAL)
     }
     graph = _restamp(graph, resolver_ids, _RESOLVER_CYCLE)
-    # Stage C Task 1 — LIVE config-lane classify (additive). Runs unconditionally
-    # (independent of the vestigial ``shadow_config_lane`` flag, which now only
-    # drives the still-discarding shadow measurement above); placed AFTER the
-    # resolver restamp so the classifier's own Module nodes keep their CLASSIFIER
-    # discovery stamp rather than being swept into the resolver cycle.
+    # Stage C — LIVE config lane, second half (THE FLIP): wire the goal spine and
+    # record the routing partition on the Project node. The classify pass already
+    # ran BEFORE Phase A (``_route_config_lane`` above); here we only draw the
+    # ``project->module->import`` edges (which need the now-present Project node) and
+    # stamp ``routing_internal`` / ``routing_deferred`` -- the durable record Tasks
+    # 2-3 read. ``routing is None`` (classify failed / no repo_path) -> a no-op.
     if repo_path is not None:
-        graph = _apply_live_config_lane(
-            graph,
-            repo_path,
-            container_executor,
-            declared=frozenset(declared_package_names),
-        )
+        graph = _finalize_config_lane(graph, routing)
         # Stage C Task 2 — run the editable-install cure LIVE immediately after the
         # classify pass and reconcile the render-time poison: a successful in-
         # container cure stamps the Project node scratch_certified (so its capstone
@@ -918,6 +995,9 @@ def _python_package_obligations(
         graph = _apply_live_arbitration(
             graph, repo_path, container_executor, reenter=_reenter
         )
+    # Construction invariant: the spine's causal nodes (IMPORT/MODULE) carry no
+    # install recipe. Fails loudly under test; logs-and-continues in production.
+    graph = _assert_no_causal_recipe(graph)
     return graph, roots, target_env, exclude_newer
 
 
