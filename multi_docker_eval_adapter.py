@@ -143,6 +143,10 @@ class MultiDockerEvalAdapter:
         ``no_dockerfile`` failure rather than a crash)."""
         instance_id = instance.get("instance_id", "unknown")
         repo_url = instance.get("repo_url") or ""
+        # §4.1: the dataset already carries the TEST ecosystem; thread it so the
+        # base image routes on it (the harness always pytests) instead of an LLM
+        # re-derive from the README. Absent -> classify as today (byte-identical).
+        language = instance.get("language")
         result: Dict[str, Any] = {
             "dockerfile": None,
             "setup_scripts": {},
@@ -155,7 +159,8 @@ class MultiDockerEvalAdapter:
             src_dir = self._clone(repo_url, pin_sha=pin_sha)
             head_sha = self._head_sha(src_dir)
             setup_sh, resolved_base = self._run_v3(
-                src_dir, base_image, model, full_name=full_name, max_steps=max_steps)
+                src_dir, base_image, model, full_name=full_name, max_steps=max_steps,
+                language=language)
             setup_sh = _APP_WORKDIR_RE.sub("/testbed", setup_sh)
             result["base_image"] = resolved_base
             result["setup_scripts"] = {"setup.sh": setup_sh}
@@ -281,7 +286,8 @@ class MultiDockerEvalAdapter:
         return None
 
     def _run_v3(self, src_dir: Path, base_image: str, model: str | None,
-                *, full_name: str | None = None, max_steps: int = 30) -> Tuple[str, str]:
+                *, full_name: str | None = None, max_steps: int = 30,
+                language: str | None = None) -> Tuple[str, str]:
         """Run the run_v3 graph-scheduler loop on ``src_dir``; return
         ``(setup_sh_text, resolved_base_image)``.
 
@@ -304,6 +310,8 @@ class MultiDockerEvalAdapter:
                "--out", str(setup_path)]
         if model:
             cmd += ["--model", model]
+        if language:
+            cmd += ["--language", language]
         if seed_script:
             # Seed the react arm from the construction setup.sh and SKIP graph construction
             # (run_v3_e2e --seed-script). Mutually exclusive with --construction-only:

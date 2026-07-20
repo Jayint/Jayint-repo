@@ -85,3 +85,19 @@ def test_explicit_bare_tag_is_honored_verbatim_not_normalized(monkeypatch):
     choice = choose_base_image(_repo(">=3.10"), client=object(), model="m",
                                explicit="python:3.12")
     assert choice.image == "python:3.12"          # NOT normalized to "-slim"
+
+
+def test_auto_forwards_language_hint(monkeypatch):
+    # §4.1: a supplied language is forwarded as language_hint (ImageSelector then
+    # skips its LLM detect); absent, the kwarg defaults None and the path is unchanged.
+    seen = {}
+
+    class _FakeSelector:
+        def __init__(self, *a, **k): pass
+        def select_base_image(self, repo_path, **k):
+            seen.update(k)
+            return "python:3.11-slim", object(), "docs", None
+
+    monkeypatch.setattr(bis, "ImageSelector", _FakeSelector)
+    choose_base_image(_repo(">=3.11"), client=object(), model="m", language="python")
+    assert seen.get("language_hint") == "python"

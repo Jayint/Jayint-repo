@@ -98,6 +98,13 @@ def _build_arg_parser() -> argparse.ArgumentParser:
              "selector; pass an explicit tag (e.g. python:3.11-slim) to "
              "override verbatim.",
     )
+    ap.add_argument(
+        "--language", default=None,
+        help="TEST ecosystem hint (§4.1). When set, ImageSelector skips its LLM "
+             "language-detect and routes the base image on this language (the "
+             "harness always runs pytest, so the dataset-supplied 'python' keeps "
+             "polyglot repos off a non-Python base). Absent -> classify as today.",
+    )
     ap.add_argument("--out", default="setup.sh", help="Where to write the final setup.sh")
     ap.add_argument(
         "--services-out", default=None, dest="services_out",
@@ -272,6 +279,7 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     choice = choose_base_image(
         args.repo, client, model,
         explicit=(None if args.base_image == "auto" else args.base_image),
+        language=args.language,
     )
     print(f"[v3] base-image: {choice.image} (py {choice.minor}) — {choice.reason}")
     base_image = choice.image

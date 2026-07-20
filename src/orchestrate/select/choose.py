@@ -70,13 +70,17 @@ def choose_base_image(
     *,
     explicit: str | None = None,
     log_dir: str | None = None,
+    language: str | None = None,
 ) -> BaseImageChoice:
     """Select + pin the base image for ``repo_path``.
 
     ``explicit`` (any value other than ``None``) is honored verbatim — no LLM,
     no tag rewrite; ``minor`` is read from the tag (or ``DEFAULT_MINOR``). When
     ``explicit`` is ``None`` the LLM ``ImageSelector`` picks a candidate and
-    ``resolve_runtime_base`` pins its minor against ``requires-python``. Never
+    ``resolve_runtime_base`` pins its minor against ``requires-python``. A
+    ``language`` hint (§4.1: the TEST ecosystem the harness will pytest against)
+    is forwarded to the selector, which then skips its LLM language-detect and
+    uses the hint's candidate list; ``None`` leaves detection unchanged. Never
     raises: on any failure returns the default ``python:{DEFAULT_MINOR}-slim``.
     """
     if explicit is not None:
@@ -86,7 +90,7 @@ def choose_base_image(
     try:
         selector = ImageSelector(client, model=model)
         selected, _handler, _docs, platform_override = selector.select_base_image(
-            repo_path, log_dir=log_dir
+            repo_path, language_hint=language, log_dir=log_dir
         )
         decision = resolve_runtime_base(repo_path, selected)
         image = _ensure_slim(decision.base_image)

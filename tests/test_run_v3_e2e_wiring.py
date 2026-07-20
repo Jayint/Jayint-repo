@@ -183,3 +183,31 @@ def test_finally_block_uses_sandbox_close_not_manual_teardown(monkeypatch, tmp_p
     e2e.main_with_args([str(tmp_path)])
 
     assert calls == ["close"]
+
+
+# ── §4.1: --language threads to choose_base_image(language=...) (skips LLM detect). ──
+
+def test_language_flag_threads_to_choose_base_image(monkeypatch, tmp_path):
+    _wire_common_fakes(monkeypatch)
+    captured = {}
+    choice = BaseImageChoice("python:3.10-slim", "3.10", None, "auto: test")
+
+    def _capture(*a, **k):
+        captured.update(k)
+        return choice
+
+    monkeypatch.setattr(e2e, "choose_base_image", _capture, raising=False)
+
+    class _FakeSandbox:
+        def __init__(self, **k):
+            self.container = None
+        def execute(self, *a, **k): return None
+        def exec_readonly(self, *a, **k): return None
+        def reset_to_base(self): return None
+        def run_install_script(self, *a, **k): return None
+
+    monkeypatch.setattr(e2e, "Sandbox", _FakeSandbox, raising=False)
+
+    e2e.main_with_args([str(tmp_path), "--language", "python"])
+
+    assert captured.get("language") == "python"

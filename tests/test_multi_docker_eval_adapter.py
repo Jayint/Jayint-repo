@@ -477,3 +477,50 @@ def test_run_v3_no_usage_file_when_no_token_lines(tmp_path, monkeypatch):
     a = M.MultiDockerEvalAdapter(output_dir=str(tmp_path))
     a._run_v3(tmp_path / "src", "auto", "m")
     assert not (tmp_path / "usage.json").exists()
+
+
+# ── §4.1: thread instance["language"] → _run_v3(language=...) → run_v3_e2e --language ──
+
+def test_language_absent_by_default_no_flag(tmp_path, monkeypatch):
+    # byte-identity guard: no language supplied -> no --language token in argv.
+    cmd = _capture_run_v3_cmd(tmp_path, monkeypatch)
+    assert "--language" not in cmd
+
+
+def test_language_threads_to_run_v3_argv(tmp_path, monkeypatch):
+    import multi_docker_eval_adapter as M
+
+    class _Proc:
+        returncode = 0
+        stdout = "[v3] base-image: python:3.11-slim (py 3.11) — auto"
+        stderr = ""
+
+    captured = {}
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        Path(cmd[cmd.index("--out") + 1]).write_text("echo built")
+        return _Proc()
+
+    monkeypatch.setattr(M.subprocess, "run", fake_run)
+    a = M.MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    a._run_v3(tmp_path / "src", "auto", "m", language="python")
+    cmd = captured["cmd"]
+    assert cmd[cmd.index("--language") + 1] == "python"
+
+
+def test_process_single_instance_threads_language_to_run_v3(tmp_path):
+    # process_single_instance reads instance["language"] and passes it to _run_v3.
+    a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    a._clone = lambda repo_url, **kw: tmp_path / "v3_src"     # type: ignore[assignment]
+    a._head_sha = lambda src_dir: "deadbeef"                  # type: ignore[assignment]
+    seen = {}
+
+    def _run_v3(src_dir, base_image, model, **kw):
+        seen.update(kw)
+        return ("echo built", "python:3.11-slim")
+
+    a._run_v3 = _run_v3                                        # type: ignore[assignment]
+    a.process_single_instance(
+        {"instance_id": "o__r", "repo_url": "https://github.com/o/r", "language": "python"})
+    assert seen.get("language") == "python"
