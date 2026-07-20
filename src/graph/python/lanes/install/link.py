@@ -98,6 +98,13 @@ def import_to_package_edges(
             continue
         if top_level_import_name(node.name) in guarded:
             continue  # module-routed collision: never launder a PyPI dist onto it
+        # A first-party import routed to a local Module (``routed_provider='module'``)
+        # is provided by that Module, not a PyPI dist — relink must NOT draw an
+        # Import->Package edge onto it (that would launder a same-named wheel as its
+        # provider). A collision that FELL THROUGH keeps ``routing_fallthrough`` and is
+        # NOT stamped module-routed, so this never blocks a genuine fallthrough edge.
+        if node.data.get("routed_provider") == "module":
+            continue
         module = top_level_import_name(node.name).lower()
         for dist in dist_by_module.get(module, ()):
             pkg_id = pkg_by_canon.get(normalize_package_name(dist))

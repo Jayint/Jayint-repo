@@ -107,21 +107,49 @@ def test_route_matches_classifier(tmp_path):
     assert set(routing.deferred) == set(ref.deferred)
 
 
-def test_flip_render_is_byte_identical(tmp_path):
-    """The whole live-lane graph effect adds ZERO rendered lines: Module/Import
-    nodes and the spine edges between them carry no recipe, and the project routing
-    data is inert to the renderer."""
-    repo = _collision_repo(tmp_path)
-    # Baseline: the same scan -> _add_project_node graph WITHOUT the config-lane
-    # modules/spine/routing data.
-    before = render_build_script(_add_project_node(scan_to_nodes(repo), repo))
-    # Flipped: scan -> route -> add_project -> finalize (modules + spine + data).
+import pathlib
+
+# Ground truth for the byte-identity gate: the setup.sh the PRE-FLIP code
+# (commit 28aed8c3, last of Tasks 1-3) rendered for the no-collision fixture below,
+# captured via `git worktree add ... 28aed8c3` and pinned. Regenerate with:
+#   git worktree add /tmp/pf 28aed8c3 && <render fixture under /tmp/pf/src>
+_PREFLIP_SETUP = (
+    pathlib.Path(__file__).parent / "fixtures" / "preflip_setup_28aed8c3.sh"
+).read_text()
+
+
+def _no_collision_fixture(tmp_path):
+    """A deterministic no-collision src-layout repo (fixed project name so the render
+    is path-independent): mypkg imports one clear external and one stdlib module."""
+    (tmp_path / "src" / "mypkg").mkdir(parents=True)
+    (tmp_path / "src" / "mypkg" / "__init__.py").write_text("")
+    (tmp_path / "src" / "mypkg" / "core.py").write_text("import requests\nimport os\n")
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "fixturepkg"\nversion = "0"\n'
+        '[build-system]\nrequires = ["setuptools"]\n'
+    )
+    return str(tmp_path)
+
+
+def test_flip_render_matches_preflip_truth(tmp_path):
+    """F5: the flip adds ZERO rendered lines. Compare the POST-FLIP render against the
+    PINNED PRE-FLIP output (commit 28aed8c3), not against post-flip code itself. For a
+    no-collision repo the two are byte-identical (the Task-2 capstone ``#@check`` only
+    appears when the live cure stamps ``scratch_certified``, which the pure render path
+    does not run)."""
+    repo = _no_collision_fixture(tmp_path)
     graph, routing = _route_config_lane(scan_to_nodes(repo), repo, _stdlib_exec(), declared=frozenset())
     graph = _finalize_config_lane(_add_project_node(graph, repo), routing)
-    assert render_build_script(graph) == before
+    # sanity: the flip DID fire (Module node + spine present) — the test is not vacuous.
+    assert graph.get(module_id("mypkg")) is not None
+    assert render_build_script(graph) == _PREFLIP_SETUP
 
 
-def test_route_lane_is_fail_open(tmp_path):
+def test_route_lane_fails_closed(tmp_path):
+    """Post-flip the classifier is load-bearing for SAFETY: on a classify exception
+    the LANE fails CLOSED — construction proceeds, but the graph is reduced to the
+    PRE-FLIP clear-external set so first-party/collision names never flow into Phase A
+    or the dist-guesser. ``routing=None`` signals the caller to stamp ``routing_failed``."""
     class _Boom:
         def run(self, *_a, **_k):
             raise RuntimeError("probe blew up")
@@ -129,7 +157,11 @@ def test_route_lane_is_fail_open(tmp_path):
     repo = _collision_repo(tmp_path)
     graph = scan_to_nodes(repo)
     out, routing = _route_config_lane(graph, repo, _Boom(), declared=frozenset())
-    assert out is graph and routing is None   # any exception swallowed; graph untouched
+    names = {n.name for n in out.nodes if n.type is NodeType.IMPORT}
+    assert routing is None                     # classify failed -> caller stamps routing_failed
+    assert "requests" in names                 # clear-external kept (still installs)
+    assert "items" not in names                # collision name DROPPED (never installs its namesake)
+    assert "mypkg" not in names                # first-party name DROPPED
 
 
 def test_build_dep_graph_lands_module_nodes_and_routing(tmp_path):

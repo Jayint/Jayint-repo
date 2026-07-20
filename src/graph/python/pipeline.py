@@ -63,7 +63,7 @@ from graph.python.native.system_libs import import_probe, ldd_probe
 from graph.python.native.ctypes_scan import add_ctypes_runtime_libs
 from graph.python.native.wheel import wheel_preflight_probe
 from graph.python.read.evidence import collect_python_dependency_evidence
-from graph.python.read.scan import scan_to_nodes
+from graph.python.read.scan import clear_external_names, scan_to_nodes
 from graph.python.read.subprocess_scan import add_subprocess_tool_nodes
 from graph.python.read.target_env import detect_target_env
 from graph.python.route.arbitrate import arbitrate
@@ -373,19 +373,42 @@ def _route_config_lane(
     fixpoint and re-uses ``routing`` to wire the spine after the Project node exists
     (:func:`_finalize_config_lane`) — the classifier runs ONCE per construction.
 
-    Fail-open: any exception (probe/scan hiccup) is logged and the ORIGINAL graph is
-    returned with ``routing=None``, so the live lane can never introduce a new
-    construction failure mode; the spine finalize then no-ops.
+    Fail CLOSED (not open): post-flip the classifier is load-bearing for SAFETY — the
+    raw ``scan`` graph carries first-party/collision Import nodes, and if classification
+    raised they would flow into Phase A and the LLM dist-guesser (the false-green
+    vector). So on ANY classify exception, construction still proceeds (never aborts),
+    but the LANE fails closed: the graph is reduced to the PRE-FLIP clear-external set
+    (:func:`scan.clear_external_names`) — first-party/unclassifiable Import nodes are
+    DROPPED, never treated as external — and ``routing=None`` signals the caller to
+    stamp ``routing_failed`` on the Project node for attribution.
     """
     try:
         stdlib = probe_target_stdlib(container_executor)
         routing = classify(repo_path, target_stdlib=stdlib, declared=declared)
         return apply_routing(graph, routing), routing
-    except Exception:  # never let the advisory config lane fail construction
-        logger.warning(
-            "live config-lane classify failed; leaving graph unrouted", exc_info=True
+    except Exception:  # classify raised -> lane fails CLOSED, construction proceeds
+        logger.error(
+            "live config-lane classify failed; failing CLOSED to the pre-flip "
+            "clear-external set (first-party names dropped, never installed)",
+            exc_info=True,
         )
-        return graph, None
+        try:
+            keep = clear_external_names(repo_path)
+            reduced = graph
+            for node in graph.nodes:
+                if node.type is NodeType.IMPORT and node.name.split(".", 1)[0] not in keep:
+                    reduced = reduced.without_node(node.id)
+            return reduced, None
+        except Exception:  # even the fallback failed -> drop ALL Import nodes (max-safe)
+            logger.critical(
+                "config-lane fail-closed fallback ALSO failed; dropping every Import "
+                "node so no unclassified name can reach the install lane", exc_info=True
+            )
+            reduced = graph
+            for node in graph.nodes:
+                if node.type is NodeType.IMPORT:
+                    reduced = reduced.without_node(node.id)
+            return reduced, None
 
 
 def _finalize_config_lane(
@@ -406,10 +429,15 @@ def _finalize_config_lane(
     reciped, and the project-data keys are inert to the renderer, so the emitted
     ``setup.sh`` is byte-identical to pre-flip apart from Task-2's capstone ``#@check``.
 
-    Fail-open (``routing is None`` -> no-op; any exception logged, graph returned
-    as-is), mirroring the classify pass.
+    ``routing is None`` means the classify pass FAILED CLOSED (:func:`_route_config_lane`
+    already reduced the graph to the safe clear-external set): stamp
+    ``routing_failed=True`` on the Project node so the run is attributable, then no-op.
+    Any exception here is logged and the graph is returned as-is.
     """
     if routing is None:
+        project = next((n for n in graph.nodes if n.type is NodeType.PROJECT), None)
+        if project is not None:
+            return graph.with_node(project.with_data(routing_failed=True))
         return graph
     try:
         new = wire_spine(graph, routing)

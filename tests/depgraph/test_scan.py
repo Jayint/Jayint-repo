@@ -92,8 +92,26 @@ def test_no_external_imports_yields_empty_graph(tmp_path: Path) -> None:
     assert graph.edges == ()
 
 
+def _external_after_routing(repo: str) -> frozenset[str]:
+    """THE names that reach the install lane after routing: ``classify.external``.
+    Post-flip the SCOPING/drops moved from ``scan`` to the classifier, so scoping is
+    verified through the classifier (an out-of-scope name is never clear-external)."""
+    from graph.python.route.classify import classify
+    return classify(repo, target_stdlib=frozenset({"os", "sys"}), declared=frozenset()).external
+
+
+def _routed_import_names(repo: str) -> set[str]:
+    """Import-node names surviving ``apply_routing`` (unroutable names removed)."""
+    from graph.python.route.classify import classify, apply_routing
+    routing = classify(repo, target_stdlib=frozenset({"os", "sys"}), declared=frozenset())
+    g = apply_routing(scan_to_nodes(repo), routing)
+    return {n.name for n in g.nodes if n.type is NodeType.IMPORT}
+
+
 def test_scan_scopes_out_examples_and_docs(tmp_path: Path) -> None:
-    """Imports seen ONLY under examples/docs/build are dropped; src/tests kept."""
+    """THE FLIP relocated scoping to the classifier: ``scan`` mints examples/docs
+    imports RAW, and the classifier keeps them OUT of the install lane (never
+    clear-external), so an out-of-scope name is still never a dep."""
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "app.py").write_text("import requests\n", encoding="utf-8")
     (tmp_path / "tests").mkdir()
@@ -105,38 +123,34 @@ def test_scan_scopes_out_examples_and_docs(tmp_path: Path) -> None:
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "conf.py").write_text("import sphinx_only\n", encoding="utf-8")
 
-    graph = scan_to_nodes(str(tmp_path))
-    names = {n.name for n in graph.nodes if n.type is NodeType.IMPORT}
-
-    assert "requests" in names  # src kept
-    assert "pytest" in names  # tests kept
-    assert "blueprintapp" not in names  # examples dropped
-    assert "sphinx_only" not in names  # docs dropped
+    external = _external_after_routing(str(tmp_path))
+    assert "requests" in external  # src kept
+    assert "pytest" in external  # tests kept
+    assert "blueprintapp" not in external  # examples-only -> not clear-external (dropped)
+    assert "sphinx_only" not in external  # docs-only -> not clear-external (dropped)
 
 
 def test_scan_scopes_out_tools_dir(tmp_path: Path) -> None:
-    """Imports seen ONLY under a repo-root tools/ dev-tooling dir are dropped;
-    package-source imports are kept (closes Finding B for vizro: `import github`
-    lives in tools/pycafe/, CI/docs tooling outside every installable package)."""
+    """Imports seen ONLY under a repo-root tools/ dev-tooling dir never reach the
+    install lane (closes Finding B for vizro: `import github` lives in tools/pycafe/,
+    CI/docs tooling outside every installable package). Post-flip the classifier owns
+    this scoping."""
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "app.py").write_text("import requests\n", encoding="utf-8")
     (tmp_path / "tools").mkdir()
     (tmp_path / "tools" / "helper.py").write_text("import click\n", encoding="utf-8")
 
-    graph = scan_to_nodes(str(tmp_path))
-    names = {n.name for n in graph.nodes if n.type is NodeType.IMPORT}
-
-    assert "requests" in names  # src kept
-    assert "click" not in names  # tools dropped
+    external = _external_after_routing(str(tmp_path))
+    assert "requests" in external  # src kept
+    assert "click" not in external  # tools-only -> not clear-external (dropped)
 
 
-def test_scan_routes_local_fixture_packages_but_still_drops_typing(tmp_path: Path) -> None:
-    """THE FLIP (route-not-drop): an in-repo fixture package nested under tests/
-    (flask's ``blueprintapp`` pattern) is NO LONGER dropped by ``scan`` — it is
-    minted as an Import node for ``classify`` to route to the collision zone (its
-    PyPI namesake installs only after a cure-verified certificate). ``_``-prefixed
-    typing-only modules (``_typeshed``) stay dropped here: they can never carry an
-    install-lane Import node."""
+def test_scan_mints_local_fixture_raw_and_classifier_removes_typing(tmp_path: Path) -> None:
+    """THE FLIP (route-not-drop): ``scan`` mints first-party/local names RAW (the four
+    pre-flip drops relocate to the classifier). A ``_``-prefixed typing-only module is
+    minted by scan and then REMOVED by ``apply_routing`` (rung-0 drop). A local fixture
+    package is minted and ROUTED (never clear-external, so it never installs its PyPI
+    namesake)."""
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "app.py").write_text(
         "import requests\n"
@@ -152,9 +166,13 @@ def test_scan_routes_local_fixture_packages_but_still_drops_typing(tmp_path: Pat
         "import blueprintapp\nimport requests\n", encoding="utf-8"
     )
 
-    graph = scan_to_nodes(str(tmp_path))
-    names = {n.name for n in graph.nodes if n.type is NodeType.IMPORT}
+    # scan mints RAW: _typeshed and blueprintapp are present (drops relocated).
+    raw = {n.name for n in scan_to_nodes(str(tmp_path)).nodes if n.type is NodeType.IMPORT}
+    assert {"requests", "_typeshed", "blueprintapp"} <= raw
 
-    assert "requests" in names  # real external dep kept
-    assert "blueprintapp" in names  # local fixture NOW routed (classifier defers it)
-    assert "_typeshed" not in names  # typing-only STILL dropped (never installable)
+    # After routing: _typeshed removed (rung-0), blueprintapp NOT clear-external.
+    routed = _routed_import_names(str(tmp_path))
+    external = _external_after_routing(str(tmp_path))
+    assert "requests" in routed and "requests" in external
+    assert "_typeshed" not in routed          # rung-0 private drop -> removed
+    assert "blueprintapp" not in external     # local -> never installs its namesake

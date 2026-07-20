@@ -49,12 +49,15 @@ class LaneRouting:
     modules: tuple[Node, ...]
     # Spine attribution: sorted, unique ``(module_top, import_top)`` pairs — each
     # is a prospective ``module(owner) --imports--> import(name)`` edge, derived by
-    # mapping every external finding's source files back to their top-level module
+    # mapping every finding's source files back to their top-level module
     # (``repo_modules``). Self-references (``owner == import_top``) are omitted (the
     # top-level import of a module's own package). ``wire_spine`` draws only the
     # pairs whose BOTH endpoints exist as nodes, so excluded/private drops never
     # produce a dangling edge.
     spine: tuple[tuple[str, str], ...] = ()
+    # Internal-import top-level names to draw an ``import(X) -> module(X)`` resolution
+    # edge for (X internal, imported by a different module).
+    resolution: frozenset[str] = frozenset()
 
 
 _STDLIB_PROBE = (
@@ -143,29 +146,50 @@ def classify(repo_path: str, *, target_stdlib: frozenset[str], declared: frozens
     deferred: set[str] = set()
     internal_tops: set[str] = set()
 
+    # Ladder order is a SAFETY property (review §, F4 adjudication):
+    #   0. ``_``-prefix       -> drop (classifier owns it; private/typing, never a dist)
+    #   1. declared           -> external  ("you never declare your own modules")
+    #   2. stdlib             -> drop  (TARGET probe OR the host-scan classification as a
+    #                                    backstop, so an empty/failed probe cannot leak a
+    #                                    stdlib name into the install lane)
+    #   3. repo top-level     -> internal (sys.path-accurate)
+    #   collision / excluded-dir / project-local-not-a-top -> collision zone (deferred),
+    #                          gating only names NOT already routed declared/stdlib/internal,
+    #                          so a name is NEVER clear-external unless the ladder proved it so.
+    #   4. otherwise          -> external (clear external candidate)
     for finding in findings:
         name = finding.import_name
         top = name.split(".", 1)[0]
         if top.startswith("_"):
-            continue                                   # relocated drop: private/typing
-        if top in collisions:
-            deferred.add(top)                          # collision zone (rung 3.5)
-            continue
+            continue                                   # rung 0: private/typing drop (classifier)
         if top in declared_norm:
-            external.add(name)                         # rung 1: declared → external
+            external.add(name)                         # rung 1: declared wins -> external
             continue
-        if top in target_stdlib:
-            continue                                   # rung 2: stdlib → drop
+        if top in target_stdlib or finding.classification == "stdlib":
+            continue                                   # rung 2: stdlib -> drop (target OR host backstop)
         if top in tops:
-            internal_tops.add(top)                     # rung 3: sys.path-accurate → internal
+            internal_tops.add(top)                     # rung 3: sys.path-accurate -> internal
             continue
-        # excluded-dir-only locals are invisible to tops AND collisions: route
-        # to the collision zone, never clear-external (review §12).
+        if top in collisions:
+            deferred.add(top)                          # collision zone (non-declared, non-top)
+            continue
+        # excluded-dir-ONLY imports (seen only under examples/docs/scripts/tools).
+        # A locally-shadowed one routes to the collision zone (the §12 false-green:
+        # a conftest sys.path.insert + a local shadow); a pure external there is out
+        # of "run the repo properly" scope and is DROPPED — never clear-external, so
+        # it never installs (pre-flip parity; keeps setup.sh byte-identical).
         in_scope = tuple(f for f in finding.source_files if not _is_excluded_path(f))
-        if finding.source_files and not in_scope and top in by_top:
+        if finding.source_files and not in_scope:
+            if top in by_top:
+                deferred.add(top)
+            continue
+        # A name the host scan flagged project-local but the sys.path-accurate tops
+        # rung did NOT catch (the two walks disagreed) must NEVER be treated as a
+        # clear external dist — defer it (arbitration decides), never install it.
+        if finding.classification == "project_local":
             deferred.add(top)
             continue
-        external.add(name)                             # rung 4: external
+        external.add(name)                             # rung 4: clear external
 
     suspect = _namespace_suspect_tops(repo_path)
     deferred.update(internal_tops & suspect)
@@ -175,15 +199,15 @@ def classify(repo_path: str, *, target_stdlib: frozenset[str], declared: frozens
         dotteds = dotted_by_top.get(top, [])
         internal.append((top, min(dotteds) if dotteds else top))  # lexicographically-first dotted
 
-    # Spine attribution: map each external finding's source files back to their
-    # owning top-level module (``path_to_top``). ``owner --imports--> import(name)``,
-    # self-references omitted. Restricted to ``external`` findings (the classification
-    # that mints an Import node); ``wire_spine`` further gates on node existence, so
-    # a private/excluded-dir drop never yields a dangling edge.
+    # Spine attribution: map EVERY finding's source files back to their owning
+    # top-level module (``path_to_top``). ``owner --imports--> import(name)``, top-level
+    # self-references (an import of the owner module's OWN top) omitted. Covers both
+    # external imports (``module -> import -> package``) and internal cross-module
+    # imports (``module -> import -> module``); ``wire_spine`` gates each edge on node
+    # existence, so a stdlib/private/excluded drop (its Import node removed by
+    # ``apply_routing``) never yields a dangling edge.
     spine_pairs: set[tuple[str, str]] = set()
     for finding in findings:
-        if finding.classification != "external":
-            continue
         imp_top = finding.import_name
         for source_file in finding.source_files:
             owner = path_to_top.get(source_file)
@@ -191,12 +215,11 @@ def classify(repo_path: str, *, target_stdlib: frozenset[str], declared: frozens
                 spine_pairs.add((owner, imp_top))
 
     # Module nodes = the repo's top-level first-party modules that PARTICIPATE in the
-    # dependency spine: the imported-internal reconciliation set (``internal_tops``)
-    # PLUS every top-level module that OWNS an external import (a spine ``owner``),
-    # so a flat repo whose top-level module is never itself imported (``app.py``
-    # importing ``requests``) still anchors ``project -> module(app) -> import``. A
-    # declared name (rung 1, external — "you never declare your own modules"), a
-    # collision, or a namespace-suspect top is NOT a first-party module node.
+    # dependency spine: the imported-internal set (``internal_tops``) PLUS every
+    # top-level module that OWNS an import (a spine ``owner``), so a flat repo whose
+    # top-level module is never itself imported (``app.py`` importing ``requests``)
+    # still anchors ``project -> module(app) -> import``. A declared name (rung 1,
+    # external), a collision, or a namespace-suspect top is NOT a first-party module.
     owner_tops = {
         owner for owner, _imp in spine_pairs
         if owner not in declared_norm and owner not in collisions and owner not in suspect
@@ -206,36 +229,64 @@ def classify(repo_path: str, *, target_stdlib: frozenset[str], declared: frozens
         _module_node(top, tuple(by_top.get(top, ()))) for top in sorted(module_tops)
     )
 
+    # Internal resolution: ``import(X) --requires--> module(X)`` for an internal name X
+    # imported by a DIFFERENT module (a non-self spine pair). The top-level self-ref
+    # (module app importing its own top ``app``) is already omitted from ``spine_pairs``,
+    # so an X here is imported by some owner != X (review F3).
+    resolution = frozenset(
+        imp for _owner, imp in spine_pairs if imp in internal_tops
+    )
+
     return LaneRouting(
         internal=tuple(internal),
         external=frozenset(external),
         deferred=frozenset(deferred),
         modules=modules,
         spine=tuple(sorted(spine_pairs)),
+        resolution=resolution,
+    )
+
+
+def _keep_tops(routing: LaneRouting) -> frozenset[str]:
+    """Top-level import names the classifier ROUTED (external | internal | deferred).
+
+    THE safety key: an Import node survives ``apply_routing`` only if its name is in
+    this set. Anything the ladder dropped (stdlib, ``_``-prefix, an unroutable name)
+    is REMOVED, and an Import node reaches the Phase-A fixpoint ONLY if its name is in
+    ``external`` — so the classifier is the sole authority on what installs."""
+    return (
+        frozenset(n.split(".", 1)[0] for n in routing.external)
+        | {top for top, _dotted in routing.internal}
+        | routing.deferred
     )
 
 
 def apply_routing(graph, routing: LaneRouting):
-    """Emit the Module nodes AND stamp first-party import nodes (route-not-drop).
+    """Route the raw scan graph: DROP unroutable Import nodes, STAMP first-party ones,
+    ATTACH Module nodes (route-not-drop; the four scan drops now land here).
 
-    Runs BEFORE the Phase-A fixpoint: it attaches the edge-less ``Module`` nodes and
-    stamps ``data['routed_provider']='module'`` on every Import node whose top-level
-    name the classifier routed internal — that is the flag the lane-aware fixpoint
-    filter (``fixpoint._missing_import_nodes``) reads to keep a first-party name out
-    of the repair bound and away from the dist-guesser. The spine EDGES
-    (``project->module``, ``module->import``) are drawn post-Project by
-    :func:`wire_spine`, since they need the Project node. Additive to render: Module/
-    Import nodes carry no recipe, so the emitted ``setup.sh`` is unchanged."""
+    Runs BEFORE the Phase-A fixpoint. The classifier owns every drop the pre-flip
+    ``scan`` did: an Import node whose name the ladder did not route (stdlib,
+    ``_``-prefix, an unroutable local) is REMOVED here, and every internal-routed
+    Import node is stamped ``data['routed_provider']='module'`` — the flag the
+    lane-aware fixpoint filter (``fixpoint._missing_import_nodes``) reads to keep a
+    first-party name out of the repair bound and away from the dist-guesser. The spine
+    EDGES (``project->module``, ``module->import``, ``import->module``) are drawn
+    post-Project by :func:`wire_spine`. Additive to render: Module/Import nodes carry
+    no recipe, so the emitted ``setup.sh`` is unchanged."""
     internal_tops = {top for top, _dotted in routing.internal}
+    keep = _keep_tops(routing)
     new = graph
     for node in routing.modules:
         new = new.with_node(node)
     for node in graph.nodes:
-        if (
-            node.type is NodeType.IMPORT
-            and node.name.split(".", 1)[0] in internal_tops
-            and node.data.get("routed_provider") != "module"
-        ):
+        if node.type is not NodeType.IMPORT:
+            continue
+        top = node.name.split(".", 1)[0]
+        if top not in keep:
+            new = new.without_node(node.id)            # ladder-dropped: never installs
+            continue
+        if top in internal_tops and node.data.get("routed_provider") != "module":
             new = new.with_node(node.with_data(routed_provider="module"))
     return new
 
@@ -248,12 +299,14 @@ def wire_spine(graph, routing: LaneRouting):
       first-party Module node (``routing.modules``).
     * ``module(owner) --requires--> import(name)`` (``origin='imports'``) for each
       ``routing.spine`` pair whose BOTH endpoints exist.
+    * ``import(X) --requires--> module(X)`` (``origin='resolves'``) for each internal
+      name in ``routing.resolution`` — an internal import of ANOTHER module resolves to
+      its providing Module. Top-level self-references (an import of the owner module's
+      own top) are already excluded upstream, per the spec.
 
-    ``import --requires--> module`` (internal resolution) is intentionally absent:
-    findings are top-level-aggregated, so an internal import resolves to its own
-    module — a top-level self-reference the spec omits. Both endpoints of every edge
-    are gated on existence, so a private/excluded-dir drop never dangles. A pure
-    graph transform (no ``repo_modules``); returns a NEW graph."""
+    Both endpoints of every edge are gated on existence, so a stdlib/private/excluded
+    drop (its Import node removed by ``apply_routing``) never dangles. A pure graph
+    transform (no ``repo_modules``); returns a NEW graph."""
     project = next((n for n in graph.nodes if n.type is NodeType.PROJECT), None)
     new = graph
     if project is not None:
@@ -269,5 +322,12 @@ def wire_spine(graph, routing: LaneRouting):
             new = new.with_edge(
                 Edge(src=mod_id, dst=imp_id,
                      relation=EdgeType.REQUIRES, origin="imports")
+            )
+    for imp_top in routing.resolution:
+        imp_id, mod_id = import_id(imp_top), module_id(imp_top)
+        if new.get(imp_id) is not None and new.get(mod_id) is not None:
+            new = new.with_edge(
+                Edge(src=imp_id, dst=mod_id,
+                     relation=EdgeType.REQUIRES, origin="resolves")
             )
     return new

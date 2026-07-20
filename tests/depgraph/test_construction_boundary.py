@@ -220,3 +220,36 @@ def test_cured_but_present_but_broken_is_never_installed():
     arb = arbitrate(ex, _plan(), _CURED, frozenset({"items"}))
     assert arb.resolves_local == frozenset({"items"})  # broken-local, not a fallthrough
     assert arb.fallthrough == frozenset()
+
+
+# --------------------------------------------------------------------------- #
+# Fail-CLOSED guard — the boundary also holds when the classifier RAISES. Post-flip
+# the classifier is load-bearing for safety: the raw scan graph carries first-party/
+# collision Import nodes, and a fail-OPEN on classify error would let them flow into
+# Phase A and the dist-guesser (the false-green vector). The lane must fail CLOSED.
+# --------------------------------------------------------------------------- #
+def test_route_lane_fails_closed_dropping_first_party_names(tmp_path):
+    """A classify exception must reduce the graph to the PRE-FLIP clear-external set —
+    first-party/collision names DROPPED, never treated as external — with
+    ``routing=None`` so the Project node can be stamped ``routing_failed``."""
+    from graph.python.pipeline import _route_config_lane
+    from graph.python.read.scan import scan_to_nodes
+    from graph.model import NodeType
+
+    (tmp_path / "mypkg").mkdir()
+    (tmp_path / "mypkg" / "__init__.py").write_text("")
+    (tmp_path / "mypkg" / "app.py").write_text("import requests\nimport items\n")
+    (tmp_path / "mypkg" / "tutorial001").mkdir()
+    (tmp_path / "mypkg" / "tutorial001" / "__init__.py").write_text("")
+    (tmp_path / "mypkg" / "tutorial001" / "items.py").write_text("")
+
+    class _Boom:
+        def run(self, *_a, **_k):
+            raise RuntimeError("probe/classify blew up")
+
+    graph = scan_to_nodes(str(tmp_path))
+    out, routing = _route_config_lane(graph, str(tmp_path), _Boom(), declared=frozenset())
+    names = {n.name for n in out.nodes if n.type is NodeType.IMPORT}
+    assert routing is None                       # signals routing_failed stamp
+    assert "requests" in names                   # clear-external survives
+    assert "items" not in names and "mypkg" not in names  # first-party/collision DROPPED

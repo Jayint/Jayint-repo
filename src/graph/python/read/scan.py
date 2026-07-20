@@ -139,42 +139,36 @@ def _build_import_node(
 
 
 def scan_to_nodes(repo_path: str) -> DepGraph:
-    """Scan ``repo_path`` and return a graph of external Import nodes (no edges).
+    """Scan ``repo_path`` and return a graph of raw top-level Import nodes (no edges).
 
-    THE FLIP: first-party/local names are NO LONGER dropped here — a name that is
-    ``external`` per ``scan_imports`` but also shadows a repo module (``items``,
-    ``blueprintapp``) is minted as an Import node and left for ``route.classify`` to
-    route (collision zone / first-party Module). The two drops that stay are the
-    ONLY names that must never carry an install-lane Import node:
+    THE FLIP (route-not-drop): first-party/local names are NO LONGER dropped here.
+    Scan mints an Import node for every ``external`` OR ``project_local`` finding and
+    hands routing to ``route.classify``, which owns ALL four pre-flip drops:
+    ``_``-prefix (dropped by the classifier), ``local_names`` and non-external
+    classifications (routed by the ladder), and excluded-dir-only names (routed to the
+    collision zone). ``classify.apply_routing`` then REMOVES any Import node the ladder
+    did not route, so an unroutable name never reaches the install lane.
 
-      * ``_``-prefixed private/typing modules (``_typeshed``) — never installable;
-      * excluded-dir-ONLY imports (examples/docs/scripts/tools) — out of the "run
-        the repo properly" scope, and never installed pre-flip; dropping them keeps
-        the rendered setup.sh byte-identical across the flip.
+    The ONE drop scan keeps is ``stdlib``: a stdlib name has no lane role (never a
+    dist, never a Module, never on the spine), so minting it only to have the
+    classifier remove it is pointless churn — and ``scan_imports``' classification is a
+    reliable host-side signal for it. First-party (``project_local``) names ARE now
+    minted, so internal imports appear on the spine.
 
-    The ``Test`` goal node and the goal spine are minted downstream by
-    ``skeleton._add_project_node`` / the pipeline's config-lane wiring, not here.
-    Non-external (stdlib / project-local) findings still contribute no Import node:
-    stdlib is not installable, and a project-local top-level is represented by its
-    ``Module`` node, not an Import node.
+    The ``Test`` goal node and the goal spine (``project -> module -> import``) are
+    minted downstream by ``skeleton._add_project_node`` and the config-lane wiring.
     """
     findings, _project_local, _errors = scan_imports(repo_path)
 
     graph = DepGraph()
 
     for finding in findings:
-        if finding.classification != "external":
+        # stdlib: the one relocated drop scan keeps (see docstring). Every other name
+        # — external, project-local, ``_``-prefixed, excluded-dir-only — is minted raw
+        # and routed (or dropped) by the classifier.
+        if finding.classification == "stdlib":
             continue
-        name = finding.import_name
-        # Typing-only / private modules (e.g. ``_typeshed``) are not installable.
-        if name.startswith("_"):
-            continue
-        # Scope to project source + tests: drop imports seen ONLY in
-        # examples/docs/build (they pull non-project / non-PyPI names). A name that
-        # ALSO appears in-scope survives — the classifier then routes it.
         in_scope = _in_scope_files(finding.source_files)
-        if finding.source_files and not in_scope:
-            continue
         provenance_files = in_scope or finding.source_files
         graph = graph.with_node(
             _build_import_node(
@@ -184,3 +178,29 @@ def scan_to_nodes(repo_path: str) -> DepGraph:
         )
 
     return graph
+
+
+def clear_external_names(repo_path: str) -> frozenset[str]:
+    """The names the PRE-FLIP scan kept: clear-external only.
+
+    This is the fail-CLOSED fallback for the config lane. If the classifier raises,
+    the lane must NOT let first-party/unclassifiable names flow into Phase A as
+    external (the false-green vector), so construction falls back to exactly the
+    pre-flip behaviour: keep only ``external`` findings that are not ``_``-prefixed,
+    not a repo-local shadow (``_local_module_names``), and not excluded-dir-only.
+    Every other name is DROPPED (never installed) — the safe direction.
+    """
+    findings, _project_local, _errors = scan_imports(repo_path)
+    local = _local_module_names(repo_path)
+    keep: set[str] = set()
+    for finding in findings:
+        if finding.classification != "external":
+            continue
+        name = finding.import_name
+        if name.startswith("_") or name in local:
+            continue
+        in_scope = _in_scope_files(finding.source_files)
+        if finding.source_files and not in_scope:
+            continue
+        keep.add(name)
+    return frozenset(keep)

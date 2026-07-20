@@ -124,6 +124,44 @@ def test_first_party_names_never_reach_the_dist_guesser(tmp_path, monkeypatch):
     assert "mypkg" not in seen, "first-party module name reached the dist-guesser"
 
 
+def test_classify_failure_fails_closed_end_to_end(tmp_path, monkeypatch):
+    """F1: post-flip the classifier is load-bearing for SAFETY. If it RAISES,
+    construction must fail CLOSED — the collision name (``items``) must NOT reach the
+    Phase-A missing set / dist-guesser, and the Project node must carry
+    ``routing_failed=True`` for attribution. (A fail-OPEN here would erase routing
+    protection and install the wrong PyPI namesake — the false-green vector.)"""
+    (tmp_path / "mypkg").mkdir()
+    (tmp_path / "mypkg" / "__init__.py").write_text("")
+    (tmp_path / "mypkg" / "app.py").write_text("import requests\nimport items\n")
+    (tmp_path / "mypkg" / "tutorial001").mkdir()
+    (tmp_path / "mypkg" / "tutorial001" / "__init__.py").write_text("")
+    (tmp_path / "mypkg" / "tutorial001" / "items.py").write_text("")
+
+    # Force classification to blow up AFTER scan minted the raw first-party nodes.
+    import graph.python.pipeline as pl
+
+    def _boom(*_a, **_k):
+        raise RuntimeError("classify exploded")
+
+    monkeypatch.setattr(pl, "classify", _boom)
+
+    seen: list[str] = []
+    import graph.python.fixpoint as fx
+    real = fx.generate_candidates
+    monkeypatch.setattr(fx, "generate_candidates",
+                        lambda name, *a, **k: (seen.append(name), real(name, *a, **k))[1])
+
+    ex = _seq_exec()
+    graph = build_dep_graph(str(tmp_path), ex, host_executor=ex)
+
+    assert "items" not in seen, "fail-OPEN hole: collision name reached the dist-guesser"
+    assert "mypkg" not in seen, "fail-OPEN hole: first-party name reached the dist-guesser"
+    assert "requests" in seen, "clear-external must still reach the guesser (non-vacuous)"
+    proj = next(n for n in graph.nodes if n.type is NodeType.PROJECT)
+    assert proj.data.get("routing_failed") is True, "failed lane must be attributable"
+    assert graph.get(module_id("mypkg")) is None, "fail-closed drops first-party Module nodes"
+
+
 def test_construction_assertion_trips_on_a_causal_recipe():
     """The construction-time invariant guard must be able to FAIL: a MODULE/IMPORT
     node that somehow carried install commands is a violation. (A guard that can
