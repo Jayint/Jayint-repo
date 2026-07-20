@@ -432,6 +432,11 @@ def test_golden_snapshot_byte_for_byte():
         "#\n"
         "set -Eeuo pipefail\n"
         "\n"
+        "# Normalize `python` -> python3 so bare-`python` checks (pip show / pytest) resolve.\n"
+        'command -v python >/dev/null 2>&1 || ln -sf "$(command -v python3)" /usr/local/bin/python\n'
+        "\n"
+        "# Ensure the pytest runner (fallback; also baked into v3-base). Best-effort, never aborts.\n"
+        'python3 -c "import pytest" >/dev/null 2>&1 || python3 -m pip install --break-system-packages pytest || true\n'
         "\n"
         "# ==================== SYSTEM ====================\n"
         "export DEBIAN_FRONTEND=noninteractive\n"
@@ -485,15 +490,21 @@ def test_golden_snapshot_byte_for_byte():
     assert normalized == expected
 
 
-def test_no_instrument_preamble_baked_out():
-    # §4.4c: the python->python3 symlink + pytest floor are baked into v3-base
-    # (docker/v3-base/Dockerfile), not rendered into setup.sh. `set -Eeuo pipefail`
-    # (shell safety, not instrument) stays. Locks the removal for empty/rich graphs.
+def test_pipefail_safe_instrument_floor_present():
+    # §4.4 post-review: the instrument floor stays in setup.sh as a pipefail-SAFE
+    # fallback (also baked into v3-base). It must be present, guarded, and never
+    # abort (the pytest floor ends in `|| true`), for empty and rich graphs alike —
+    # setup.sh also runs on the STOCK base in the in-loop run_v3 Sandbox.
+    floor = ('python3 -c "import pytest" >/dev/null 2>&1 || '
+             'python3 -m pip install --break-system-packages pytest || true')
+    shim = 'command -v python >/dev/null 2>&1 || ln -sf "$(command -v python3)" /usr/local/bin/python'
     for g in (None, DepGraph(), _rich_graph()):
         out = render_build_script(g)
-        assert 'ln -sf "$(command -v python3)"' not in out
-        assert 'python3 -c "import pytest"' not in out
         assert "set -Eeuo pipefail" in out
+        assert out.count(shim) == 1
+        assert out.count(floor) == 1
+        # the pytest floor must be pipefail-safe: no unguarded install that aborts
+        assert 'pip install --break-system-packages pytest\n' not in out
 
 
 def test_runtime_and_interpreter_precede_pip():

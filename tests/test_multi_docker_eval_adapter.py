@@ -38,9 +38,9 @@ def test_dockerfile_contract(tmp_path):
     )
     # harness does res.get(instance_id, res) -> the result dict
     r = res["anthropics__anthropic-sdk-python"]
-    assert r["base_image"] == "python:3.12-slim"   # result base stays the stock tag (unmapped)
+    assert r["base_image"] == "python:3.12-slim"
     df = r["dockerfile"]
-    assert df.startswith("FROM v3-base:3.12")       # §4.4: FROM is the baked instrument image
+    assert df.startswith("FROM python:3.12-slim")   # baked-base swap is opt-in (off by default)
     assert "git clone --depth=1 https://github.com/anthropics/anthropic-sdk-python /testbed" in df
     assert "COPY setup.sh /tmp/v3_setup.sh" in df
     assert "RUN bash /tmp/v3_setup.sh" in df
@@ -76,27 +76,43 @@ def test_run_v3_failure_yields_error_log_not_crash(tmp_path):
 
 
 def test_base_image_fallback_when_unparsed(tmp_path):
-    # _run_v3's resolved base flows into FROM via the §4.4 baked-base mapper.
+    # _run_v3's resolved base flows straight into FROM (baked swap off by default).
     a = _adapter(tmp_path, base="python:3.10-slim")
     r = a.process_single_instance(
         {"instance_id": "o__r", "repo_url": "https://github.com/o/r"})["o__r"]
-    assert r["dockerfile"].startswith("FROM v3-base:3.10")
+    assert r["dockerfile"].startswith("FROM python:3.10-slim")
 
 
-# ── §4.4b: FROM-swap mapper — python:3.X-slim -> v3-base:3.X, no-op otherwise. ──
+# ── §4.4b: FROM-swap mapper — OPT-IN via V3_USE_BAKED_BASE=1 (default off). ──
 
-def test_bake_maps_python_slim_to_v3_base():
+def test_bake_default_off_is_noop(monkeypatch):
+    # Default (env unset): byte-identical to pre-§4.4b — never emits a v3-base FROM
+    # for an image that may not be built yet.
+    monkeypatch.delenv("V3_USE_BAKED_BASE", raising=False)
+    assert _bake_base_image("python:3.11-slim") == "python:3.11-slim"
+
+
+def test_bake_maps_python_slim_to_v3_base_when_opted_in(monkeypatch):
+    monkeypatch.setenv("V3_USE_BAKED_BASE", "1")
     assert _bake_base_image("python:3.11-slim") == "v3-base:3.11"
     assert _bake_base_image("python:3.14-slim") == "v3-base:3.14"
 
 
-def test_bake_is_noop_for_non_python_and_unbuilt():
-    # §4.1 forces python, but explicit overrides / un-built minors must pass
-    # through unchanged so FROM never points at an image that isn't built.
+def test_bake_is_noop_for_non_python_and_unbuilt_when_opted_in(monkeypatch):
+    # Even opted-in: explicit overrides / un-built minors / bare tags pass through
+    # so FROM never points at an image that isn't built.
+    monkeypatch.setenv("V3_USE_BAKED_BASE", "1")
     assert _bake_base_image("node:25") == "node:25"
     assert _bake_base_image("python:3.5-slim") == "python:3.5-slim"       # not in matrix
     assert _bake_base_image("buildpack-deps:jammy") == "buildpack-deps:jammy"
     assert _bake_base_image("python:3.12") == "python:3.12"               # bare (not -slim)
+
+
+def test_render_dockerfile_uses_baked_base_when_opted_in(tmp_path, monkeypatch):
+    monkeypatch.setenv("V3_USE_BAKED_BASE", "1")
+    a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    df = a._render_dockerfile("python:3.11-slim", "https://github.com/o/r")
+    assert df.startswith("FROM v3-base:3.11")
 
 
 def _capture_run_v3_cmd(tmp_path, monkeypatch):

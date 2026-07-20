@@ -67,15 +67,22 @@ _PY_SLIM_RE = re.compile(r"^python:(3\.\d+)-slim$")
 
 def _bake_base_image(base_image: str) -> str:
     """Map a stock ``python:3.X-slim`` tag to the baked ``v3-base:3.X`` instrument
-    image when that minor is built (see :data:`V3_BASE_MINORS`).
+    image — OPT-IN via ``V3_USE_BAKED_BASE=1``.
 
-    No-op otherwise: a non-python base (§4.1 forces python, but an explicit
-    override may not), a bare ``python:3.X`` tag, or an un-built minor passes
-    through unchanged, so this never points ``FROM`` at an image that does not
-    exist. Kept local to the Dockerfile ``FROM`` render — ``result["base_image"]``
-    and the resolver's ``target_python`` continue to see the stock tag, so
-    floor-not-pin and minor-derivation are untouched.
+    Default off -> stock base returned unchanged (byte-identical to pre-§4.4b).
+    The swap must be gated because :data:`V3_BASE_MINORS` membership only means
+    ``build_v3_base.sh`` *attempts* that minor, not that the image *exists*: a
+    fresh VM, or a failed 3.6/3.7 apt-archive build, would otherwise emit
+    ``FROM v3-base:3.X`` for a tag that does not exist and fail the eval build
+    before setup. Flip the env on only once the matrix is confirmed built on the
+    target host. Even when on, a non-python base, a bare ``python:3.X`` tag, or an
+    un-built minor passes through unchanged. Kept local to the Dockerfile ``FROM``
+    render — ``result["base_image"]`` and the resolver's ``target_python`` keep the
+    stock tag (floor-not-pin and minor-derivation untouched); the rendered
+    setup.sh's pipefail-safe pytest floor covers repos on the stock base.
     """
+    if os.getenv("V3_USE_BAKED_BASE") != "1":
+        return base_image
     m = _PY_SLIM_RE.match(base_image)
     if m and m.group(1) in V3_BASE_MINORS:
         return f"v3-base:{m.group(1)}"

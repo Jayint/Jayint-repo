@@ -458,15 +458,24 @@ def render_build_script(
         graph = DepGraph()
     # single call site: derive commands, then emit
     graph = populate_setup_commands(graph, include_services=include_services)
-    # §4.4c: the ungraphed instrument preamble (python->python3 symlink + pytest
-    # floor) is GONE — it is baked into the v3-base:3.X image the Dockerfile FROMs
-    # (see _bake_base_image / docker/v3-base/Dockerfile). Every remaining line of
-    # setup.sh is now graph-derived. `set -Eeuo pipefail` stays (shell safety, not
-    # instrument). pytest still installs from its PIP node when declared (floor-not-
-    # pin); repos that declare it nowhere inherit the baked pytest from the image.
+    # §4.4 (post-review): the instrument (python->python3 symlink + pytest floor)
+    # is baked into v3-base:3.X as the PRIMARY source, but setup.sh keeps a
+    # pipefail-SAFE fallback — it also runs in the in-loop run_v3 Sandbox on the
+    # STOCK python:3.X-slim base (run.py renders + run_install_script's it) and in
+    # eval Dockerfiles whose FROM did not map to a baked image (explicit/variant
+    # bases, or the opt-in swap off). The symlink is guarded; the pytest floor ends
+    # in `|| true` so a pip-less base never aborts the run (also fixes the original
+    # preamble-death). No-op on v3-base (pytest present). pytest still installs from
+    # its PIP node when declared (floor-not-pin). `set -Eeuo pipefail` is shell
+    # safety, not instrument.
     parts: list[str] = _manifest(graph, manual_blocks, include_services=include_services) + [
         "set -Eeuo pipefail",
         "",
+        "# Normalize `python` -> python3 so bare-`python` checks (pip show / pytest) resolve.",
+        'command -v python >/dev/null 2>&1 || ln -sf "$(command -v python3)" /usr/local/bin/python',
+        "",
+        "# Ensure the pytest runner (fallback; also baked into v3-base). Best-effort, never aborts.",
+        'python3 -c "import pytest" >/dev/null 2>&1 || python3 -m pip install --break-system-packages pytest || true',
     ]
     covered = {nid for b in manual_blocks for nid in b.target_node_ids}
     blocks_by_wave: dict[str, list] = {}
