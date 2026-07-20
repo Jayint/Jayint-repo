@@ -4,6 +4,7 @@ import json
 import os
 
 from src.bench_emit.meta import bench_meta
+from src.bench_emit.provisional import provisional_installs
 from src.bench_emit.types import EmittedEnv
 
 
@@ -19,6 +20,9 @@ def adapt(repo_output_dir: str) -> EmittedEnv:
     eval_build = os.path.join(repo_output_dir, "eval_build")
     df_path = os.path.join(eval_build, "Dockerfile")
     meta_json = _load_json(os.path.join(repo_output_dir, "_meta.json"))
+    # The serialized final DepGraph (run_v3_e2e writes it next to setup.sh). Absent
+    # for legacy runs -> {} -> no provisional installs -> byte-identical bench_meta.
+    graph_json = _load_json(os.path.join(eval_build, "dep_graph.json"))
 
     duration = meta_json.get("duration_s")
     produce_s = round(duration, 2) if isinstance(duration, (int, float)) else None
@@ -31,6 +35,10 @@ def adapt(repo_output_dir: str) -> EmittedEnv:
         # bench_meta drops the key entirely rather than emitting "head_sha": "".
         head_sha=(meta_json.get("head_sha") or None),
         dockerfile_source="v3_eval_build",
+        # Stage C Task 3: surface each fallthrough (certified-with-provisional)
+        # install so an eval never scores a local-collision PyPI install as a clean
+        # pass. Empty -> None -> the key is dropped (collision-free runs unchanged).
+        provisional_installs=(provisional_installs(graph_json) or None),
     )
 
     if not os.path.isfile(df_path):

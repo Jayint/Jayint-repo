@@ -30,3 +30,12 @@ def test_cost_usd_kept_when_real_dropped_when_none():
     # A real USD cost (Claude Code economy) is captured; an absent one is omitted.
     assert bench_meta("claude", cost_usd=0.42)["cost_usd"] == 0.42
     assert "cost_usd" not in bench_meta("claude", cost_usd=None)
+
+
+def test_provisional_installs_kept_when_present_dropped_when_none():
+    # Stage C Task 3: the certified-with-provisional set is emitted when present and
+    # dropped (None) otherwise, so a collision-free run stays byte-identical.
+    installs = [{"name": "azure", "reason": "fallthrough", "cure_rung": "isolated"}]
+    assert bench_meta("v3", provisional_installs=installs)["provisional_installs"] == installs
+    assert "provisional_installs" not in bench_meta("v3")
+    assert "provisional_installs" not in bench_meta("v3", provisional_installs=None)

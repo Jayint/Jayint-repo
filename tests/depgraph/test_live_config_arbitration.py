@@ -5,7 +5,7 @@ The arbiter (:func:`graph.python.route.arbitrate.arbitrate`) is cure-gated and
 exception-aware; this task WIRES it into construction: reading Task 1's
 ``routing_deferred`` stamp, reconstructing Task 2's cure outcome, recording the
 three verdict partitions as Project-node graph data, and re-entering the Phase-A
-fixpoint (threaded ``resume_pkg_ids`` -> no duplicate pkg nodes) for every
+fixpoint (threaded resume state -> no duplicate/re-attempted pkg nodes) for every
 fallthrough name, each flagged ``data["provisional"]``.
 
 Pre-flip reality (route-not-drop is Task 4): the scan still DROPS first-party/
@@ -17,6 +17,7 @@ no-op until the flip. Only the fallthrough install-lane re-entry has a live effe
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 from conftest import SequencedFakeExecutor  # type: ignore
 
@@ -84,14 +85,15 @@ class _RecordingExec:
 
 
 class _ReenterSpy:
-    """Stands in for the Phase-A fixpoint re-entry: records the extra roots and the
-    threaded ``resume_pkg_ids``, and mints one Package node per fallthrough root."""
+    """Stands in for the Phase-A fixpoint re-entry: records the extra roots and mints
+    one Package node per fallthrough root (resume state lives inside the real closure,
+    tested separately at the fixpoint level)."""
 
     def __init__(self):
-        self.calls: list[tuple[list, set]] = []
+        self.calls: list[list] = []
 
-    def __call__(self, graph, extra_roots, resume_pkg_ids):
-        self.calls.append((list(extra_roots), set(resume_pkg_ids)))
+    def __call__(self, graph, extra_roots):
+        self.calls.append(list(extra_roots))
         new = graph
         for _imp_id, dist in extra_roots:
             new = new.with_node(_pkg(dist))
@@ -145,7 +147,7 @@ def test_local_verdicts_recorded_no_reentry(tmp_path):
     assert any("import items" in c for c in ex.calls)         # it DID probe (cure ok)
 
 
-def test_fallthrough_mints_provisional_root_and_threads_resume(tmp_path):
+def test_fallthrough_mints_provisional_root(tmp_path):
     # azure genuinely absent under the cure -> fallthrough -> install-lane re-entry.
     ex = _RecordingExec(
         table=[("import azure", 1, "ModuleNotFoundError: No module named 'azure'")]
@@ -161,9 +163,7 @@ def test_fallthrough_mints_provisional_root_and_threads_resume(tmp_path):
     out = _apply_live_arbitration(graph, str(tmp_path), ex, reenter=spy)
     proj = next(n for n in out.nodes if n.type is NodeType.PROJECT)
     assert proj.data["routing_fallthrough"] == ("azure",)
-    # re-entry invoked with the fallthrough install-lane root AND the current
-    # Package-node ids threaded in (resume state -> no duplicate pkg nodes).
-    assert spy.calls == [([(None, "azure")], {existing.id})]
+    assert spy.calls == [[(None, "azure")]]      # re-entry got the fallthrough root
     az = out.get(package_id("azure", "1.0"))
     assert az is not None
     assert az.data["provisional"]["name"] == "azure"
@@ -232,6 +232,7 @@ def _fixpoint_env(monkeypatch, new_pkg):
 
 
 def test_fixpoint_resume_drops_stale_no_duplicate(monkeypatch):
+    from graph.python.fixpoint import _FixpointResumeState
     old = _pkg("foo", "1.0")
     new = _pkg("foo", "2.0")
     fx = _fixpoint_env(monkeypatch, new)
@@ -239,7 +240,7 @@ def test_fixpoint_resume_drops_stale_no_duplicate(monkeypatch):
     out = fx._phase_a_fixpoint(
         DepGraph().with_node(old), [(None, "foo")], ex, ex, (lambda d: None),
         target_env=None, exclude_newer=None, needed_extras=frozenset(),
-        resume_pkg_ids=frozenset({old.id}),
+        resume=_FixpointResumeState(resolved_pkg_ids={old.id}),
     )
     assert out.get(package_id("foo", "2.0")) is not None
     assert out.get(package_id("foo", "1.0")) is None        # stale dropped via resume
@@ -248,7 +249,7 @@ def test_fixpoint_resume_drops_stale_no_duplicate(monkeypatch):
 def test_fixpoint_without_resume_keeps_from_scratch_behavior(monkeypatch):
     # The load-bearing counter-proof: WITHOUT threaded resume state, the empty
     # prev-set drops nothing, so a fresh unthreaded re-entry would leave BOTH the
-    # old and new pkg node -- exactly the duplicate the resume param prevents.
+    # old and new pkg node -- exactly the duplicate the resume state prevents.
     old = _pkg("foo", "1.0")
     new = _pkg("foo", "2.0")
     fx = _fixpoint_env(monkeypatch, new)
@@ -259,6 +260,82 @@ def test_fixpoint_without_resume_keeps_from_scratch_behavior(monkeypatch):
     )
     assert out.get(package_id("foo", "1.0")) is not None    # from-scratch: not dropped
     assert out.get(package_id("foo", "2.0")) is not None
+
+
+def test_fixpoint_resume_preserves_pre_existing_missing_node(monkeypatch):
+    # F3: a MISSING uv-source/direct-reference placeholder (added OUTSIDE the fixpoint,
+    # deliberately gated OFF from PyPI-namesake resolution) is absent from every
+    # closure, so it must NOT be in the reconcile prior-id set -> re-entry must leave
+    # it UNTOUCHED. Over-seeding from all graph pkg nodes (the earlier bug) would drop
+    # it here because the re-resolve omits it.
+    from graph.python.fixpoint import _FixpointResumeState
+    from graph.model import State
+    missing = Node(
+        id=package_id("forked-sdk", None), type=NodeType.PACKAGE, name="forked-sdk",
+        layer=Layer.PIP, discovered_by=DiscoveredBy.RESOLVER, version=None,
+        state=State.MISSING, data={"uninstallable": True},
+    )
+    new = _pkg("azure", "1.0")                       # the fallthrough dist the re-resolve emits
+    fx = _fixpoint_env(monkeypatch, new)
+    ex = object()
+    out = fx._phase_a_fixpoint(
+        DepGraph().with_node(missing), [(None, "azure")], ex, ex, (lambda d: None),
+        target_env=None, exclude_newer=None, needed_extras=frozenset(),
+        # Prior closure managed NO packages (the MISSING node was added outside it).
+        resume=_FixpointResumeState(resolved_pkg_ids=set()),
+    )
+    assert out.get(package_id("azure", "1.0")) is not None            # fallthrough minted
+    assert out.get(package_id("forked-sdk", None)) is not None        # MISSING placeholder survives
+
+
+def test_fixpoint_resume_does_not_reattempt_given_up_name(monkeypatch):
+    # F2: Phase A can exit with a residual missing import (bound / no-new-candidate).
+    # Re-entry with the THREADED attempted set must NOT re-propose a pair the first
+    # run already tried, even though the candidate would ground. Proven by resolve
+    # count: fresh state re-attempts (2 resolves); a resume state pre-seeded with the
+    # pair refuses (1 resolve, no root added).
+    import graph.python.fixpoint as fx
+    from graph.python.fixpoint import _FixpointResumeState, Verdict
+
+    monkeypatch.setattr(fx, "install_closure", lambda g, ex: g)
+    monkeypatch.setattr(fx, "resolved_record_coverage", lambda nodes, prov: frozenset())
+    monkeypatch.setattr(fx, "declared_candidates", lambda name, cov: [])
+    monkeypatch.setattr(
+        fx, "generate_candidates",
+        lambda name, **k: [SimpleNamespace(dist="pyyaml")] if name == "yaml" else [],
+    )
+    monkeypatch.setattr(
+        fx, "choose_provider",
+        lambda name, cands, prov: SimpleNamespace(
+            verdict=Verdict.ACCEPT if cands else Verdict.REJECT,
+            dist="pyyaml" if cands else None,
+        ),
+    )
+    resolves = {"n": 0}
+
+    def _resolve(*_a, **_k):
+        resolves["n"] += 1
+        return ([], [])                              # closure stays empty -> yaml stays missing
+
+    monkeypatch.setattr(fx, "resolve_closure", _resolve)
+
+    graph = DepGraph().with_node(_imp("yaml"))
+    ex = object()
+
+    resolves["n"] = 0
+    fx._phase_a_fixpoint(
+        graph, [], ex, ex, (lambda d: None),
+        target_env=None, exclude_newer=None, needed_extras=frozenset(),
+    )
+    assert resolves["n"] == 2                         # fresh: proposes then re-attempts -> 2 resolves
+
+    resolves["n"] = 0
+    fx._phase_a_fixpoint(
+        graph, [], ex, ex, (lambda d: None),
+        target_env=None, exclude_newer=None, needed_extras=frozenset(),
+        resume=_FixpointResumeState(attempted={("yaml", "pyyaml")}),
+    )
+    assert resolves["n"] == 1                         # resumed: pair already attempted -> no re-propose
 
 
 # --- relink guard: never launder a provisional collision -------------------- #
@@ -318,6 +395,34 @@ def test_arbitration_wired_into_build_dep_graph_local_verdict(tmp_path):
     assert "azure" in proj.data.get("routing_deferred", ())          # Task 1 stamp
     assert proj.data.get("routing_arbitrated_local") == ("azure",)   # probe rc0 -> local
     assert proj.data.get("routing_fallthrough") == ()
+
+
+def test_fallthrough_reentry_runs_wheel_preflight(tmp_path, monkeypatch):
+    """F4: on a genuine fallthrough the re-entry re-runs the wheel-preflight soname
+    prior (the PRE-install DT_NEEDED discovery), not just Phase-B's ldd backstop — so
+    a native fallthrough dist gets the same proactive prior Phase-A dists get. Proven
+    by call count: preflight fires once in Phase A and again in the re-entry."""
+    import graph.python.pipeline as pipeline
+    repo = _collision_repo(tmp_path)
+    calls = {"n": 0}
+    orig = pipeline.wheel_preflight_probe
+
+    def _spy(graph, host_exec, target_env):
+        calls["n"] += 1
+        return orig(graph, host_exec, target_env)
+
+    monkeypatch.setattr(pipeline, "wheel_preflight_probe", _spy)
+    ex = SequencedFakeExecutor(
+        responses={
+            "stdlib_module_names": [_r(0, stdout=json.dumps(["os", "sys"]))],
+            "import azure": [_r(1, stderr="ModuleNotFoundError: No module named 'azure'")],
+        },
+        default=_r(0),
+    )
+    graph = build_dep_graph(repo, ex, host_executor=ex)
+    proj = next(n for n in graph.nodes if n.type is NodeType.PROJECT)
+    assert proj.data.get("routing_fallthrough") == ("azure",)   # the fallthrough fired
+    assert calls["n"] >= 2                                        # Phase-A prior + re-entry (F4)
 
 
 def test_no_collision_repo_records_empty_arbitration(tmp_path):

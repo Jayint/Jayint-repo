@@ -425,6 +425,14 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
         with open(args.out, "w") as fh:
             fh.write(script_text)
         print(f"[v3] wrote certified setup.sh -> {args.out}")
+        # Persist the final DepGraph next to setup.sh so the bench_emit v3 adapter
+        # can surface the certified-with-provisional install set (Stage C Task 3) in
+        # bench_meta.json — without it, a local-collision PyPI fallthrough would be
+        # scored as a clean pass. Additive: legacy consumers ignore the extra file.
+        graph_path = os.path.join(os.path.dirname(os.path.abspath(args.out)), "dep_graph.json")
+        with open(graph_path, "w") as gh:
+            json.dump(dep_graph.to_dict(), gh, indent=2)
+        print(f"[v3] wrote dep graph -> {graph_path}")
         _maybe_write_services_script(dep_graph, args)
 
     if gates_seen:

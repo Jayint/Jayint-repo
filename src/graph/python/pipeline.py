@@ -41,7 +41,7 @@ from graph.model import (
     NodeType,
     State,
 )
-from graph.python.fixpoint import _phase_a_fixpoint
+from graph.python.fixpoint import _FixpointResumeState, _phase_a_fixpoint
 from graph.python.invocation_resolver import resolve
 from graph.python.lanes.config.cure import CureResult, run_cure, stamp_scratch_certified
 from graph.python.lanes.install.ground import (
@@ -505,10 +505,11 @@ def _apply_live_arbitration(
     (``routing_arbitrated_local`` / ``routing_fallthrough`` / ``routing_unresolved``
     — the durable record the repair agent and Task 4 read). Each ``fallthrough``
     name then becomes an install-lane root and RE-ENTERS the Phase-A fixpoint via
-    ``reenter``, which threads the CURRENT Package-node ids so the re-resolve
-    reconciles cleanly (no duplicate ``pkg:name==old`` beside ``pkg:name==new`` —
-    a bare ``pip install`` and a fresh unthreaded fixpoint are both forbidden), and
-    every fallthrough-minted Package node is flagged ``data["provisional"]``.
+    ``reenter`` (which RESUMES the first run's threaded state — no re-attempt of a
+    given-up name, no duplicate/over-dropped pkg nodes — and re-runs the wheel-
+    preflight soname prior; a bare ``pip install`` and a fresh unthreaded fixpoint
+    are both forbidden), and every fallthrough-minted Package node is flagged
+    ``data["provisional"]``.
 
     Fail-open like Tasks 1–2: any exception is logged and the graph is returned
     as-is (unchanged when the failure is in ``arbitrate``/``resolve`` before any
@@ -541,10 +542,7 @@ def _apply_live_arbitration(
         if not arb.fallthrough:
             return graph
         extra_roots = [(None, name) for name in sorted(arb.fallthrough)]
-        resume_pkg_ids = frozenset(
-            n.id for n in graph.nodes if n.type is NodeType.PACKAGE
-        )
-        graph = reenter(graph, extra_roots, resume_pkg_ids)
+        graph = reenter(graph, extra_roots)
         return _stamp_provisional(graph, arb.fallthrough, cure)
     except Exception:  # never let live arbitration fail construction
         logger.warning(
@@ -774,6 +772,11 @@ def _python_package_obligations(
         uv_indexes = ()
         workspace_members = ()
 
+    # Phase-A resume state: the first run populates it (attempted pairs + the final
+    # resolved-closure ids) so a Stage-C-Task-3 fallthrough re-entry can RESUME the
+    # fixpoint (no re-attempt of a given-up name, no over-drop of MISSING placeholder
+    # nodes) instead of restarting it from scratch.
+    phase_a_state = _FixpointResumeState()
     graph = _phase_a_fixpoint(
         graph,
         roots,
@@ -791,6 +794,7 @@ def _python_package_obligations(
         workspace_members=workspace_members,
         repo_path=repo_path,
         llm=llm_dist_guesser,
+        resume=phase_a_state,
     )
 
     # Stage 3a'/3a''/3b — auxiliary node stages run ONCE after convergence (they
@@ -875,16 +879,18 @@ def _python_package_obligations(
         # Stage C Task 3 — collision-zone arbitration after the cure. Each genuine
         # fallthrough (a deferred collision name that does NOT import locally under
         # the cure) re-enters the Phase-A fixpoint over the ORIGINAL roots augmented
-        # with that name, THREADING the current Package-node ids so a version-shift
-        # reconcile drops the stale node (no duplicate pkg nodes). Reuses the SAME
-        # resolver/coverage seams the first fixpoint used, captured here as a closure
-        # so arbitration itself stays agnostic to the resolve-plane's parameters.
-        def _reenter(g, extra_roots, resume_pkg_ids):
+        # with that name, RESUMING ``phase_a_state`` (threaded attempted set + the
+        # last closure's ids -> no re-attempt, no duplicate/over-dropped pkg nodes),
+        # then re-runs the wheel-preflight soname prior so a native fallthrough dist
+        # (lxml-class) gets the same PRE-install DT_NEEDED discovery Phase-A dists
+        # get. Reuses the SAME resolver/coverage seams as a closure so arbitration
+        # stays agnostic to the resolve-plane's parameters.
+        def _reenter(g, extra_roots):
             proj = _project_node(g)
             reentry_deferred = (
                 frozenset(proj.data.get("routing_deferred", ())) if proj else frozenset()
             )
-            return _phase_a_fixpoint(
+            g = _phase_a_fixpoint(
                 g,
                 roots + list(extra_roots),
                 host_executor,
@@ -902,8 +908,12 @@ def _python_package_obligations(
                 repo_path=repo_path,
                 llm=llm_dist_guesser,
                 deferred=reentry_deferred,
-                resume_pkg_ids=resume_pkg_ids,
+                resume=phase_a_state,
             )
+            # F4: pre-install wheel DT_NEEDED soname discovery over the (now-present)
+            # fallthrough dists — the Phase-A proactive prior, not the Phase-B ldd
+            # backstop. Idempotent for the already-probed closure (soname-keyed upsert).
+            return wheel_preflight_probe(g, host_executor, target_env)
 
         graph = _apply_live_arbitration(
             graph, repo_path, container_executor, reenter=_reenter

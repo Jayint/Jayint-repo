@@ -14,8 +14,16 @@ def bench_meta(
     turns_used: int | None = None,
     cost_usd: float | None = None,
     dockerfile_source: str | None = None,
+    provisional_installs: list | None = None,
 ) -> dict:
-    """Build a bench_meta.json payload, dropping keys whose value is None."""
+    """Build a bench_meta.json payload, dropping keys whose value is None.
+
+    ``provisional_installs`` (Stage C Task 3) is the certified-with-provisional set —
+    ``[{name, reason, cure_rung}]`` for each fallthrough install (a local-collision
+    name installed from PyPI because it did not import under the cure). Pass ``None``
+    (or an empty list coerced to ``None`` by the caller) when there are none, so the
+    key is dropped and every collision-free run stays byte-identical.
+    """
     payload = {
         "agent": agent,
         "base_image": base_image,
@@ -28,5 +36,6 @@ def bench_meta(
         "head_sha": head_sha,
         "commit": commit,
         "dockerfile_source": dockerfile_source,
+        "provisional_installs": provisional_installs,
     }
     return {k: v for k, v in payload.items() if v is not None}

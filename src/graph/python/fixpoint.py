@@ -12,6 +12,7 @@ here so a ``monkeypatch.setattr(fixpoint, ...)`` reaches the call site.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass, field
 from types import MappingProxyType
 
 from graph.contracts.executor import Executor
@@ -36,6 +37,32 @@ logger = logging.getLogger(__name__)
 # Numeric backstop on Phase-A repair rounds (Correction 2b): the attempted-set is
 # the honest terminator; this caps pathological non-convergence.
 _MAX_REPAIR_ROUNDS = 5
+
+
+@dataclass
+class _FixpointResumeState:
+    """Mutable carry that lets a fallthrough RE-ENTRY (Stage C Task 3) resume the
+    Phase-A fixpoint instead of restarting it. The first Phase-A run POPULATES it;
+    a re-entry passes the SAME object so it:
+
+    * seeds ``prev_pkg_ids`` from ``resolved_pkg_ids`` — the ids of the LAST resolve
+      round's closure ONLY, never the whole graph — so ``reconcile_packages`` cannot
+      drop a pre-existing ``State.MISSING`` placeholder the resolver deliberately
+      excluded (a ``[tool.uv.sources]`` / direct-reference node): those were added
+      OUTSIDE the fixpoint and are absent from every round's closure, so they must
+      never enter the prior-id set that reconcile prunes against (F3); and
+
+    * seeds ``attempted`` with every ``(import, candidate)`` pair the first run
+      already tried, so re-entry does NOT re-attempt a name Phase A gave up on at
+      its bound / no-new-candidate exit (F2).
+
+    Mutated in place (the fixpoint already threads mutable ``repaired``/``attempted``
+    sets internally); ``None`` at the call site keeps the from-scratch run
+    byte-identical (empty prior set drops nothing, empty attempted set re-tries).
+    """
+
+    attempted: set[tuple[str, str]] = field(default_factory=set)
+    resolved_pkg_ids: set[str] = field(default_factory=set)
 
 # PEP-503 canonicalizer, aliased to its util-natured owner (one shared
 # canonicalizer, not a build-local copy) — see the split note in git history.
@@ -76,7 +103,7 @@ def _phase_a_fixpoint(
     repo_path: str | None = None,
     llm: DistGuesser | None = None,
     deferred: frozenset[str] = frozenset(),
-    resume_pkg_ids: frozenset[str] | None = None,
+    resume: "_FixpointResumeState | None" = None,
 ) -> DepGraph:
     """Bounded resolve -> install -> look -> repair fixpoint (Phase A).
 
@@ -98,19 +125,21 @@ def _phase_a_fixpoint(
     unresolved downstream — construction is NEVER aborted. Every round returns a
     NEW graph; the orchestrator only rebinds ``graph``.
 
-    ``resume_pkg_ids`` (Stage C Task 3, default ``None``) seeds the loop's
-    prior-round Package-node id set so a RE-ENTRY (fallthrough install-lane roots
-    added after the first fixpoint already converged) reconciles against the
-    CURRENT graph's Package nodes: the first re-entry ``reconcile_packages`` then
-    drops any version-shifted prior node (``pkg:name==old``) instead of leaving it
-    orphaned beside the freshly resolved ``pkg:name==new`` — the duplicate-pkg-node
-    failure mode a fresh, unthreaded re-entry would cause. ``None`` keeps the
-    from-scratch first run byte-identical (empty prior set drops nothing).
+    ``resume`` (Stage C Task 3, default ``None``) is the :class:`_FixpointResumeState`
+    a fallthrough RE-ENTRY threads so it resumes rather than restarts: it seeds the
+    prior-round Package-id set from the LAST closure only (so a version-shift
+    reconcile drops the stale ``pkg:name==old`` WITHOUT touching a pre-existing
+    ``State.MISSING`` uv-source/direct-reference placeholder — F3) and seeds the
+    attempted ``(import, candidate)`` set (so re-entry never re-attempts a name the
+    first run gave up on at its bound / no-new-candidate exit — F2). The first run
+    POPULATES the same object (attempted pairs + the final closure ids). ``None``
+    keeps the from-scratch run byte-identical.
     """
+    state = resume if resume is not None else _FixpointResumeState()
     root_dists = {_canon(_req_name(dist)) for _imp, dist in roots}
     repaired: set[str] = set()
-    attempted: set[tuple[str, str]] = set()
-    prev_pkg_ids: set[str] = set(resume_pkg_ids or ())
+    attempted: set[tuple[str, str]] = state.attempted
+    prev_pkg_ids: set[str] = set(state.resolved_pkg_ids)
     bound: int | None = None
     iteration = 0
     # Declared-rung coverage: module -> declared dists whose RECORD ships it. Built
@@ -137,6 +166,9 @@ def _phase_a_fixpoint(
         graph = reconcile_packages(graph, pkg_nodes, pkg_edges, prev_pkg_ids)
         graph = _stamp_audit(graph, repaired)
         prev_pkg_ids = {n.id for n in pkg_nodes}
+        # Expose the LATEST closure's ids so a subsequent re-entry reconciles
+        # against the resolver-managed set only (never the MISSING placeholders).
+        state.resolved_pkg_ids = set(prev_pkg_ids)
         graph = install_closure(graph, container_executor)
 
         # Correction 3: the coverage oracle is RECORD-union over the RESOLVED

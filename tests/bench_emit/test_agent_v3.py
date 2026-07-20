@@ -54,3 +54,32 @@ def test_v3_missing_eval_build_is_anti_vanish(tmp_path):
     assert env.meta["agent"] == "v3"
     assert env.meta["base_image"] == "python:3.11-slim"
     assert "produce_s" not in env.meta
+
+
+def test_v3_no_dep_graph_omits_provisional(tmp_path):
+    # Legacy run (no dep_graph.json in eval_build) -> the key is absent, unchanged.
+    env = v3.adapt(_make_v3_repo(tmp_path))
+    assert "provisional_installs" not in env.meta
+
+
+def test_v3_surfaces_provisional_installs_from_dep_graph(tmp_path):
+    # Stage C Task 3: a fallthrough (provisional) Package node in the serialized graph
+    # must surface as a distinct bench_meta field so an eval never scores a
+    # local-collision PyPI install as a clean pass.
+    repo = _make_v3_repo(tmp_path)
+    dep_graph = {
+        "nodes": [
+            {"type": "Package", "name": "requests", "data": {}},          # ordinary dep
+            {"type": "Package", "name": "azure", "data": {"provisional": {
+                "name": "azure", "reason": "local-collision fallthrough",
+                "cure_rung": "isolated"}}},
+        ],
+        "edges": [],
+    }
+    (tmp_path / "output" / "fastapi" / "typer" / "eval_build" / "dep_graph.json").write_text(
+        json.dumps(dep_graph)
+    )
+    env = v3.adapt(repo)
+    assert env.meta["provisional_installs"] == [
+        {"name": "azure", "reason": "local-collision fallthrough", "cure_rung": "isolated"}
+    ]
