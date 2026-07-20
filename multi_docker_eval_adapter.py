@@ -54,6 +54,12 @@ _APP_WORKDIR_RE = re.compile(r"(?<![\w/])/app(?![\w])")
 _AGENT_ROOT = Path(__file__).resolve().parent
 _RUN_V3_E2E = _AGENT_ROOT / "scripts" / "run_v3_e2e.py"
 
+# §4.4: the Python minors for which a `v3-base:3.X` instrument image is built
+# (see scripts/build_v3_base.sh — keep in sync). `_bake_base_image` maps a stock
+# `python:3.X-slim` FROM to `v3-base:3.X` only for minors in this set; any other
+# minor or a non-python base is left unchanged.
+V3_BASE_MINORS = ("3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14")
+
 # Repair-only ablation (V3_REPAIR_ABLATION=1 + V3_SEED_DIR=<construction run>/output):
 # seed the react repair loop from a PRE-GENERATED construction setup.sh and skip graph
 # construction, so only the repair loop varies. The seed's base image (needed because seed
