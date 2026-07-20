@@ -458,20 +458,15 @@ def render_build_script(
         graph = DepGraph()
     # single call site: derive commands, then emit
     graph = populate_setup_commands(graph, include_services=include_services)
+    # §4.4c: the ungraphed instrument preamble (python->python3 symlink + pytest
+    # floor) is GONE — it is baked into the v3-base:3.X image the Dockerfile FROMs
+    # (see _bake_base_image / docker/v3-base/Dockerfile). Every remaining line of
+    # setup.sh is now graph-derived. `set -Eeuo pipefail` stays (shell safety, not
+    # instrument). pytest still installs from its PIP node when declared (floor-not-
+    # pin); repos that declare it nowhere inherit the baked pytest from the image.
     parts: list[str] = _manifest(graph, manual_blocks, include_services=include_services) + [
         "set -Eeuo pipefail",
         "",
-        "# Normalize `python` -> python3 so bare-`python` checks (pip show / pytest) resolve.",
-        'command -v python >/dev/null 2>&1 || ln -sf "$(command -v python3)" /usr/local/bin/python',
-        "",
-        # pytest is the testability gate's runner (`python -m pytest -q`) — its
-        # PRECONDITION, not a prediction of the repo's deps. Ensure it (like the
-        # shim) as the floor for repos that declare pytest only in tox.ini / not
-        # at all and whose tests never `import pytest`. Guarded: a repo whose
-        # graph already installs pytest re-runs nothing. Kept OUT of select_roots
-        # so it does not bloat every graph with a pytest-closure resolve.
-        "# Ensure the pytest test-runner (testability-gate precondition; not a graph node).",
-        'python3 -c "import pytest" >/dev/null 2>&1 || python3 -m pip install --break-system-packages pytest',
     ]
     covered = {nid for b in manual_blocks for nid in b.target_node_ids}
     blocks_by_wave: dict[str, list] = {}
