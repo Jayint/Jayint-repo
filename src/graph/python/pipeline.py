@@ -43,7 +43,7 @@ from graph.model import (
 )
 from graph.python.fixpoint import _phase_a_fixpoint
 from graph.python.invocation_resolver import resolve
-from graph.python.lanes.config.cure import run_cure, stamp_scratch_certified
+from graph.python.lanes.config.cure import CureResult, run_cure, stamp_scratch_certified
 from graph.python.lanes.install.ground import (
     DistGuesser,
     RecordProvider,
@@ -66,6 +66,7 @@ from graph.python.read.evidence import collect_python_dependency_evidence
 from graph.python.read.scan import scan_to_nodes
 from graph.python.read.subprocess_scan import add_subprocess_tool_nodes
 from graph.python.read.target_env import detect_target_env
+from graph.python.route.arbitrate import arbitrate
 from graph.python.route.classify import (
     apply_routing,
     classify,
@@ -432,6 +433,127 @@ def _apply_live_config_cure(
         return graph
 
 
+def _project_node(graph: DepGraph) -> Node | None:
+    return next((n for n in graph.nodes if n.type is NodeType.PROJECT), None)
+
+
+def _cure_from_project(project: Node) -> CureResult:
+    """Reconstruct the minimal :class:`CureResult` arbitration reads from Task 2's
+    durable ``scratch_certified`` stamp. ``arbitrate`` consults only ``cure.ok``, so
+    an UNSTAMPED project (the cure failed or the repo had no installable metadata)
+    yields ``ok=False`` and the arbiter returns every deferred name unresolved with
+    ZERO container probes. Reusing the stamp avoids a second in-container editable
+    install — the real cure already ran live in :func:`_apply_live_config_cure`
+    moments earlier — while keeping arbitration keyed on the same durable record
+    the repair agent and Task 4 read (never a side channel)."""
+    if project.data.get("scratch_certified") is not True:
+        return CureResult(False, "", False, "not scratch-certified")
+    return CureResult(
+        True,
+        str(project.data.get("cure_rung", "")),
+        bool(project.data.get("cure_collect_ok")),
+        "reconstructed from scratch_certified stamp",
+    )
+
+
+def _stamp_provisional(
+    graph: DepGraph, fallthrough: frozenset[str], cure: CureResult
+) -> DepGraph:
+    """Stamp ``data["provisional"]`` (the local-collision evidence, with a named
+    owner) on every fallthrough-minted Package node — matched by CANONICAL dist
+    name, so only the fallthrough root itself is flagged, never a transitive
+    closure member that happens to ride in on the same re-resolve. The payload is a
+    plain JSON-able dict, so it survives ``Node.to_dict``/``from_dict`` and any
+    downstream run artifact that serializes the graph carries the
+    "certified-with-provisional" evidence."""
+    wanted = {_canon(name) for name in fallthrough}
+    new = graph
+    for node in graph.nodes:
+        if node.type is NodeType.PACKAGE and _canon(node.name) in wanted:
+            new = new.with_node(
+                node.with_data(
+                    provisional={
+                        "name": node.name,
+                        "reason": (
+                            "local-collision fallthrough: name is both a repo "
+                            "module and a PyPI distribution, and did not import "
+                            "locally under the cure"
+                        ),
+                        "cure_rung": cure.rung,
+                    }
+                )
+            )
+    return new
+
+
+def _apply_live_arbitration(
+    graph: DepGraph,
+    repo_path: str,
+    container_executor: Executor,
+    *,
+    reenter,
+) -> DepGraph:
+    """Stage C Task 3 — collision-zone arbitration runs LIVE after the cure, and
+    genuine fallthroughs re-enter the install lane under a provisional flag.
+
+    Reads the collision-zone names Task 1 stamped (``routing_deferred``); when
+    empty — the common case — returns IMMEDIATELY with ZERO extra container calls.
+    Otherwise reconstructs the cure outcome from Task 2's ``scratch_certified``
+    stamp and runs the cure-gated, exception-aware :func:`arbitrate` (a cure that
+    did not succeed -> every deferred name unresolved, no probe). The three verdict
+    partitions are recorded as sorted-tuple graph data on the ``Project`` node
+    (``routing_arbitrated_local`` / ``routing_fallthrough`` / ``routing_unresolved``
+    — the durable record the repair agent and Task 4 read). Each ``fallthrough``
+    name then becomes an install-lane root and RE-ENTERS the Phase-A fixpoint via
+    ``reenter``, which threads the CURRENT Package-node ids so the re-resolve
+    reconciles cleanly (no duplicate ``pkg:name==old`` beside ``pkg:name==new`` —
+    a bare ``pip install`` and a fresh unthreaded fixpoint are both forbidden), and
+    every fallthrough-minted Package node is flagged ``data["provisional"]``.
+
+    Fail-open like Tasks 1–2: any exception is logged and the graph is returned
+    as-is (unchanged when the failure is in ``arbitrate``/``resolve`` before any
+    stamp; verdicts KEPT but the risky re-entry skipped when the fixpoint itself
+    raises), so live arbitration can never propagate a construction failure.
+
+    Pre-flip downscope (route-not-drop is Task 4): the scan still DROPS first-party/
+    local names, so a collision name has NO Import node today. Recording the
+    ``resolves_local`` verdict therefore has no Import node to route to a Module
+    (the verdict is still stamped, for the flip and the repair agent); only the
+    ``fallthrough`` install-lane re-entry has a live graph effect pre-flip.
+    """
+    try:
+        project = _project_node(graph)
+        if project is None:
+            return graph
+        deferred = frozenset(project.data.get("routing_deferred", ()))
+        if not deferred:
+            return graph  # no collision zone -> zero container calls (the common case)
+        plan = resolve(repo_path)
+        cure = _cure_from_project(project)
+        arb = arbitrate(container_executor, plan, cure, deferred)
+        graph = graph.with_node(
+            project.with_data(
+                routing_arbitrated_local=tuple(sorted(arb.resolves_local)),
+                routing_fallthrough=tuple(sorted(arb.fallthrough)),
+                routing_unresolved=tuple(sorted(arb.unresolved)),
+            )
+        )
+        if not arb.fallthrough:
+            return graph
+        extra_roots = [(None, name) for name in sorted(arb.fallthrough)]
+        resume_pkg_ids = frozenset(
+            n.id for n in graph.nodes if n.type is NodeType.PACKAGE
+        )
+        graph = reenter(graph, extra_roots, resume_pkg_ids)
+        return _stamp_provisional(graph, arb.fallthrough, cure)
+    except Exception:  # never let live arbitration fail construction
+        logger.warning(
+            "live config-lane arbitration failed; leaving graph unrouted",
+            exc_info=True,
+        )
+        return graph
+
+
 def _python_package_obligations(
     repo_path: str,
     container_executor: Executor,
@@ -750,6 +872,42 @@ def _python_package_obligations(
         # check survives render as a #@check); a failed/absent cure leaves the graph
         # -- and the rendered setup.sh -- byte-identical to today.
         graph = _apply_live_config_cure(graph, repo_path, container_executor)
+        # Stage C Task 3 — collision-zone arbitration after the cure. Each genuine
+        # fallthrough (a deferred collision name that does NOT import locally under
+        # the cure) re-enters the Phase-A fixpoint over the ORIGINAL roots augmented
+        # with that name, THREADING the current Package-node ids so a version-shift
+        # reconcile drops the stale node (no duplicate pkg nodes). Reuses the SAME
+        # resolver/coverage seams the first fixpoint used, captured here as a closure
+        # so arbitration itself stays agnostic to the resolve-plane's parameters.
+        def _reenter(g, extra_roots, resume_pkg_ids):
+            proj = _project_node(g)
+            reentry_deferred = (
+                frozenset(proj.data.get("routing_deferred", ())) if proj else frozenset()
+            )
+            return _phase_a_fixpoint(
+                g,
+                roots + list(extra_roots),
+                host_executor,
+                container_executor,
+                record_provider,
+                target_env=target_env,
+                exclude_newer=exclude_newer,
+                needed_extras=needed_extras,
+                declared_package_names=declared_package_names,
+                declared_dists=soft_declared,
+                uv_sourced_names=uv_sourced_names,
+                uv_sources=uv_sources,
+                uv_indexes=uv_indexes,
+                workspace_members=workspace_members,
+                repo_path=repo_path,
+                llm=llm_dist_guesser,
+                deferred=reentry_deferred,
+                resume_pkg_ids=resume_pkg_ids,
+            )
+
+        graph = _apply_live_arbitration(
+            graph, repo_path, container_executor, reenter=_reenter
+        )
     return graph, roots, target_env, exclude_newer
 
 

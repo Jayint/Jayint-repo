@@ -76,6 +76,7 @@ def _phase_a_fixpoint(
     repo_path: str | None = None,
     llm: DistGuesser | None = None,
     deferred: frozenset[str] = frozenset(),
+    resume_pkg_ids: frozenset[str] | None = None,
 ) -> DepGraph:
     """Bounded resolve -> install -> look -> repair fixpoint (Phase A).
 
@@ -96,11 +97,20 @@ def _phase_a_fixpoint(
     bound ``min(initial_missing, 5)``; residue is left for P0.3 to flag
     unresolved downstream — construction is NEVER aborted. Every round returns a
     NEW graph; the orchestrator only rebinds ``graph``.
+
+    ``resume_pkg_ids`` (Stage C Task 3, default ``None``) seeds the loop's
+    prior-round Package-node id set so a RE-ENTRY (fallthrough install-lane roots
+    added after the first fixpoint already converged) reconciles against the
+    CURRENT graph's Package nodes: the first re-entry ``reconcile_packages`` then
+    drops any version-shifted prior node (``pkg:name==old``) instead of leaving it
+    orphaned beside the freshly resolved ``pkg:name==new`` — the duplicate-pkg-node
+    failure mode a fresh, unthreaded re-entry would cause. ``None`` keeps the
+    from-scratch first run byte-identical (empty prior set drops nothing).
     """
     root_dists = {_canon(_req_name(dist)) for _imp, dist in roots}
     repaired: set[str] = set()
     attempted: set[tuple[str, str]] = set()
-    prev_pkg_ids: set[str] = set()
+    prev_pkg_ids: set[str] = set(resume_pkg_ids or ())
     bound: int | None = None
     iteration = 0
     # Declared-rung coverage: module -> declared dists whose RECORD ships it. Built

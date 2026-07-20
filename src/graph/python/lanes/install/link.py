@@ -43,6 +43,28 @@ def parse_packages_distributions(stdout: str) -> dict[str, list[str]]:
     return out
 
 
+def _module_routed_collision_names(graph: DepGraph) -> frozenset[str]:
+    """Import top-level names arbitration (Stage C Task 3) routed to a local
+    ``Module`` (``routing_arbitrated_local``) and that did NOT fall through — a
+    relink edge onto one would LAUNDER a provisional collision (draw a certified
+    Import->Package edge to a PyPI dist for a name the local module actually
+    provides), so relink must SKIP it. A ``routing_fallthrough`` name is
+    deliberately NOT guarded: its edge is kept and its target Package keeps the
+    ``data["provisional"]`` marker minted at fallthrough time.
+
+    Read from the Project node's durable verdict stamp. EMPTY pre-flip: the scan
+    still drops first-party/local names, so a collision name has no Import node for
+    relink to encounter — this guard is a hard no-op today and ACTIVATES at the
+    route-not-drop flip (Task 4), when collision names finally carry Import nodes.
+    """
+    project = next((n for n in graph.nodes if n.type is NodeType.PROJECT), None)
+    if project is None:
+        return frozenset()
+    local = frozenset(project.data.get("routing_arbitrated_local", ()))
+    fell = frozenset(project.data.get("routing_fallthrough", ()))
+    return local - fell
+
+
 def import_to_package_edges(
     graph: DepGraph, dist_map: dict[str, list[str]]
 ) -> list[Edge]:
@@ -52,6 +74,11 @@ def import_to_package_edges(
     distribution names match a Package node by canonical (PEP 503) name. A
     namespace import (multiple dists) links to every dist that is present as a
     Package node. Edges already in the graph are skipped (no duplicates).
+
+    A module-routed collision (``routing_arbitrated_local`` minus
+    ``routing_fallthrough`` — see :func:`_module_routed_collision_names`) is never
+    linked: relink must not launder a provisional collision onto a PyPI dist. Empty
+    pre-flip (no Import nodes for collision names), so byte-identical until the flip.
     """
     pkg_by_canon = {
         normalize_package_name(n.name): n.id
@@ -62,12 +89,15 @@ def import_to_package_edges(
     existing = {
         (e.src, e.dst) for e in graph.edges if e.relation is EdgeType.REQUIRES
     }
+    guarded = _module_routed_collision_names(graph)
 
     edges: list[Edge] = []
     seen: set[tuple[str, str]] = set()
     for node in graph.nodes:
         if node.type is not NodeType.IMPORT:
             continue
+        if top_level_import_name(node.name) in guarded:
+            continue  # module-routed collision: never launder a PyPI dist onto it
         module = top_level_import_name(node.name).lower()
         for dist in dist_by_module.get(module, ()):
             pkg_id = pkg_by_canon.get(normalize_package_name(dist))
