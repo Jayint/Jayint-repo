@@ -18,7 +18,7 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from multi_docker_eval_adapter import MultiDockerEvalAdapter
+from multi_docker_eval_adapter import MultiDockerEvalAdapter, _bake_base_image
 
 
 def _adapter(tmp_path, *, setup_text="cd /app && pip install -e .", base="python:3.12-slim"):
@@ -38,9 +38,9 @@ def test_dockerfile_contract(tmp_path):
     )
     # harness does res.get(instance_id, res) -> the result dict
     r = res["anthropics__anthropic-sdk-python"]
-    assert r["base_image"] == "python:3.12-slim"
+    assert r["base_image"] == "python:3.12-slim"   # result base stays the stock tag (unmapped)
     df = r["dockerfile"]
-    assert df.startswith("FROM python:3.12-slim")
+    assert df.startswith("FROM v3-base:3.12")       # §4.4: FROM is the baked instrument image
     assert "git clone --depth=1 https://github.com/anthropics/anthropic-sdk-python /testbed" in df
     assert "COPY setup.sh /tmp/v3_setup.sh" in df
     assert "RUN bash /tmp/v3_setup.sh" in df
@@ -76,11 +76,27 @@ def test_run_v3_failure_yields_error_log_not_crash(tmp_path):
 
 
 def test_base_image_fallback_when_unparsed(tmp_path):
-    # _run_v3 returning an explicit base flows straight to FROM.
+    # _run_v3's resolved base flows into FROM via the §4.4 baked-base mapper.
     a = _adapter(tmp_path, base="python:3.10-slim")
     r = a.process_single_instance(
         {"instance_id": "o__r", "repo_url": "https://github.com/o/r"})["o__r"]
-    assert r["dockerfile"].startswith("FROM python:3.10-slim")
+    assert r["dockerfile"].startswith("FROM v3-base:3.10")
+
+
+# ── §4.4b: FROM-swap mapper — python:3.X-slim -> v3-base:3.X, no-op otherwise. ──
+
+def test_bake_maps_python_slim_to_v3_base():
+    assert _bake_base_image("python:3.11-slim") == "v3-base:3.11"
+    assert _bake_base_image("python:3.14-slim") == "v3-base:3.14"
+
+
+def test_bake_is_noop_for_non_python_and_unbuilt():
+    # §4.1 forces python, but explicit overrides / un-built minors must pass
+    # through unchanged so FROM never points at an image that isn't built.
+    assert _bake_base_image("node:25") == "node:25"
+    assert _bake_base_image("python:3.5-slim") == "python:3.5-slim"       # not in matrix
+    assert _bake_base_image("buildpack-deps:jammy") == "buildpack-deps:jammy"
+    assert _bake_base_image("python:3.12") == "python:3.12"               # bare (not -slim)
 
 
 def _capture_run_v3_cmd(tmp_path, monkeypatch):

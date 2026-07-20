@@ -60,6 +60,27 @@ _RUN_V3_E2E = _AGENT_ROOT / "scripts" / "run_v3_e2e.py"
 # minor or a non-python base is left unchanged.
 V3_BASE_MINORS = ("3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14")
 
+# Matches a stock `python:3.X-slim` tag (the only shape the auto-selector/pinner
+# emit) so the FROM can be redirected to the baked instrument image.
+_PY_SLIM_RE = re.compile(r"^python:(3\.\d+)-slim$")
+
+
+def _bake_base_image(base_image: str) -> str:
+    """Map a stock ``python:3.X-slim`` tag to the baked ``v3-base:3.X`` instrument
+    image when that minor is built (see :data:`V3_BASE_MINORS`).
+
+    No-op otherwise: a non-python base (§4.1 forces python, but an explicit
+    override may not), a bare ``python:3.X`` tag, or an un-built minor passes
+    through unchanged, so this never points ``FROM`` at an image that does not
+    exist. Kept local to the Dockerfile ``FROM`` render — ``result["base_image"]``
+    and the resolver's ``target_python`` continue to see the stock tag, so
+    floor-not-pin and minor-derivation are untouched.
+    """
+    m = _PY_SLIM_RE.match(base_image)
+    if m and m.group(1) in V3_BASE_MINORS:
+        return f"v3-base:{m.group(1)}"
+    return base_image
+
 # Repair-only ablation (V3_REPAIR_ABLATION=1 + V3_SEED_DIR=<construction run>/output):
 # seed the react repair loop from a PRE-GENERATED construction setup.sh and skip graph
 # construction, so only the repair loop varies. The seed's base image (needed because seed
@@ -435,7 +456,10 @@ class MultiDockerEvalAdapter:
         if pythonpath_line:
             env_lines.append(pythonpath_line)
         env_block = ("\n" + "\n".join(env_lines) + "\n") if env_lines else ""
-        df = f"""FROM {base_image}
+        # §4.4b: boot the baked instrument image for a stock python:3.X-slim base
+        # (no-op for non-python / un-built minors). Local to FROM only.
+        from_image = _bake_base_image(base_image)
+        df = f"""FROM {from_image}
 WORKDIR /testbed
 {env_block}
 # git for cloning (slim bases omit it); keep the layer lean.
