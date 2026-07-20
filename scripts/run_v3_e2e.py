@@ -245,6 +245,29 @@ def _maybe_write_services_script(graph, args) -> None:
     print(f"[v3] wrote service start script -> {args.services_out}")
 
 
+# The final DepGraph is persisted next to setup.sh under this fixed basename so the
+# bench_emit v3 adapter (src/bench_emit/agents/v3.py) can surface the certified-with-
+# provisional install set in bench_meta.json. Producer (here) and consumer (the
+# adapter) BOTH anchor to setup.sh's directory (the harness's ``eval_build/``) and
+# share this exact basename — the two ends of one contract, named on each side.
+_DEP_GRAPH_FILENAME = "dep_graph.json"
+
+
+def _write_dep_graph(graph, out_path: str) -> None:
+    """Persist ``graph.to_dict()`` as ``dep_graph.json`` in the same directory as
+    ``out_path`` (the rendered setup.sh). ONE writer for BOTH the normal-completion
+    and ``--construction-only`` paths so a fallthrough (provisional) install is never
+    silently dropped from the run manifest — the false-clean the named-owner rule
+    exists to prevent (construction-only is the behavioural-baseline mode). No-op when
+    the graph is absent."""
+    if graph is None:
+        return
+    graph_path = os.path.join(os.path.dirname(os.path.abspath(out_path)), _DEP_GRAPH_FILENAME)
+    with open(graph_path, "w") as gh:
+        json.dump(graph.to_dict(), gh, indent=2)
+    print(f"[v3] wrote dep graph -> {graph_path}")
+
+
 def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     # ── 1. LLM client (OAI-compatible; provider chosen to match the model slug,
     #       else OpenRouter -> MiniMax -> OpenAI fallback) ───────────────────────
@@ -334,6 +357,10 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
             fh.write(script_text)
         n = sum(1 for _ in graph.nodes) if graph is not None else 0
         print(f"[v3] construction-only: wrote INITIAL setup.sh ({n} nodes) -> {args.out}")
+        # Persist the graph HERE too — construction-only (V3_CONSTRUCTION_ONLY=1) is the
+        # behavioural-baseline mode, so a provisional fallthrough must still reach the
+        # run manifest instead of being scored as a clean run.
+        _write_dep_graph(graph, args.out)
         _maybe_write_services_script(graph, args)
         print("stop_reason=construction_only unresolved=[]")
         print("V3 E2E:", "CONSTRUCTION_ONLY")
@@ -425,14 +452,12 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
         with open(args.out, "w") as fh:
             fh.write(script_text)
         print(f"[v3] wrote certified setup.sh -> {args.out}")
-        # Persist the final DepGraph next to setup.sh so the bench_emit v3 adapter
-        # can surface the certified-with-provisional install set (Stage C Task 3) in
-        # bench_meta.json — without it, a local-collision PyPI fallthrough would be
-        # scored as a clean pass. Additive: legacy consumers ignore the extra file.
-        graph_path = os.path.join(os.path.dirname(os.path.abspath(args.out)), "dep_graph.json")
-        with open(graph_path, "w") as gh:
-            json.dump(dep_graph.to_dict(), gh, indent=2)
-        print(f"[v3] wrote dep graph -> {graph_path}")
+        # Persist the final DepGraph next to setup.sh (same writer as the construction-
+        # only path) so the bench_emit v3 adapter can surface the certified-with-
+        # provisional install set (Stage C Task 3) in bench_meta.json — without it a
+        # local-collision PyPI fallthrough would be scored as a clean pass. Additive:
+        # legacy consumers ignore the extra file.
+        _write_dep_graph(dep_graph, args.out)
         _maybe_write_services_script(dep_graph, args)
 
     if gates_seen:

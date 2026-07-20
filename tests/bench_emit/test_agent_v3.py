@@ -83,3 +83,55 @@ def test_v3_surfaces_provisional_installs_from_dep_graph(tmp_path):
     assert env.meta["provisional_installs"] == [
         {"name": "azure", "reason": "local-collision fallthrough", "cure_rung": "isolated"}
     ]
+
+
+class _FakeGraph:
+    """Minimal stand-in with a ``to_dict`` so the construction-side ``_write_dep_graph``
+    can be exercised without importing ``graph.model`` on the bench_emit test path."""
+
+    def __init__(self, d):
+        self._d = d
+
+    def to_dict(self):
+        return self._d
+
+
+def test_construction_only_persists_graph_and_adapter_surfaces_provisional(tmp_path):
+    # The --construction-only path (V3_CONSTRUCTION_ONLY, the behavioural-baseline
+    # mode) must persist dep_graph.json next to setup.sh via the SAME writer as normal
+    # completion, so a provisional fallthrough reaches the run manifest instead of
+    # being scored as a clean run. run_v3_e2e self-bootstraps ``src`` on sys.path, so
+    # import it lazily here.
+    import scripts.run_v3_e2e as runner
+
+    repo = tmp_path / "output" / "o" / "r"
+    eb = repo / "eval_build"
+    eb.mkdir(parents=True)
+    setup = eb / "setup.sh"
+    setup.write_text("pip install -e .\n")
+    (repo / "_meta.json").write_text(json.dumps({"base_image": "python:3.11-slim"}))
+    graph_dict = {
+        "nodes": [
+            {"type": "Package", "name": "azure", "data": {"provisional": {
+                "name": "azure", "reason": "local-collision fallthrough",
+                "cure_rung": "isolated"}}},
+        ],
+        "edges": [],
+    }
+
+    runner._write_dep_graph(_FakeGraph(graph_dict), str(setup))   # the construction-only writer
+
+    assert (eb / runner._DEP_GRAPH_FILENAME).is_file()           # dep_graph.json next to setup.sh
+    assert runner._DEP_GRAPH_FILENAME == v3._DEP_GRAPH_FILE      # producer/consumer basename contract
+    env = v3.adapt(str(repo))
+    assert env.meta["provisional_installs"] == [
+        {"name": "azure", "reason": "local-collision fallthrough", "cure_rung": "isolated"}
+    ]
+
+
+def test_write_dep_graph_is_noop_when_graph_absent(tmp_path):
+    import scripts.run_v3_e2e as runner
+    eb = tmp_path / "eval_build"
+    eb.mkdir()
+    runner._write_dep_graph(None, str(eb / "setup.sh"))          # absent graph -> nothing written
+    assert not (eb / runner._DEP_GRAPH_FILENAME).exists()

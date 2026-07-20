@@ -8,6 +8,12 @@ from src.bench_emit.provisional import provisional_installs
 from src.bench_emit.types import EmittedEnv
 
 
+# Basename of the serialized final DepGraph, written by run_v3_e2e's `_write_dep_graph`
+# into setup.sh's directory (`eval_build/`, where this adapter reads every other
+# artifact). The two ends of one contract share this exact basename, named on each side.
+_DEP_GRAPH_FILE = "dep_graph.json"
+
+
 def _load_json(path: str) -> dict:
     try:
         with open(path) as f:
@@ -20,9 +26,9 @@ def adapt(repo_output_dir: str) -> EmittedEnv:
     eval_build = os.path.join(repo_output_dir, "eval_build")
     df_path = os.path.join(eval_build, "Dockerfile")
     meta_json = _load_json(os.path.join(repo_output_dir, "_meta.json"))
-    # The serialized final DepGraph (run_v3_e2e writes it next to setup.sh). Absent
-    # for legacy runs -> {} -> no provisional installs -> byte-identical bench_meta.
-    graph_json = _load_json(os.path.join(eval_build, "dep_graph.json"))
+    # The serialized final DepGraph (run_v3_e2e writes it next to setup.sh, i.e. in
+    # eval_build). Absent for legacy runs -> {} -> no provisional -> unchanged meta.
+    graph_json = _load_json(os.path.join(eval_build, _DEP_GRAPH_FILE))
 
     duration = meta_json.get("duration_s")
     produce_s = round(duration, 2) if isinstance(duration, (int, float)) else None
