@@ -61,7 +61,29 @@ def render_cure_commands(plan: TestEnvPlan, mount_dir: str) -> tuple[str, ...]:
     return (isolated, no_iso, collect)
 
 
+def _has_install_target(plan: TestEnvPlan) -> bool:
+    """True when the resolver found at least one editable-install target -- a dir
+    declaring installable metadata (pyproject ``[project]``/``[build-system]``/
+    poetry, ``setup.py``, or ``setup.cfg`` ``[metadata]``; see
+    ``invocation_resolver._is_project_dir``). Empty for a repo with NO installable
+    metadata anywhere (proxy_pool class): there is nothing to ``pip install -e .``.
+
+    Deliberately keyed on ``plan.project_dirs`` (the resolver's single installable-
+    target signal) rather than a raw "no pyproject/setup.py at the repo root" check,
+    which would wrongly skip a ``setup.cfg``-only installable repo AND a subdir-only
+    project (feast ``sdk/python``) whose root carries no metadata."""
+    return bool(plan.project_dirs)
+
+
 def run_cure(executor, plan: TestEnvPlan) -> CureResult:
+    # Fast-fail a repo with no installable metadata: nothing to `pip install -e .`,
+    # so skip the whole chain -- crucially rung 2's `pip install -U setuptools wheel`
+    # ensure-step, which would otherwise pointlessly MUTATE the scratch env on
+    # exactly these (proxy_pool-class) repos. Rung 2 is kept intact for metadata-
+    # bearing repos: it exists ONLY to recover a build-ISOLATION failure on a legacy
+    # project (hardened design fable §3), never to conjure metadata a repo lacks.
+    if not _has_install_target(plan):
+        return CureResult(False, "no_metadata", False, "no installable project metadata")
     mount = getattr(executor, "repo_mount_dir", "/workspace/repo")
     isolated, no_iso, collect = render_cure_commands(plan, mount)
     r1 = executor.run(isolated, timeout=INSTALL_TIMEOUT)
