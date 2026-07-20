@@ -64,6 +64,11 @@ from graph.python.read.evidence import collect_python_dependency_evidence
 from graph.python.read.scan import scan_to_nodes
 from graph.python.read.subprocess_scan import add_subprocess_tool_nodes
 from graph.python.read.target_env import detect_target_env
+from graph.python.route.classify import (
+    apply_routing,
+    classify,
+    probe_target_stdlib,
+)
 from graph.python.skeleton import (
     _PROBE_CYCLE,
     _RESOLVER_CYCLE,
@@ -339,6 +344,53 @@ def _soft_declared_dist_names(evidence) -> frozenset[str]:
         for r in evidence.soft_declared_dependencies
         if not r.url
     )
+
+
+def _apply_live_config_lane(
+    graph: DepGraph,
+    repo_path: str,
+    container_executor: Executor,
+    *,
+    declared: frozenset[str],
+) -> DepGraph:
+    """Stage C Task 1 — the config-lane classifier, LIVE and additive.
+
+    Probe the TARGET stdlib once, statically route every scanned top-level import
+    into internal / external / deferred (``classify``), attach the edge-less
+    internal ``Module`` nodes (``apply_routing``), and record the routing partition
+    AS GRAPH DATA on the ``Project`` node -- ``routing_internal`` (internal tops)
+    and ``routing_deferred`` (collision-zone names) -- so Tasks 2-4 read it from the
+    graph, not a side channel. Tuples keep ``Node.data`` immutable (matching
+    ``_add_project_node``'s ``soft_requirements_files``).
+
+    Purely additive: ``Module`` nodes carry no install recipe and no edges, and the
+    two project-data keys are read by no renderer, so the emitted ``setup.sh`` stays
+    byte-identical (``emit`` only orders REQUIRES edges between installable nodes).
+
+    Fail-open: the pipeline has no try/except idiom, so this pass wraps its own --
+    any exception (e.g. a probe/scan hiccup) is logged and the ORIGINAL graph is
+    returned unchanged, so the live lane can never introduce a new construction
+    failure mode. The cure/arbitrate steps stay in ``run_shadow_config_lane`` for
+    now; a later task wires them live and drops the shadow redundancy.
+    """
+    try:
+        stdlib = probe_target_stdlib(container_executor)
+        routing = classify(repo_path, target_stdlib=stdlib, declared=declared)
+        new = apply_routing(graph, routing)
+        project = next((n for n in new.nodes if n.type is NodeType.PROJECT), None)
+        if project is not None:
+            new = new.with_node(
+                project.with_data(
+                    routing_internal=tuple(sorted(top for top, _ in routing.internal)),
+                    routing_deferred=tuple(sorted(routing.deferred)),
+                )
+            )
+        return new
+    except Exception:  # never let the advisory config lane fail construction
+        logger.warning(
+            "live config-lane classify failed; leaving graph unrouted", exc_info=True
+        )
+        return graph
 
 
 def _python_package_obligations(
@@ -641,6 +693,18 @@ def _python_package_obligations(
         if n.id not in pre_resolve_ids and n.discovered_by is not DiscoveredBy.PROBE
     }
     graph = _restamp(graph, resolver_ids, _RESOLVER_CYCLE)
+    # Stage C Task 1 — LIVE config-lane classify (additive). Runs unconditionally
+    # (independent of the vestigial ``shadow_config_lane`` flag, which now only
+    # drives the still-discarding shadow measurement above); placed AFTER the
+    # resolver restamp so the classifier's own Module nodes keep their CLASSIFIER
+    # discovery stamp rather than being swept into the resolver cycle.
+    if repo_path is not None:
+        graph = _apply_live_config_lane(
+            graph,
+            repo_path,
+            container_executor,
+            declared=frozenset(declared_package_names),
+        )
     return graph, roots, target_env, exclude_newer
 
 
