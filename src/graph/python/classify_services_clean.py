@@ -13,10 +13,12 @@ graph. It returns a :class:`RuntimePlan` (the construction artifact + serializat
 boundary): SERVICE ``Node`` objects go in ``service_obligations`` (still built through
 the pure :func:`patch_gate.admit_proposal` so the setup-shape / probe / evidence
 validation is unchanged — they are extracted from the admitted throwaway graph), and the
-Config tier goes in ``config_obligations`` as ``(var, value, provenance, bake_eligible)``.
-The v3-arm loop later re-admits ``service_obligations`` into its working graph (same ids
-→ ``with_node`` idempotency), so certify/frontier/hollow-pass/advise/repoint keep reading
-SERVICE nodes from the graph unchanged.
+Config tier goes in ``config_obligations`` as ``(var, value, provenance, bake_eligible,
+evidence)``. The v3-arm loop later re-admits ``service_obligations`` into its working
+graph ADD-IF-ABSENT (a plan service is admitted only when no node with its id already
+exists, so a runtime-discovered / certified / demoted / repaired same-id service is left
+untouched), so certify/frontier/hollow-pass/advise/repoint keep reading SERVICE nodes from
+the graph unchanged.
 
 Every service Node still gets a canonical ``data["service"]`` (``asdict(ServiceNode)``)
 plus, when certifiable, the derived ``data["setup"]`` view.
@@ -169,7 +171,7 @@ def _service_nodes(repo_path, arch, client, model, hits, configs) -> list[NodeSp
 def _resolve_config_value(var, ambiguous, authoritative, example_prov, defaults_prov
                           ) -> tuple[str | None, dict | None]:
     """The winning value for ``var`` AND its structured provenance ``{rung, source}``
-    (Task 3 / B1 residual a), resolved by the precedence chain in ``_config_nodes``'s
+    (Task 3 / B1 residual a), resolved by the precedence chain in ``_config_obligations``'s
     docstring. Preserves the original truthiness-based fall-through (an empty value
     falls to the next rung). Provenance is JSON-able and carries eligibility on its
     own: rung 1/2 and rung-3a ``code_scan_setdefault`` bake; rung-3b

@@ -285,9 +285,9 @@ _CONFIG_ENV_DENYLIST = frozenset({
 # (it missed generic `*_KEY`/`*_SALT`/`*_CREDENTIALS`; that is how SALT_KEY got
 # through). So this is inverted to an ALLOWLIST: bake ONLY framework
 # settings-module-shaped vars -- the entire evidenced payoff
-# (DJANGO_SETTINGS_MODULE unlocking a whole test suite). Everything else stays an
-# inert `#@need` hint, exactly as before this fix -- do not widen this set to
-# "support more vars". An unverified ENV that names a host/port/credential
+# (DJANGO_SETTINGS_MODULE unlocking a whole test suite). Everything else is left
+# advisory-only (no `#@config-env` marker rendered), exactly as before this fix -- do
+# NOT widen this set to "support more vars". An unverified ENV that names a host/port/credential
 # silently points the app at the wrong place and turns a loud failure into a
 # wrong answer; CONFIG nodes are advisory and NEVER certified (see
 # classify_services_clean.py:8 — "Config nodes are advisory... never scheduled"),

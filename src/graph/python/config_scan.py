@@ -710,9 +710,9 @@ def scan_env_defaults_provenance(repo_path: str) -> dict[str, tuple[str, str]]:
         *fallback* default. Advisory-only: the imported code applies that
         default itself at test time, so refusing to bake costs nothing.
 
-    LAST-RESORT fallback value source for CONFIG nodes: ``scan_authoritative_config``
+    LAST-RESORT fallback value source for Config obligations: ``scan_authoritative_config``
     (tox.ini/pytest.ini/setup.cfg/pyproject.toml) and ``.env.example`` both rank
-    above this (see ``classify_services_clean._config_nodes``). Powers the
+    above this (see ``classify_services_clean._config_obligations``). Powers the
     Service-tier URL-binding inference too, which needs a parseable value rather
     than ``?``.
 
@@ -884,7 +884,7 @@ def parse_env_example(repo_path: str) -> dict[str, str]:
 # Authoritative test-config sources (MEASURED REGRESSION FIX, django-oauth-
 # toolkit). These are the repo's OWN declared test-environment configuration --
 # read BEFORE any `.py` source is scanned and ranked ABOVE `.env.example` too
-# (see `classify_services_clean._config_nodes` for the full precedence chain:
+# (see `classify_services_clean._config_obligations` for the full precedence chain:
 # authoritative config files > `.env.example` > `scan_env_defaults` fallback).
 # Each returns a raw, unfiltered `{key: value}` -- the allowlist gate that
 # decides which keys are ever safe to bake as a Dockerfile ENV lives downstream
@@ -1044,8 +1044,8 @@ def _authoritative_hits(repo_path: str) -> dict[str, set[str]]:
 def scan_authoritative_config(repo_path: str) -> dict[str, str]:
     """The project's OWN declared test-environment config -> {VAR: value},
     merged across tox.ini/pytest.ini/setup.cfg/pyproject.toml. This is the
-    TOP-RANKED value source for CONFIG-node baking (see
-    ``classify_services_clean._config_nodes``): checked before `.env.example`
+    TOP-RANKED value source for Config-obligation baking (see
+    ``classify_services_clean._config_obligations``): checked before `.env.example`
     and long before the `.py` code-scan fallback, because these files are
     where a project SAYS what its own test environment needs -- not a guess
     inferred from arbitrary source code (which may include vendored fixtures).
