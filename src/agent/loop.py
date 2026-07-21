@@ -249,12 +249,16 @@ def _classify_action(action, script: str, project_name: "str | None" = None) -> 
 
 def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, planner,
               history, log, max_steps: int = 30, _initial_script: str | None = None,
-              project_name: "str | None" = None,
+              project_name: "str | None" = None, runtime_plan=None,
               enrich_fn=None, expand_fn=None, certify_new_fn=None):
     # Seed from the graph, but strip the graph-primary framing: the react agent edits this
     # script, so it must not carry "DO NOT EDIT / edit the graph and re-render" (spec §9/§14).
+    # The RuntimePlan (review IMPORTANT 2) supplies the `#@config-env` marker block —
+    # strip_graph_framing KEEPS those markers (cross-artifact hand-off, not graph framing).
+    # Services are NEVER admitted here (no include_services): react's only concern is the
+    # marker channel, so passing the plan just restores the config markers into the seed.
     script = (_initial_script if _initial_script is not None
-              else strip_graph_framing(render_build_script(graph)))
+              else strip_graph_framing(render_build_script(graph, plan=runtime_plan)))
 
     expanded: set[str] = set()   # discoveries already expanded (§7.2) — persists ACROSS turns so a
                                  # re-run of the same failure doesn't re-hit the network every turn

@@ -81,3 +81,37 @@ def test_no_recognizable_header_falls_back_to_filtering():
     out = strip_graph_framing(src)
     assert "#@node" not in out and "Edit the graph" not in out
     assert "pip install app" in out and "pip install x" in out
+
+
+# ---------------------------------------------------------------------------
+# #@config-env markers survive strip (review IMPORTANT 2). Unlike #@node/#@check/
+# #@need (graph-primary framing the react agent edits AGAINST), a #@config-env
+# marker is a CROSS-ARTIFACT hand-off: the eval adapter bakes it into a Dockerfile
+# ENV by scanning the FINAL setup.sh (multi_docker_eval_adapter._CONFIG_ENV_RE), so
+# stripping it in the react arm would silently drop the config channel entirely.
+# ---------------------------------------------------------------------------
+
+_RENDERED_WITH_CONFIG_ENV = '''#!/usr/bin/env bash
+#
+# setup.sh — COMPILED from the certified dependency graph. DO NOT EDIT.
+# Edit the graph and re-render; this file is an artifact, not a source.
+#
+set -Eeuo pipefail
+
+#@node pkg:six==1.17.0  version=1.17.0  requires=-
+python3 -m pip install --break-system-packages --no-deps six==1.17.0
+
+# ---- Config env (Dockerfile ENV hand-off; baked by the eval adapter, inert here) ----
+#@config-env DJANGO_SETTINGS_MODULE=myapp.settings
+'''
+
+
+def test_preserves_config_env_marker_and_header():
+    out = strip_graph_framing(_RENDERED_WITH_CONFIG_ENV)
+    # the cross-artifact hand-off survives verbatim
+    assert "#@config-env DJANGO_SETTINGS_MODULE=myapp.settings" in out
+    assert ("# ---- Config env (Dockerfile ENV hand-off; baked by the eval adapter, "
+            "inert here) ----") in out
+    # graph-primary #@node framing is still stripped
+    assert "#@node" not in out
+    assert "COMPILED from the certified dependency graph" not in out

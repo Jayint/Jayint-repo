@@ -427,7 +427,8 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
                 graph, sandbox=sandbox, client=client, model=model, repo_path=args.repo,
                 max_steps=args.max_steps, test_threshold=args.test_threshold,
                 graph_context=args.graph_context, trace_out=args.trace_out,
-                initial_script=seed_script_text)
+                initial_script=seed_script_text,
+                runtime_plan=plan)            # IMPORTANT 2: restore the #@config-env marker channel
         finally:
             try:
                 if getattr(sandbox, "container", None) is not None:
@@ -437,6 +438,11 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
         with open(args.out, "w") as fh:
             fh.write(script_text)
         print(f"[v3] (react) wrote setup.sh -> {args.out}")
+        # IMPORTANT 2: the react early-return path also serializes the RuntimePlan beside
+        # its setup.sh, like the v3 path — the config obligations round-trip and the eval
+        # adapter has the same artifact to read. No service admission (react never provisions
+        # services); only the marker/serialization channel is restored.
+        _write_runtime_plan(plan, args.out)
         print(f"stop_reason={outcome}")
         ok = outcome == "DONE"                          # host-owned done (script green + tests ≥80%)
         print("V3 E2E:", "PASS" if ok else "FAIL")

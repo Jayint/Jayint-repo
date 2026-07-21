@@ -255,7 +255,8 @@ def build_graph_hooks(want_ctx: bool, want_update: bool, exec_readonly, repo_pat
 
 def run_react_arm(graph, *, sandbox, client, model, repo_path=None,
                   graph_context: bool = False, trace_out=None, log=None, max_steps: int = 30,
-                  test_threshold: float = 0.9, initial_script: str | None = None):
+                  test_threshold: float = 0.9, initial_script: str | None = None,
+                  runtime_plan=None):
     owns_log = log is None
     log = log or ReactLog(trace_path=trace_out)
     reset, run_script, certify, exec_readonly, run_tests = docker_adapters(sandbox, test_threshold)
@@ -284,7 +285,7 @@ def run_react_arm(graph, *, sandbox, client, model, repo_path=None,
         return run_react(graph, reset=reset, run_script=run_script, certify=certify,
                          exec_readonly=exec_readonly, run_tests=run_tests, planner=planner,
                          history=history, log=log, max_steps=max_steps, _initial_script=seed,
-                         project_name=project_name(repo_path),
+                         project_name=project_name(repo_path), runtime_plan=runtime_plan,
                          enrich_fn=enrich_fn, expand_fn=expand_fn, certify_new_fn=certify_new_fn)
     finally:
         if owns_log:

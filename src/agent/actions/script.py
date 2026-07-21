@@ -34,8 +34,16 @@ _NEUTRAL_HEADER = (
 def _drop(line: str) -> bool:
     """True if this line should be removed: a `#@` annotation, a graph-phrase comment, or
     any COMMENT line that still mentions the graph. Executable lines are never dropped
-    (only comments — a line whose stripped form starts with `#`, other than the shebang)."""
+    (only comments — a line whose stripped form starts with `#`, other than the shebang).
+
+    EXCEPTION: `#@config-env` markers are KEPT. Unlike `#@node`/`#@check`/`#@need` (the
+    graph-primary framing the react agent edits against), a `#@config-env VAR=value`
+    marker is a cross-artifact hand-off — the eval adapter bakes it into a Dockerfile ENV
+    by scanning the FINAL setup.sh (multi_docker_eval_adapter._CONFIG_ENV_RE). Stripping
+    it here would silently drop the react arm's config channel (review IMPORTANT 2)."""
     s = line.strip()
+    if s.startswith("#@config-env"):
+        return False                                  # cross-artifact hand-off, not graph framing
     if s.startswith("#@"):
         return True
     is_comment = s.startswith("#") and not s.startswith("#!")

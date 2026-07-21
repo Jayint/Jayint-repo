@@ -732,3 +732,49 @@ def test_g3_certifies_nodes_added_by_EXPANSION_not_just_by_enrich():
     assert certified[0] == ["binary:pg_config", "pkg:psycopg2==2.9.12"], (
         "expansion's binary:pg_config must be certified too, not just enrich's package"
     )
+
+
+# ── the RuntimePlan seam (review IMPORTANT 2): the plan threads into the seed render ──
+def test_run_react_threads_runtime_plan_config_marker_into_rendered_seed():
+    """The react arm lost its #@config-env markers when Config moved to the RuntimePlan
+    (the seed is rendered with no plan). Threading the plan through must restore the
+    marker in the seed setup.sh, byte-identical to the v3 arm's config-env block, and it
+    must survive strip_graph_framing into the returned react script."""
+    from graph.model import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
+    from graph.runtime_plan import RuntimePlan, ConfigObligation
+    from graph.compile.build_script import render_build_script, _config_env_block
+
+    pkg = Node(id="pkg:six", type=NodeType.PACKAGE, name="six", layer=Layer.PIP,
+               discovered_by=DiscoveredBy.RESOLVER, state=State.MISSING, version="1.17.0")
+    graph = DepGraph(nodes=(pkg,))
+    plan = RuntimePlan(config_obligations=(
+        ConfigObligation.create("DJANGO_SETTINGS_MODULE", "myapp.settings",
+                                {"rung": 1, "source": "authoritative_config"}),))
+
+    box = [None]
+
+    def reset(): pass
+
+    def run_script(script):
+        box[0] = script                                   # capture the built (seed) script
+        return RunResult(True)
+
+    def certify(g): return g
+
+    def ro(cmd): return (0, "")
+
+    def run_tests():
+        return TestOutcome(True, passed=5, executed=5, output="5 passed")
+
+    outcome, script, _ = run_react(
+        graph, reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
+        run_tests=run_tests, planner=_ScriptedPlanner([]), history=History(),
+        log=ReactLog(silent=True), max_steps=3, runtime_plan=plan)
+
+    assert outcome == "DONE"
+    # the marker reached the built seed AND the returned react setup.sh
+    assert "#@config-env DJANGO_SETTINGS_MODULE=myapp.settings" in box[0]
+    assert "#@config-env DJANGO_SETTINGS_MODULE=myapp.settings" in script
+    # byte-identical to the v3 arm's block (header + marker), same _config_env_block output
+    v3_block = "\n".join(_config_env_block(plan))
+    assert v3_block in box[0]
