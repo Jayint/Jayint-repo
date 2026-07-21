@@ -671,7 +671,7 @@ def scan_env_reads(repo_path: str) -> dict[str, str]:
 
 # Config-provenance ``source`` vocabulary (Task 3 / B1). This module is the single
 # source of truth for what the scanners/classifier can emit; the bake-eligibility
-# gate (``build_script._config_bake_eligible``) grounds its allow-set in these
+# gate (``graph.runtime_plan.config_bake_eligible``) grounds its allow-set in these
 # names (+ ``_ENV_EXAMPLE_FILES`` for rung 2) rather than duplicating magic strings.
 #   rung 1 -> ``_SOURCE_AUTHORITATIVE`` (emitted by classify's _resolve_config_value)
 #   rung 2 -> a member of ``_ENV_EXAMPLE_FILES`` (the winning .env template file)
@@ -1111,8 +1111,9 @@ def _config_node(var: str, value: str | None) -> Node:
     ``src.envstate.synthesis.bakeable_config_env`` already reads exactly this
     shape (chosen_fix != None, prefix ``env:``, value != ``"?"``) to decide
     which Config-tier vars are safe to bake as a Dockerfile ``ENV`` (FIX B1);
-    ``build_script._need_block`` reads the same shape to render the
-    ``#@config-env`` marker the adapter turns into that ``ENV`` line.
+    ``build_script._config_env_block`` reads the RuntimePlan's Config
+    obligations to render the ``#@config-env`` marker the adapter turns into
+    that ``ENV`` line.
 
     ``value`` is never invented here — pass whatever a real static source
     produced (a ``scan_env_defaults``/``setdefault`` literal, an
