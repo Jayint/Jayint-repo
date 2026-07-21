@@ -356,6 +356,114 @@ def test_rebound_environ_alias_setdefault_is_not_3a(tmp_path):
     assert prov.get("DJANGO_SETTINGS_MODULE") != ("proj.settings", "code_scan_setdefault")
 
 
+def test_walrus_rebound_os_setdefault_is_not_3a(tmp_path):
+    # `os := fake` (walrus) rebinds `os` at module level -> receiver unresolvable.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "app/w.py", """
+        import os
+        if (os := object()):
+            os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'proj.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov.get("DJANGO_SETTINGS_MODULE") != ("proj.settings", "code_scan_setdefault")
+
+
+def test_match_capture_rebound_os_setdefault_is_not_3a(tmp_path):
+    # A structural-pattern capture `case {"os": os}` rebinds `os` -> not 3a.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "app/m.py", """
+        import os
+        def handle(payload):
+            match payload:
+                case {"os": os}:
+                    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'proj.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov.get("DJANGO_SETTINGS_MODULE") != ("proj.settings", "code_scan_setdefault")
+
+
+def test_shadowing_import_as_os_setdefault_is_not_3a(tmp_path):
+    # `import fake as os` shadows the genuine `import os` regardless of order.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "app/s.py", """
+        import os
+        import collections as os
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'proj.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov.get("DJANGO_SETTINGS_MODULE") != ("proj.settings", "code_scan_setdefault")
+
+
+def test_from_x_import_environ_shadow_setdefault_is_not_3a(tmp_path):
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "app/s2.py", """
+        from collections import OrderedDict as environ
+        environ.setdefault('DJANGO_SETTINGS_MODULE', 'proj.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov.get("DJANGO_SETTINGS_MODULE") != ("proj.settings", "code_scan_setdefault")
+
+
+def test_unrelated_os_param_does_not_demote_genuine_toplevel_setdefault(tmp_path):
+    # THE FALSE-NEGATIVE FIX: a genuine module-level `os` + a call inside `main`
+    # stays 3a even though an UNRELATED `helper(os)` has an `os` parameter -- local
+    # bindings poison only their own function subtree, not sibling scopes.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "app/main.py", """
+        import os
+
+        def main():
+            os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'proj.settings')
+
+        def helper(os):
+            return os
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["DJANGO_SETTINGS_MODULE"] == ("proj.settings", "code_scan_setdefault")
+
+
+def test_local_os_param_shadows_at_the_call_site(tmp_path):
+    # `def main(os): os.environ.setdefault(...)` -- the param shadows os locally.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "app/main2.py", """
+        import os
+        def main(os):
+            os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'proj.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov.get("DJANGO_SETTINGS_MODULE") != ("proj.settings", "code_scan_setdefault")
+
+
+def test_global_os_assignment_poisons_module_level_setdefault(tmp_path):
+    # `global os` + assignment inside a function escapes to module scope -> the
+    # module-level setdefault must fail closed to advisory.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "app/g.py", """
+        import os
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'proj.settings')
+
+        def reconfigure():
+            global os
+            os = object()
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov.get("DJANGO_SETTINGS_MODULE") != ("proj.settings", "code_scan_setdefault")
+
+
+def test_canonical_django_manage_py_stays_3a(tmp_path):
+    # The canonical entrypoint shape must remain bake-eligible 3a.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "manage.py", """
+        import os
+        def main():
+            os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'proj.settings')
+        if __name__ == '__main__':
+            main()
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["DJANGO_SETTINGS_MODULE"] == ("proj.settings", "code_scan_setdefault")
+
+
 def test_scan_env_defaults_is_a_value_projection_of_provenance(tmp_path):
     # scan_env_defaults must stay byte-identical to "just the values" of the
     # provenance scan -- existing callers (_dsn_configs) depend on the plain shape.

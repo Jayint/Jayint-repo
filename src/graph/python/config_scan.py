@@ -12,7 +12,6 @@ import ast
 import configparser
 import os
 import re
-from dataclasses import dataclass
 
 from graph.model import DiscoveredBy, Layer, Node, NodeType, State
 
@@ -91,142 +90,226 @@ def _const_str(node: ast.AST) -> str | None:
     return node.value if isinstance(node, ast.Constant) and isinstance(node.value, str) else None
 
 
-@dataclass(frozen=True)
-class _OsBindings:
-    """Per-file module-level import bindings that resolve to real ``os`` names, so
-    the env scanners classify setdefault/get/getenv against a GENUINE
-    ``os.environ`` / ``os.getenv`` receiver rather than a look-alike attribute
-    (e.g. ``settings.environ``). Built once per file by ``_collect_os_bindings``."""
-    os_module: frozenset[str] = frozenset()   # names bound to the `os` module itself
-    environ: frozenset[str] = frozenset()     # names bound directly to os.environ
-    getenv: frozenset[str] = frozenset()      # names bound directly to os.getenv
+# ---------------------------------------------------------------------------
+# Scope-aware ``os.environ`` / ``os.getenv`` resolution (review round 3).
+#
+# A file-wide "any rebinding poisons everywhere" check is both unsound (misses
+# walrus, match captures, shadowing imports) and too blunt (an unrelated
+# ``def helper(os)`` wrongly demoted a genuine top-level ``os.environ.setdefault``
+# to 3b). This does a TWO-LEVEL lexical approximation instead, asymmetric and
+# fail-closed:
+#   * MODULE-level rebindings (assignment / walrus / match capture / ``for`` /
+#     ``with as`` / ``except as`` targets, a shadowing import such as
+#     ``import fake as os`` or ``from x import os``, or any ``global``/``nonlocal``
+#     escape) poison the name at ALL call sites.
+#   * FUNCTION-local bindings (params, local assigns/walrus/for/with/except/match/
+#     comprehension targets, nested def/class names) poison ONLY call sites
+#     lexically inside that scope's subtree.
+# A receiver resolves to the genuine import iff its name is not poisoned at that
+# site (no module rebinding AND no local binding in any enclosing scope on the
+# path up to module level). Ordering is ignored in the CONSERVATIVE direction
+# only: a later module-level ``os = fake`` may demote an earlier genuine call to
+# 3b (harmless, advisory), but a poisoned name is NEVER promoted to 3a. Any doubt
+# -> 3b.
+# ---------------------------------------------------------------------------
+
+_SCOPE_NODES: tuple = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
 
 
-_NO_OS_BINDINGS = _OsBindings()
+def _iter_with_scopes(tree: ast.AST):
+    """Yield ``(node, scope_chain)`` for every node -- ``scope_chain`` is the tuple
+    of enclosing function/lambda/class nodes (module-level nodes have ``()``).
+    Iterative (no recursion-limit risk); order is irrelevant to every consumer
+    (set-collection and per-node classification)."""
+    stack = [(tree, ())]
+    while stack:
+        node, chain = stack.pop()
+        yield node, chain
+        child_chain = chain + (node,) if isinstance(node, _SCOPE_NODES) else chain
+        for child in ast.iter_child_nodes(node):
+            stack.append((child, child_chain))
 
 
-def _all_arg_names(args: ast.arguments) -> list[str]:
-    """Every parameter name of a function/lambda signature (all arg kinds)."""
-    slots = list(args.posonlyargs) + list(args.args) + list(args.kwonlyargs)
-    names = [a.arg for a in slots]
-    if args.vararg is not None:
-        names.append(args.vararg.arg)
-    if args.kwarg is not None:
-        names.append(args.kwarg.arg)
+def _import_bindings(node: ast.AST):
+    """Yield ``(local_name, is_genuine, kind)`` for each name an import binds.
+    ``is_genuine`` is True only for a real ``os`` module / ``os.environ`` /
+    ``os.getenv`` binding; every other import binding (``import fake as os``,
+    ``from x import os``, ``from x import y as environ``, ``from os import path``)
+    is a NON-genuine binding of ``local_name`` -- i.e. a shadow/rebind."""
+    if isinstance(node, ast.Import):
+        for a in node.names:
+            if a.name == "os":
+                yield (a.asname or "os", True, "os")
+            elif a.name.startswith("os.") and a.asname is None:
+                yield ("os", True, "os")                 # `import os.path` binds top-level `os`
+            else:
+                yield (a.asname or a.name.split(".")[0], False, "")
+    elif isinstance(node, ast.ImportFrom):
+        genuine = node.module == "os" and (node.level or 0) == 0
+        for a in node.names:
+            if a.name == "*":
+                continue                                 # star import: unknown names, ignore
+            local = a.asname or a.name
+            if genuine and a.name == "environ":
+                yield (local, True, "environ")
+            elif genuine and a.name == "getenv":
+                yield (local, True, "getenv")
+            else:
+                yield (local, False, "")
+
+
+def _binding_target_names(target: ast.AST, out: list[str]) -> None:
+    if isinstance(target, ast.Name):
+        out.append(target.id)
+    elif isinstance(target, (ast.Tuple, ast.List)):
+        for e in target.elts:
+            _binding_target_names(e, out)
+    elif isinstance(target, ast.Starred):
+        _binding_target_names(target.value, out)
+    # Attribute / Subscript targets bind no bare name.
+
+
+def _local_binding_names(node: ast.AST) -> list[str]:
+    """Bare names a SINGLE construct binds in its own scope: assignment / walrus /
+    annotated / augmented targets, ``for``/comprehension targets, ``with ... as`` /
+    ``except ... as``, function & lambda PARAMS (``ast.arg``), nested def/class
+    NAMES, and match captures (``MatchAs``/``MatchStar`` name, ``MatchMapping``
+    rest). ``global``/``nonlocal`` are handled separately (module-level escape)."""
+    names: list[str] = []
+    if isinstance(node, ast.Assign):
+        for t in node.targets:
+            _binding_target_names(t, names)
+    elif isinstance(node, (ast.AnnAssign, ast.AugAssign, ast.NamedExpr)):
+        _binding_target_names(node.target, names)
+    elif isinstance(node, (ast.For, ast.AsyncFor)):
+        _binding_target_names(node.target, names)
+    elif isinstance(node, ast.comprehension):
+        _binding_target_names(node.target, names)
+    elif isinstance(node, (ast.With, ast.AsyncWith)):
+        for item in node.items:
+            if item.optional_vars is not None:
+                _binding_target_names(item.optional_vars, names)
+    elif isinstance(node, ast.ExceptHandler):
+        if node.name:
+            names.append(node.name)
+    elif isinstance(node, ast.arg):
+        names.append(node.arg)
+    elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        names.append(node.name)                          # binds in the ENCLOSING scope
+    elif isinstance(node, (ast.MatchAs, ast.MatchStar)):
+        if node.name:
+            names.append(node.name)
+    elif isinstance(node, ast.MatchMapping):
+        if node.rest:
+            names.append(node.rest)
     return names
 
 
-def _rebound_names(tree: ast.AST) -> set[str]:
-    """Every bare NAME bound anywhere in the module by something OTHER than the
-    ``import`` we resolved -- assignment / augmented-assign / annotated-assign
-    targets, ``for``/comprehension targets, ``with ... as`` / ``except ... as``,
-    function & lambda parameters, nested def/class names, and ``global`` /
-    ``nonlocal`` declarations. Used to fail-closed: an import-bound name that is
-    ALSO rebound here can no longer be trusted to mean the real ``os`` symbol, so
-    it is dropped (its receiver becomes unresolvable -> advisory 3b, never 3a).
-    Conservative and scope-blind by design: any rebinding anywhere disqualifies."""
-    names: set[str] = set()
+class _OsUsage:
+    """Scope-aware resolution of genuine ``os.environ`` / ``os`` / ``os.getenv``
+    names for one file. ``genuine_*`` are bound by a MODULE-level genuine ``os``
+    import; a name resolves at a call site only when not poisoned there (see the
+    module comment above)."""
 
-    def add_target(t: ast.AST) -> None:
-        if isinstance(t, ast.Name):
-            names.add(t.id)
-        elif isinstance(t, (ast.Tuple, ast.List)):
-            for e in t.elts:
-                add_target(e)
-        elif isinstance(t, ast.Starred):
-            add_target(t.value)
-        # Attribute / Subscript targets bind no bare name -> ignore.
+    __slots__ = ("genuine_os", "genuine_environ", "genuine_getenv",
+                 "module_poison", "scope_locals")
 
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Assign):
-            for t in node.targets:
-                add_target(t)
-        elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
-            add_target(node.target)
-        elif isinstance(node, (ast.For, ast.AsyncFor)):
-            add_target(node.target)
-        elif isinstance(node, ast.comprehension):
-            add_target(node.target)
-        elif isinstance(node, (ast.With, ast.AsyncWith)):
-            for item in node.items:
-                if item.optional_vars is not None:
-                    add_target(item.optional_vars)
-        elif isinstance(node, ast.ExceptHandler):
-            if node.name:
-                names.add(node.name)
-        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            names.add(node.name)
-            names.update(_all_arg_names(node.args))
-        elif isinstance(node, ast.Lambda):
-            names.update(_all_arg_names(node.args))
-        elif isinstance(node, ast.ClassDef):
-            names.add(node.name)
-        elif isinstance(node, (ast.Global, ast.Nonlocal)):
-            names.update(node.names)
-    return names
+    def __init__(self, genuine_os, genuine_environ, genuine_getenv,
+                 module_poison, scope_locals):
+        self.genuine_os = genuine_os
+        self.genuine_environ = genuine_environ
+        self.genuine_getenv = genuine_getenv
+        self.module_poison = module_poison
+        self.scope_locals = scope_locals          # scope-node -> frozenset[str]
+
+    def _poisoned(self, name: str, chain: tuple) -> bool:
+        if name in self.module_poison:
+            return True
+        for scope in chain:
+            if name in self.scope_locals.get(scope, frozenset()):
+                return True
+        return False
+
+    def is_os_module(self, name: str, chain: tuple) -> bool:
+        return name in self.genuine_os and not self._poisoned(name, chain)
+
+    def is_environ_name(self, name: str, chain: tuple) -> bool:
+        return name in self.genuine_environ and not self._poisoned(name, chain)
+
+    def is_getenv_name(self, name: str, chain: tuple) -> bool:
+        return name in self.genuine_getenv and not self._poisoned(name, chain)
 
 
-def _collect_os_bindings(tree: ast.AST) -> _OsBindings:
-    """Resolve ``import os [as X]`` / ``import os.path`` and
-    ``from os import environ|getenv [as X]`` into the names they bind. Only
-    absolute (``level == 0``) ``from os`` imports count -- a relative
-    ``from .os import ...`` is a local module, not stdlib ``os``.
+def _analyze_os_usage(tree: ast.AST) -> tuple:
+    """Return ``(usage, node_scopes)`` for one file: an ``_OsUsage`` plus a map
+    from each ``Call``/``Subscript`` node to its scope chain (so the scanners can
+    resolve a receiver per call site while still walking in document order)."""
+    genuine_os: set[str] = set()
+    genuine_environ: set[str] = set()
+    genuine_getenv: set[str] = set()
+    module_poison: set[str] = set()
+    scope_locals: dict = {}
+    node_scopes: dict = {}
+    _GENUINE = {"os": genuine_os, "environ": genuine_environ, "getenv": genuine_getenv}
 
-    FAIL-CLOSED (review round 2): any import-bound name that is ALSO rebound
-    anywhere in the file (``os = fake``, a param named ``os``, an ``environ``
-    alias later reassigned, ...) is DROPPED -- its receiver becomes unresolvable
-    and demotes to advisory 3b. This can only turn 3a into 3b (never lose a broad
-    read), so recall is untouched."""
-    os_module: set[str] = set()
-    environ: set[str] = set()
-    getenv: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for a in node.names:
-                if a.name == "os":
-                    os_module.add(a.asname or "os")
-                elif a.name.startswith("os.") and a.asname is None:
-                    os_module.add("os")            # `import os.path` also binds top-level `os`
-        elif isinstance(node, ast.ImportFrom) and node.module == "os" and (node.level or 0) == 0:
-            for a in node.names:
-                if a.name == "environ":
-                    environ.add(a.asname or "environ")
-                elif a.name == "getenv":
-                    getenv.add(a.asname or "getenv")
-    rebound = _rebound_names(tree)
-    return _OsBindings(
-        frozenset(os_module - rebound),
-        frozenset(environ - rebound),
-        frozenset(getenv - rebound),
+    def bind_local(scope, name: str) -> None:
+        if scope is None:
+            module_poison.add(name)
+        else:
+            scope_locals.setdefault(scope, set()).add(name)
+
+    for node, chain in _iter_with_scopes(tree):
+        scope = chain[-1] if chain else None
+        if isinstance(node, (ast.Call, ast.Subscript)):
+            node_scopes[node] = chain
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            for local, is_genuine, kind in _import_bindings(node):
+                if is_genuine:
+                    if scope is None:
+                        _GENUINE[kind].add(local)        # module-level genuine import
+                    # a genuine import INSIDE a function is ignored (fail-closed)
+                else:
+                    bind_local(scope, local)             # shadowing / unrelated import
+            continue
+        if isinstance(node, (ast.Global, ast.Nonlocal)):
+            module_poison.update(node.names)             # escaping rebind -> poison everywhere
+            continue
+        for name in _local_binding_names(node):
+            bind_local(scope, name)
+
+    usage = _OsUsage(
+        frozenset(genuine_os), frozenset(genuine_environ), frozenset(genuine_getenv),
+        frozenset(module_poison), {k: frozenset(v) for k, v in scope_locals.items()},
     )
+    return usage, node_scopes
 
 
-def _resolves_to_os_environ(owner: ast.AST, b: _OsBindings) -> bool:
-    """True only when ``owner`` GENUINELY resolves to ``os.environ`` under the
-    file's import bindings -- a name bound via ``from os import environ [as X]``,
-    or ``<os-module-alias>.environ``. A bare ``settings.environ`` (unknown base)
-    or an ``environ`` name not bound from ``os`` is NOT genuine (fail-closed)."""
+def _resolves_to_os_environ(owner: ast.AST, usage: _OsUsage, chain: tuple) -> bool:
+    """True only when ``owner`` GENUINELY resolves to ``os.environ`` at this call
+    site -- a name bound (non-poisoned) via ``from os import environ [as X]``, or
+    ``<genuine-os-alias>.environ`` with a non-poisoned base. A bare
+    ``settings.environ`` base, or any poisoned/rebound name, is NOT genuine."""
     if isinstance(owner, ast.Name):
-        return owner.id in b.environ
+        return usage.is_environ_name(owner.id, chain)
     if isinstance(owner, ast.Attribute) and owner.attr == "environ":
         base = owner.value
-        return isinstance(base, ast.Name) and base.id in b.os_module
+        return isinstance(base, ast.Name) and usage.is_os_module(base.id, chain)
     return False
 
 
-def _is_environ_receiver(owner: ast.AST, b: _OsBindings) -> bool:
+def _is_environ_receiver(owner: ast.AST, usage: _OsUsage, chain: tuple) -> bool:
     """Broad DETECTION of an ``environ``-shaped receiver worth surfacing as a
-    config READ (advisory). A superset of ``_resolves_to_os_environ``: it also
-    accepts a bare ``environ`` name and any ``*.environ`` attribute, so a value
-    read from an unresolved ``settings.environ`` is still surfaced -- but it is
-    classified advisory (3b) and never bake-eligible (see ``_is_setdefault_call``
-    / ``scan_env_defaults_provenance``)."""
+    config READ (advisory). A strict superset of ``_resolves_to_os_environ``: it
+    keeps the pre-alias matcher UNCONDITIONALLY (a bare ``environ`` name, any
+    ``*.environ`` attribute), so recall never drops, and additionally accepts a
+    genuine, non-poisoned ``environ`` import alias. An unresolved
+    ``settings.environ`` is still surfaced -- but classified advisory (3b)."""
     if isinstance(owner, ast.Name):
-        return owner.id == "environ" or owner.id in b.environ
+        return owner.id == "environ" or usage.is_environ_name(owner.id, chain)
     return isinstance(owner, ast.Attribute) and owner.attr == "environ"
 
 
-def _var_from_call(call: ast.Call, bindings: _OsBindings = _NO_OS_BINDINGS) -> str | None:
+def _var_from_call(call: ast.Call, usage: _OsUsage, chain: tuple) -> str | None:
     """``os.getenv('X')`` / ``os.environ.get('X')`` / ``os.environ.setdefault('X', ...)``
     (and import-aliased forms) -> ``'X'`` (first str arg).
 
@@ -235,22 +318,22 @@ def _var_from_call(call: ast.Call, bindings: _OsBindings = _NO_OS_BINDINGS) -> s
     it the scanner is blind to essentially every Django project's entrypoint
     (FIX A1). ``get``/``setdefault`` are accepted only on an environ-shaped
     receiver (``_is_environ_receiver``); a bare ``getenv`` name counts only when
-    it is bound via ``from os import getenv`` (``bindings.getenv``)."""
+    it genuinely resolves to ``os.getenv`` at this site (``from os import getenv``,
+    non-poisoned)."""
     func = call.func
     if isinstance(func, ast.Attribute):
         if func.attr in ("get", "setdefault"):
-            if not _is_environ_receiver(func.value, bindings):
+            if not _is_environ_receiver(func.value, usage, chain):
                 return None
         elif func.attr != "getenv":
             return None
         return _const_str(call.args[0]) if call.args else None
-    if isinstance(func, ast.Name) and func.id in bindings.getenv:
+    if isinstance(func, ast.Name) and usage.is_getenv_name(func.id, chain):
         return _const_str(call.args[0]) if call.args else None
     return None
 
 
-def _default_from_call(call: ast.Call, bindings: _OsBindings = _NO_OS_BINDINGS
-                       ) -> tuple[str, str] | None:
+def _default_from_call(call: ast.Call, usage: _OsUsage, chain: tuple) -> tuple[str, str] | None:
     """``os.environ.get('X', 'literal')`` / ``os.getenv('X', 'literal')`` /
     ``os.environ.setdefault('X', 'literal')`` -> ``('X', 'literal')``; only when
     BOTH the name and the default are string literals (f-strings / non-str
@@ -261,7 +344,7 @@ def _default_from_call(call: ast.Call, bindings: _OsBindings = _NO_OS_BINDINGS
     var is absent — i.e. it is authoritative, not a guess (FIX A1's bonus:
     ``DJANGO_SETTINGS_MODULE=settings`` is exactly what gold's winning
     Dockerfile hand-writes for a Django ``manage.py``)."""
-    var = _var_from_call(call, bindings)
+    var = _var_from_call(call, usage, chain)
     if var is None or len(call.args) < 2:
         return None
     default = _const_str(call.args[1])
@@ -270,9 +353,9 @@ def _default_from_call(call: ast.Call, bindings: _OsBindings = _NO_OS_BINDINGS
     return var, default
 
 
-def _var_from_subscript(sub: ast.Subscript, bindings: _OsBindings = _NO_OS_BINDINGS) -> str | None:
+def _var_from_subscript(sub: ast.Subscript, usage: _OsUsage, chain: tuple) -> str | None:
     """``os.environ['X']`` / ``environ['X']`` (and import-aliased ``environ``) -> ``'X'``."""
-    if not _is_environ_receiver(sub.value, bindings):
+    if not _is_environ_receiver(sub.value, usage, chain):
         return None
     return _const_str(sub.slice)
 
@@ -282,13 +365,13 @@ def _scan_source(src: str, rel: str, out: dict[str, str]) -> None:
         tree = ast.parse(src)
     except SyntaxError:
         return
-    bindings = _collect_os_bindings(tree)
-    for node in ast.walk(tree):
+    usage, node_scopes = _analyze_os_usage(tree)
+    for node in ast.walk(tree):                     # document order -> first-seen snippet wins
         var = None
         if isinstance(node, ast.Call):
-            var = _var_from_call(node, bindings)
+            var = _var_from_call(node, usage, node_scopes.get(node, ()))
         elif isinstance(node, ast.Subscript):
-            var = _var_from_subscript(node, bindings)
+            var = _var_from_subscript(node, usage, node_scopes.get(node, ()))
         if var and var not in out:
             snippet = " ".join((src.splitlines()[node.lineno - 1] if node.lineno else "").split())
             out[var] = f"{rel}:{getattr(node, 'lineno', 0)}  {snippet}"[:200]
@@ -328,15 +411,17 @@ _SOURCE_SETDEFAULT = "code_scan_setdefault"
 _SOURCE_FALLBACK = "code_scan_fallback"
 
 
-def _is_setdefault_call(call: ast.Call, bindings: _OsBindings = _NO_OS_BINDINGS) -> bool:
-    """True only for a GENUINE ``os.environ.setdefault(...)`` -- the env-*writing*
-    entrypoint idiom that stays bake-eligible (3a). A ``setdefault`` on an
-    UNRESOLVED receiver (``settings.environ``, or an ``environ`` name not bound
-    from ``os``) is fail-closed to advisory 3b, never promoted to 3a -- baking is
-    a safety-sensitive decision, so an unproven receiver must not qualify."""
+def _is_setdefault_call(call: ast.Call, usage: _OsUsage, chain: tuple) -> bool:
+    """True only for a GENUINE ``os.environ.setdefault(...)`` at this call site --
+    the env-*writing* entrypoint idiom that stays bake-eligible (3a). A
+    ``setdefault`` on an UNRESOLVED receiver (``settings.environ``, an ``environ``
+    name not bound from ``os``, or an ``os``/alias name rebound at module level or
+    shadowed by a local binding in some enclosing scope) is fail-closed to advisory
+    3b, never promoted to 3a -- baking is safety-sensitive, so an unproven receiver
+    must not qualify."""
     func = call.func
     return (isinstance(func, ast.Attribute) and func.attr == "setdefault"
-            and _resolves_to_os_environ(func.value, bindings))
+            and _resolves_to_os_environ(func.value, usage, chain))
 
 
 def scan_env_defaults_provenance(repo_path: str) -> dict[str, tuple[str, str]]:
@@ -395,14 +480,15 @@ def scan_env_defaults_provenance(repo_path: str) -> dict[str, tuple[str, str]]:
                 tree = ast.parse(src)
             except (OSError, SyntaxError):
                 continue
-            bindings = _collect_os_bindings(tree)
+            usage, node_scopes = _analyze_os_usage(tree)
             for node in ast.walk(tree):
                 if isinstance(node, ast.Call):
-                    hit = _default_from_call(node, bindings)
+                    chain = node_scopes.get(node, ())
+                    hit = _default_from_call(node, usage, chain)
                     if hit:
                         values.setdefault(hit[0], set()).add(hit[1])
                         setdefaulted[hit[0]] = (
-                            setdefaulted.get(hit[0], False) or _is_setdefault_call(node, bindings))
+                            setdefaulted.get(hit[0], False) or _is_setdefault_call(node, usage, chain))
     out: dict[str, tuple[str, str]] = {}
     for var, seen in values.items():
         if len(seen) != 1:
