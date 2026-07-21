@@ -14,7 +14,7 @@ for _p in (_REPO_ROOT, _SRC):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from graph.model import package_id, syslib_id  # noqa: E402
+from graph.model import package_id  # noqa: E402
 
 FAILURE_CLASSES: frozenset[str] = frozenset({
     "SYSLIB_MISSING", "COMPILER_ABSENT", "VERSION_CONFLICT", "OVERINCLUDE", "TOOL_ABSENT",

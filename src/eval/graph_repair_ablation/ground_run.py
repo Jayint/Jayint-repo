@@ -15,7 +15,7 @@ for _p in (_REPO_ROOT, _SRC):
 from graph.compile.build_script import render_build_script  # noqa: E402
 from graph.python.enrich.diagnose import RepoContext  # noqa: E402
 from graph.python.read import repo_modules  # noqa: E402
-from src.eval.graph_repair_ablation.ground import grade_grounding, run_grounding  # noqa: E402
+from src.eval.graph_repair_ablation.ground import cause_line, grade_grounding, run_grounding  # noqa: E402
 from src.eval.graph_repair_ablation.inject import apply_injection  # noqa: E402
 from src.eval.graph_repair_ablation.oracle import Injection  # noqa: E402
 from src.eval.language_package_eval.coverage import (  # noqa: E402
@@ -59,7 +59,7 @@ def ground_one(inj: Injection, *, smoke_root, install_timeout: int = 1800) -> li
         return []
 
     ev = first_failure_evidence(failure_output)
-    cause_text = (ev["stderr_tail"].splitlines() or [""])[-1]
+    cause_text = cause_line(failure_output)
     res = run_grounding(graph, cause_text, ev["command"] or "python3 -m pytest --collect-only -q",
                         failure_output, ctx)
     g = grade_grounding(res["grounded_anchor"], res["grounded_added_node"], inj.correct_anchor)

@@ -23,3 +23,20 @@ def test_grade_refuse_flags_a_false_add():
     # a node added on a REFUSE case is a mislocalization
     s = grade_grounding("pkg:wrong", added_node=True, correct_anchor="")
     assert s.grounded is False and s.mislocalized is True
+
+
+def test_cause_line_extracts_error_not_summary():
+    from src.eval.graph_repair_ablation.ground import cause_line
+    collect_out = (
+        "ImportError while importing test module 'tests/test_x.py'.\n"
+        "tests/test_x.py:1: in <module>\n"
+        "    import urllib3\n"
+        "E   ModuleNotFoundError: No module named 'urllib3'\n"
+        "!!!!!!!! Interrupted: 1 error during collection !!!!!!!!\n"
+        "=== 1 error in 0.12s ===\n"
+    )
+    cl = cause_line(collect_out)
+    assert "urllib3" in cl and "Interrupted" not in cl and "error in" not in cl
+    # a runtime ImportError (no pytest summary) is returned as-is:
+    assert cause_line("ImportError: libGL.so.1: cannot open shared object file") \
+        == "ImportError: libGL.so.1: cannot open shared object file"

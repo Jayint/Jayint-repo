@@ -5,10 +5,10 @@ the node parse->integrate MUST ground to (correct_anchor). correct_anchor="" == 
 (the correct grounding adds NO graph node)."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from graph.model import (
-    DepGraph, Node, NodeType, Layer, State, DiscoveredBy, package_id, syslib_id,
+    Node, NodeType, Layer, State, DiscoveredBy, package_id, syslib_id,
 )
 from graph.python.enrich.diagnose import RepoContext
 

@@ -4,6 +4,7 @@
 anchor against the injection's correct_anchor. Pure; no LLM, no Docker."""
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from types import SimpleNamespace
 
@@ -31,6 +32,22 @@ def grade_grounding(anchor: str | None, added_node: bool, correct_anchor: str) -
         return GroundingScore(grounded=False, mislocalized=False, is_null=True, anchor=None)
     hit = (anchor == correct_anchor)
     return GroundingScore(grounded=hit, mislocalized=not hit, is_null=False, anchor=anchor)
+
+
+_ERR_RE = re.compile(r"[A-Za-z_.]+(?:Error|Exception):")
+
+
+def cause_line(output: str) -> str:
+    """The exception line naming the missing module/soname — what `_anchor_for_cause`
+    reads — NOT the pytest collection summary line (`!!! Interrupted !!!`,
+    `=== N error in Xs ===`). Scans bottom-up, strips pytest's `E   ` prefix, returns
+    the deepest real exception line; falls back to the last non-empty line."""
+    for raw in reversed(output.splitlines()):
+        ln = re.sub(r"^\s*E\s+", "", raw).strip()
+        if ln and _ERR_RE.search(ln):
+            return ln
+    stripped = [ln.strip() for ln in output.splitlines() if ln.strip()]
+    return stripped[-1] if stripped else ""
 
 
 def run_grounding(graph, cause_text, command, failure_output, ctx, phase="collection") -> dict:
