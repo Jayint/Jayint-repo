@@ -22,7 +22,7 @@ def test_render_declared_reads_requirements_and_pyproject_extras(tmp_path):
         '[project]\nname = "x"\ndependencies = ["click"]\n'
         '[project.optional-dependencies]\ntest = ["pytest", "pytest-cov"]\n')
     out = render_declared(tmp_path)
-    assert "DECLARED (from the repo, static)" in out
+    assert out.startswith("DECLARED (from the repo, static)\n")
     assert "requirements.txt:" in out and "psycopg2-binary" in out
     assert "[project.dependencies]" in out and "click" in out
     assert "optional-dependencies].test" in out and "pytest-cov" in out
@@ -39,3 +39,40 @@ def test_render_declared_empty_when_no_manifests(tmp_path):
     assert render_declared(tmp_path) == ""
     assert render_declared(None) == ""
     assert render_declared(tmp_path / "does-not-exist") == ""
+
+
+def test_render_declared_reads_setup_cfg(tmp_path):
+    (tmp_path / "setup.cfg").write_text(
+        "[options]\ninstall_requires =\n    requests>=2\n    pyyaml\n"
+        "[options.extras_require]\ntest = pytest\n    pytest-mock\n")
+    out = render_declared(tmp_path)
+    assert "setup.cfg:" in out
+    assert "install_requires" in out and "requests>=2" in out
+    assert "extras_require.test" in out and "pytest-mock" in out
+
+
+def test_render_declared_reads_pipfile(tmp_path):
+    (tmp_path / "Pipfile").write_text(
+        '[packages]\nrequests = "*"\ndjango = ">=4.0"\n'
+        '[dev-packages]\npytest = "*"\n')
+    out = render_declared(tmp_path)
+    assert "Pipfile:" in out
+    assert "[packages]" in out and "django >=4.0" in out
+    assert "[dev-packages]" in out and "pytest" in out
+
+
+def test_render_declared_per_file_cap_not_per_section(tmp_path):
+    # A single manifest with dependencies AND several oversized extras groups must still
+    # obey ONE cap_bytes bound for the whole file — not cap_bytes multiplied by the
+    # number of groups.
+    extras = "\n".join(
+        f'group{i} = [{", ".join(repr(f"pkg-{i}-{j}") for j in range(200))}]'
+        for i in range(5)
+    )
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "x"\ndependencies = ["click"]\n'
+        f'[project.optional-dependencies]\n{extras}\n')
+    out = render_declared(tmp_path, cap_bytes=200)
+    assert "… (truncated)" in out
+    # Loosely bounded: label + heading + one capped body, nowhere near 5 * 200 bytes.
+    assert len(out.encode("utf-8")) < 600

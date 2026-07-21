@@ -11,7 +11,11 @@ from __future__ import annotations
 import configparser
 import os
 import pathlib
-import tomllib
+
+try:  # tomllib is stdlib on 3.11+; fall back to the tomli backport on 3.10.
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - exercised on Python < 3.11
+    import tomli as tomllib
 
 _FLAG = "REACT_ENV_STATE"
 
@@ -32,6 +36,16 @@ def _cap(text: str, cap_bytes: int) -> str:
     return b[:cap_bytes].decode("utf-8", "ignore").rstrip() + "\n… (truncated)"
 
 
+def _file_block(label: str, body: str, cap_bytes: int) -> str | None:
+    """Render one manifest FILE's heading + capped body. The cap is applied ONCE to the
+    file's complete joined body (all its groups/sections), never per-group — a single
+    manifest with many groups (extras, optional-dependencies, etc.) must still obey the
+    2048-byte-per-file bound, not 2048 bytes times the group count."""
+    if not body.strip():
+        return None
+    return f"  {label}:\n" + _indent(_cap(body, cap_bytes))
+
+
 def _requirements_sections(root: pathlib.Path, cap_bytes: int) -> list[str]:
     out = []
     for req in sorted(root.glob("requirements*.txt")):
@@ -39,62 +53,87 @@ def _requirements_sections(root: pathlib.Path, cap_bytes: int) -> list[str]:
             body = req.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
-        if body.strip():
-            out.append(f"  {req.name}:\n" + _indent(_cap(body, cap_bytes)))
+        block = _file_block(req.name, body, cap_bytes)
+        if block:
+            out.append(block)
     return out
 
 
-def _pyproject_sections(root: pathlib.Path, cap_bytes: int) -> list[str]:
+def _pyproject_body(root: pathlib.Path) -> str:
+    """Uncapped combined body of pyproject.toml's [project.dependencies] and
+    [project.optional-dependencies] groups. Degrades to "" (contributes nothing) on any
+    syntactic OR schema mismatch instead of raising."""
     try:
-        data = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
-        return []
-    proj = data.get("project") or {}
-    out = []
-    deps = proj.get("dependencies") or []
-    if deps:
-        out.append("  pyproject [project.dependencies]:\n"
-                   + _indent(_cap("\n".join(map(str, deps)), cap_bytes)))
-    for name, items in sorted((proj.get("optional-dependencies") or {}).items()):
-        if items:
-            out.append(f"  pyproject [optional-dependencies].{name}:\n"
-                       + _indent(_cap(", ".join(map(str, items)), cap_bytes)))
-    return out
+        raw = (root / "pyproject.toml").read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    try:
+        data = tomllib.loads(raw)
+    except tomllib.TOMLDecodeError:
+        return ""
+    if not isinstance(data, dict):
+        return ""
+    proj = data.get("project")
+    if not isinstance(proj, dict):
+        return ""
+    parts: list[str] = []
+    deps = proj.get("dependencies")
+    if isinstance(deps, list) and deps:
+        parts.append("[project.dependencies]:\n" + "\n".join(map(str, deps)))
+    opt = proj.get("optional-dependencies")
+    if isinstance(opt, dict):
+        for name, items in sorted(opt.items()):
+            if isinstance(items, list) and items:
+                parts.append(f"[optional-dependencies].{name}:\n" + ", ".join(map(str, items)))
+    return "\n\n".join(parts)
 
 
-def _setupcfg_sections(root: pathlib.Path, cap_bytes: int) -> list[str]:
-    cp = configparser.ConfigParser()
+def _setupcfg_body(root: pathlib.Path) -> str:
+    """Uncapped combined body of setup.cfg's [options] install_requires and
+    [options.extras_require] groups. Interpolation is disabled (setup.cfg commonly has
+    stray '%' in version specs / URLs) and the whole extraction — not just cp.read — is
+    guarded against configparser.Error so a malformed file contributes nothing rather than
+    raising."""
+    cp = configparser.ConfigParser(interpolation=None)
     try:
         if not cp.read(root / "setup.cfg"):
-            return []
+            return ""
+        parts: list[str] = []
+        ir = cp.get("options", "install_requires", fallback="").strip()
+        if ir:
+            parts.append("[options] install_requires:\n" + ir)
+        if cp.has_section("options.extras_require"):
+            for k, v in cp.items("options.extras_require"):
+                if v.strip():
+                    parts.append(f"extras_require.{k}:\n" + v.strip())
+        return "\n\n".join(parts)
     except configparser.Error:
-        return []
-    out = []
-    ir = cp.get("options", "install_requires", fallback="").strip()
-    if ir:
-        out.append("  setup.cfg [options] install_requires:\n" + _indent(_cap(ir, cap_bytes)))
-    if cp.has_section("options.extras_require"):
-        for k, v in cp.items("options.extras_require"):
-            if v.strip():
-                out.append(f"  setup.cfg extras_require.{k}:\n" + _indent(_cap(v.strip(), cap_bytes)))
-    return out
+        return ""
 
 
-def _pipfile_sections(root: pathlib.Path, cap_bytes: int) -> list[str]:
+def _pipfile_body(root: pathlib.Path) -> str:
+    """Uncapped combined body of Pipfile's [packages] and [dev-packages] groups. Degrades
+    to "" on any syntactic OR schema mismatch instead of raising."""
     try:
-        data = tomllib.loads((root / "Pipfile").read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
-        return []
-    out = []
+        raw = (root / "Pipfile").read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    try:
+        data = tomllib.loads(raw)
+    except tomllib.TOMLDecodeError:
+        return ""
+    if not isinstance(data, dict):
+        return ""
+    parts: list[str] = []
     for sect in ("packages", "dev-packages"):
-        items = data.get(sect) or {}
-        if items:
+        items = data.get(sect)
+        if isinstance(items, dict) and items:
             body = "\n".join((f"{k} {v}" if v not in ("*", "") else k) for k, v in items.items())
-            out.append(f"  Pipfile [{sect}]:\n" + _indent(_cap(body, cap_bytes)))
-    return out
+            parts.append(f"[{sect}]:\n" + body)
+    return "\n\n".join(parts)
 
 
-def render_declared(repo_path, *, cap_bytes: int = 2048) -> str:
+def render_declared(repo_path: "str | os.PathLike[str] | None", *, cap_bytes: int = 2048) -> str:
     """The STATIC declared-deps block from the repo's root manifests. Host-side, deterministic,
     identical for every arm. Returns "" for a missing/empty repo or when nothing is declared."""
     if not repo_path:
@@ -104,9 +143,14 @@ def render_declared(repo_path, *, cap_bytes: int = 2048) -> str:
         return ""
     sections: list[str] = []
     sections += _requirements_sections(root, cap_bytes)
-    sections += _pyproject_sections(root, cap_bytes)
-    sections += _setupcfg_sections(root, cap_bytes)
-    sections += _pipfile_sections(root, cap_bytes)
+    for label, body in (
+        ("pyproject.toml", _pyproject_body(root)),
+        ("setup.cfg", _setupcfg_body(root)),
+        ("Pipfile", _pipfile_body(root)),
+    ):
+        block = _file_block(label, body, cap_bytes)
+        if block:
+            sections.append(block)
     if not sections:
         return ""
     return "DECLARED (from the repo, static)\n" + "\n".join(sections)
