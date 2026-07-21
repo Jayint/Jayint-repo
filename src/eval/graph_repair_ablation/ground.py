@@ -51,3 +51,43 @@ def run_grounding(graph, cause_text, command, failure_output, ctx, phase="collec
         "baseline_anchor": baseline_anchor,
         "via": via,
     }
+
+
+_GROUND_ARMS = ("G", "B")
+
+
+def aggregate_grounding(results: list[dict]) -> dict:
+    groups: dict[tuple[str, str], list[dict]] = {}
+    for r in results:
+        s = r.get("score")
+        if not s:
+            continue
+        groups.setdefault((r["failure_class"], r["arm"]), []).append(s)
+    agg: dict[tuple[str, str], dict] = {}
+    for key, scores in groups.items():
+        n = len(scores)
+        agg[key] = {
+            "n": n,
+            "grounded_at_1": sum(1 for s in scores if s["grounded"]) / n,
+            "mislocalized": sum(1 for s in scores if s["mislocalized"]),
+            "null_rate": sum(1 for s in scores if s["is_null"]) / n,
+        }
+    return agg
+
+
+def render_grounding_report_md(agg: dict) -> str:
+    lines = ["# Grounding-Arm Report (G = parse->integrate, B = PACKAGE-only baseline)", ""]
+    if not agg:
+        return "\n".join(lines + ["(no data)"]) + "\n"
+    lines += [
+        "| Failure Class | Arm | N | grounded@1 | mislocalized | null_rate |",
+        "|---|---|---|---|---|---|",
+    ]
+    for cls in sorted({c for c, _ in agg}):
+        for arm in [a for a in _GROUND_ARMS if (cls, a) in agg]:
+            cell = agg[(cls, arm)]
+            lines.append(
+                f"| {cls} | {arm} | {cell['n']} | {cell['grounded_at_1']:.0%} | "
+                f"{cell['mislocalized']} | {cell['null_rate']:.0%} |"
+            )
+    return "\n".join(lines) + "\n"
