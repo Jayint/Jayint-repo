@@ -181,9 +181,32 @@ class TestGraphTierExtraction:
         g = DepGraph().with_node(_node("syslib:x", NodeType.SYSTEM_LIB, "x"))
         assert apt_names_in_graph(g) == frozenset()
 
-    def test_runtime_minors(self):
+    def test_runtime_minors_reads_project_data(self):
+        # NEW representation: construction stamps the resolved minor onto the
+        # PROJECT node's data (no RUNTIME node is minted anymore).
+        from src.eval.language_package_eval.coverage import runtime_minors_in_graph
+        g = DepGraph().with_node(
+            _node("project:x", NodeType.PROJECT, "x", data={"resolved_python": "3.12"})
+        )
+        assert runtime_minors_in_graph(g) == frozenset({"3.12"})
+
+    def test_runtime_minors_falls_back_to_legacy_runtime_node(self):
+        # OLD serialized graphs on disk still carry a RUNTIME node and no PROJECT
+        # stamp -- the reader must still surface its minor.
         from src.eval.language_package_eval.coverage import runtime_minors_in_graph
         assert runtime_minors_in_graph(_graph_for_scoring()) == frozenset({"3.11"})
+
+    def test_runtime_minors_project_stamp_wins_over_legacy_runtime_node(self):
+        from src.eval.language_package_eval.coverage import runtime_minors_in_graph
+        g = _graph_for_scoring().with_node(
+            _node("project:x", NodeType.PROJECT, "x", data={"resolved_python": "3.12"})
+        )
+        assert runtime_minors_in_graph(g) == frozenset({"3.12"})
+
+    def test_runtime_minors_empty_when_neither_present(self):
+        from src.eval.language_package_eval.coverage import runtime_minors_in_graph
+        g = DepGraph().with_node(_node("pkg:x", NodeType.PACKAGE, "x", version="1.0"))
+        assert runtime_minors_in_graph(g) == frozenset()
 
     def test_package_versions(self):
         from src.eval.language_package_eval.coverage import package_versions_in_graph

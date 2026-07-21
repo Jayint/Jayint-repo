@@ -54,7 +54,7 @@ from graph.compile.build_script import render_build_script  # noqa: E402
 from graph.compile.emit import _apt_name  # noqa: E402
 from graph.contracts.executor import CommandResult, Executor  # noqa: E402
 from graph.executors import DockerExecutor, LocalSubprocessExecutor  # noqa: E402
-from graph.model import DepGraph, NodeType  # noqa: E402
+from graph.model import DepGraph, NodeType, project_resolved_python  # noqa: E402
 from src.orchestrate.select.runtime import (  # noqa: E402
     DEFAULT_MINOR, SUPPORTED_MINORS, resolve_runtime_base,
 )
@@ -116,7 +116,12 @@ def apt_names_in_graph(graph: DepGraph) -> frozenset[str]:
 
 
 def runtime_minors_in_graph(graph: DepGraph) -> frozenset[str]:
-    return frozenset(n.version for n in graph.nodes if n.type is NodeType.RUNTIME and n.version)
+    """The python minor the graph resolved for, as a (0-or-1)-element set for the
+    RUNTIME-tier oracle diff. Reads the PROJECT node's stamped ``resolved_python``
+    (construction no longer mints a RUNTIME node), falling back to a legacy
+    RUNTIME node for OLD serialized graphs on disk."""
+    minor = project_resolved_python(graph, runtime_fallback=True)
+    return frozenset({minor}) if minor else frozenset()
 
 
 def package_versions_in_graph(graph: DepGraph) -> dict[str, str | None]:

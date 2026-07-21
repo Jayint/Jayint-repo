@@ -16,7 +16,7 @@ from src.eval.language_package_eval.coverage import (  # noqa: E402
     base_image_for_repo,
     build_graph_construction_only,
 )
-from graph.model import NodeType  # noqa: E402
+from graph.model import NodeType, project_resolved_python  # noqa: E402
 
 SMOKE = pathlib.Path(os.environ.get("OURS_SMOKE_ROOT", "outputs/graph_fidelity/_smoke"))
 OUT = pathlib.Path(sys.argv[2]) if len(sys.argv) > 2 else pathlib.Path("/tmp/ours")
@@ -39,7 +39,10 @@ def extract(graph) -> dict:
             packages[n.name] = n.version
             if getattr(n.discovered_by, "value", "") == "audit":
                 audit.append(n.name)
-    runtime = sorted(n.version for n in graph.nodes if n.type is NodeType.RUNTIME and n.version)
+    # Re-homed off the retired RUNTIME node onto PROJECT data (RUNTIME-node
+    # fallback keeps OLD serialized graphs readable).
+    _rp = project_resolved_python(graph, runtime_fallback=True)
+    runtime = [_rp] if _rp else []
     unresolved, unresolved_runtime = [], []
     for n in graph.nodes:
         if n.type is NodeType.IMPORT:
