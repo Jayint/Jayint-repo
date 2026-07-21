@@ -5,6 +5,11 @@ anchor against the injection's correct_anchor. Pure; no LLM, no Docker."""
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import SimpleNamespace
+
+from graph.python.enrich.exec_trace import parse, ObservationOverlay
+from graph.python.enrich.integrate import integrate
+from graph.view.graph_context import _anchor_for_cause
 
 
 @dataclass(frozen=True)
@@ -28,4 +33,21 @@ def grade_grounding(anchor: str | None, added_node: bool, correct_anchor: str) -
 
 
 def run_grounding(graph, cause_text, command, failure_output, ctx, phase="collection") -> dict:
-    raise NotImplementedError("implemented in Task 2")
+    # arm G: parse -> integrate
+    pf = parse(command, failure_output, phase, ctx)
+    g2, overlay = integrate(graph, ObservationOverlay(), pf, ctx)
+    obs = overlay.get(pf.stable_id)
+    grounded_anchor = obs.anchor if obs is not None else None
+    grounded_added_node = len(g2.nodes) > len(graph.nodes)
+    via = tuple(obs.chain) if obs is not None else ()
+
+    # arm B: PACKAGE-only baseline (reads cause.detail only)
+    node = _anchor_for_cause(graph, SimpleNamespace(detail=cause_text))
+    baseline_anchor = node.id if node is not None else None
+
+    return {
+        "grounded_anchor": grounded_anchor,
+        "grounded_added_node": grounded_added_node,
+        "baseline_anchor": baseline_anchor,
+        "via": via,
+    }
