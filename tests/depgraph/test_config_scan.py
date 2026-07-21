@@ -221,6 +221,66 @@ def test_scan_setdefault_requires_environ_owner(tmp_path):
     assert "NOT_AN_ENV_VAR" not in found
 
 
+# ── Task 3 (B1 residual a): scan_env_defaults_provenance splits the code-scan
+# fallback into rung-3a (os.environ.setdefault -> `code_scan_setdefault`,
+# bake-eligible) vs rung-3b (os.environ.get/getenv fallback -> `code_scan_fallback`,
+# advisory-only). scan_env_defaults stays a thin {var: value} projection of it. ──
+
+def test_scan_env_defaults_provenance_tags_setdefault_as_setdefault(tmp_path):
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "manage.py", """
+        import os
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'proj.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["DJANGO_SETTINGS_MODULE"] == ("proj.settings", "code_scan_setdefault")
+
+
+def test_scan_env_defaults_provenance_tags_get_fallback_as_fallback(tmp_path):
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "app/config.py", """
+        import os
+        BROKER = os.environ.get('CELERY_BROKER_URL', 'redis://127.0.0.1:6379/0')
+        FLAG = os.getenv('FEATURE_FLAG', 'on')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["CELERY_BROKER_URL"] == ("redis://127.0.0.1:6379/0", "code_scan_fallback")
+    assert prov["FEATURE_FLAG"] == ("on", "code_scan_fallback")
+
+
+def test_scan_env_defaults_provenance_setdefault_wins_over_matching_fallback(tmp_path):
+    # Same value written by a setdefault entrypoint AND read via a get-fallback:
+    # the env-WRITING setdefault is what the code puts in the environment, so the
+    # bake-eligible `code_scan_setdefault` tag wins (single agreed value -> kept).
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "manage.py", """
+        import os
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'proj.settings')
+    """)
+    _write(tmp_path, "app/settings.py", """
+        import os
+        MOD = os.environ.get('DJANGO_SETTINGS_MODULE', 'proj.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["DJANGO_SETTINGS_MODULE"] == ("proj.settings", "code_scan_setdefault")
+
+
+def test_scan_env_defaults_is_a_value_projection_of_provenance(tmp_path):
+    # scan_env_defaults must stay byte-identical to "just the values" of the
+    # provenance scan -- existing callers (_dsn_configs) depend on the plain shape.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "manage.py", """
+        import os
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'proj.settings')
+    """)
+    _write(tmp_path, "app/config.py", """
+        import os
+        FLAG = os.getenv('FEATURE_FLAG', 'on')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert scan_env_defaults(str(tmp_path)) == {v: val for v, (val, _s) in prov.items()}
+
+
 # ── config_scan._config_node: the CONFIG-node value convention synthesis.py's
 # bakeable_config_env already reads (chosen_fix="env:VAR=value" / "env:VAR=?") ──
 

@@ -312,14 +312,34 @@ def _known_config_value(node: Node) -> str | None:
     return value
 
 
+def _config_bake_eligible(node: Node) -> bool:
+    """Bake-eligibility keyed on a CONFIG node's ``data["config_provenance"]``
+    ``{rung, source}`` (B1 residual c). The rung-3 SPLIT: a value whose provenance
+    is rung-3b ``code_scan_fallback`` (an ``os.environ.get``/``getenv`` *read-time*
+    default) is advisory-only and must NEVER bake, even when the var is allowlisted
+    -- the imported code applies that default itself at test time, so refusing costs
+    nothing. Everything else stays eligible: rungs 1/2 (authoritative config,
+    ``.env.example``) and rung-3a ``code_scan_setdefault`` (the env-*writing*
+    entrypoint idiom -- the canonical DJANGO_SETTINGS_MODULE payoff). A node with NO
+    provenance (a hand-built / legacy CONFIG node) is left to the allowlist gate --
+    this check only ever SUBTRACTS the 3b case, never adds a provenance requirement."""
+    prov = node.data.get("config_provenance")
+    if not isinstance(prov, dict):
+        return True
+    return not (prov.get("rung") == 3 and prov.get("source") == "code_scan_fallback")
+
+
 def _config_env_marker(node: Node) -> str | None:
     """``#@config-env VAR=value`` for a CONFIG node with a known, safe-to-bake
     value; ``None`` when no value is known, the var is not on the
-    settings-module allowlist (FIX 3), or -- belt-and-braces, since the
-    allowlist should already make these unreachable -- it looks secret/incidental."""
+    settings-module allowlist (FIX 3), its provenance is a rung-3b advisory-only
+    fallback (Task 3), or -- belt-and-braces, since the allowlist should already
+    make these unreachable -- it looks secret/incidental."""
     if node.type is not NodeType.CONFIG:
         return None
     if node.name not in _CONFIG_ENV_ALLOWLIST:
+        return None
+    if not _config_bake_eligible(node):
         return None
     value = _known_config_value(node)
     if value is None:

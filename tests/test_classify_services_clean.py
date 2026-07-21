@@ -529,3 +529,93 @@ def test_authoritative_ambiguity_is_not_rescued_by_a_lower_ranked_source(tmp_pat
     graph = classify_services_clean(DepGraph(), str(tmp_path))
     out = render_build_script(graph)
     assert "#@config-env DJANGO_SETTINGS_MODULE" not in out
+
+
+# ---------------------------------------------------------------------------
+# Task 3 (B1 residual completion) — every discovered CONFIG value now carries
+# structured `data["config_provenance"] = {"rung": int, "source": str}` threaded
+# out of config_scan, and bake-eligibility is keyed on it (the rung-3 SPLIT:
+# 3a `os.environ.setdefault` stays bake-eligible, 3b `os.environ.get/getenv`
+# fallbacks are advisory-only). All exercised through the REAL construction
+# wiring (classify_services_clean -> patch_gate -> render_build_script).
+# ---------------------------------------------------------------------------
+
+def test_provenance_rung1_authoritative_config(tmp_path):
+    _write(tmp_path, "tox.ini", """
+        [testenv]
+        setenv =
+            DJANGO_SETTINGS_MODULE = tests.settings
+    """)
+    _write(tmp_path, "app.py", "import os\nos.environ.get('DJANGO_SETTINGS_MODULE')\n")
+    graph = classify_services_clean(DepGraph(), str(tmp_path))
+    cfg = graph.get("config:DJANGO_SETTINGS_MODULE")
+    assert cfg.data["config_provenance"] == {"rung": 1, "source": "authoritative_config"}
+
+
+def test_provenance_rung2_env_example(tmp_path):
+    _write(tmp_path, ".env.example", "FLASK_APP=myapp.wsgi\n")
+    _write(tmp_path, "app.py", "import os\nos.environ['FLASK_APP']\n")
+    graph = classify_services_clean(DepGraph(), str(tmp_path))
+    cfg = graph.get("config:FLASK_APP")
+    assert cfg.data["config_provenance"] == {"rung": 2, "source": "env_example"}
+
+
+def test_provenance_rung3a_setdefault(tmp_path):
+    _write(tmp_path, "manage.py",
+           "import os\n"
+           "os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myproj.settings')\n")
+    graph = classify_services_clean(DepGraph(), str(tmp_path))
+    cfg = graph.get("config:DJANGO_SETTINGS_MODULE")
+    assert cfg.data["config_provenance"] == {"rung": 3, "source": "code_scan_setdefault"}
+
+
+def test_provenance_rung3b_fallback(tmp_path):
+    _write(tmp_path, "settings.py",
+           "import os\nMODE = os.environ.get('APP_SETTINGS', 'app.dev')\n")
+    graph = classify_services_clean(DepGraph(), str(tmp_path))
+    cfg = graph.get("config:APP_SETTINGS")
+    assert cfg.data["config_provenance"] == {"rung": 3, "source": "code_scan_fallback"}
+
+
+def test_rung3b_fallback_allowlisted_var_is_not_baked(tmp_path):
+    """The rung-3 SPLIT: an ALLOWLISTED var whose ONLY value source is a rung-3b
+    `os.environ.get` fallback must not emit a `#@config-env` marker -- the
+    imported code applies that default itself at test time, so baking it is
+    never the sole delivery path (unlike the setdefault entrypoint idiom)."""
+    _write(tmp_path, "settings.py",
+           "import os\nMODE = os.environ.get('APP_SETTINGS', 'app.dev')\n")
+    graph = classify_services_clean(DepGraph(), str(tmp_path))
+    out = render_build_script(graph)
+    assert "#@config-env APP_SETTINGS" not in out
+    assert "#@need config:APP_SETTINGS" in out            # still surfaced as a hint
+
+
+def test_rung3a_setdefault_allowlisted_var_still_bakes(tmp_path):
+    """The rung-3 SPLIT, other side: a rung-3a `os.environ.setdefault` for an
+    allowlisted var stays bake-eligible (the canonical Django payoff)."""
+    _write(tmp_path, "manage.py",
+           "import os\n"
+           "os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myproj.settings')\n")
+    graph = classify_services_clean(DepGraph(), str(tmp_path))
+    out = render_build_script(graph)
+    assert "#@config-env DJANGO_SETTINGS_MODULE=myproj.settings" in out
+
+
+def test_tox_won_value_anchors_evidence_to_the_tox_file_not_the_code_read(tmp_path):
+    """B1 residual (b): when tox.ini WINS the value, the config node's evidence
+    anchors to the tox.ini source row, not to the (vendored) code-read site that
+    also mentions the var."""
+    _write(tmp_path, "tox.ini", """
+        [testenv]
+        setenv =
+            DJANGO_SETTINGS_MODULE = tests.settings
+    """)
+    _write(tmp_path, "tests/app/idp/manage.py",
+           "import os\n"
+           "os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'idp.settings')\n")
+    graph = classify_services_clean(DepGraph(), str(tmp_path))
+    cfg = graph.get("config:DJANGO_SETTINGS_MODULE")
+    hits = csc.collect_static_evidence(str(tmp_path), DepGraph())
+    by_id = {h.evidence_id: h for h in hits}
+    anchor = by_id[cfg.evidence]
+    assert anchor.kind == "config_file" and anchor.file == "tox.ini"

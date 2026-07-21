@@ -33,6 +33,7 @@ from graph.python.config_scan import (
     parse_env_example,
     scan_authoritative_config,
     scan_env_defaults,
+    scan_env_defaults_provenance,
     scan_env_reads,
     scan_framework_config_reads,
 )
@@ -93,8 +94,22 @@ def _service_evidence(hits, service_name: str, kind: str | None) -> str:
     return hits[0].evidence_id
 
 
-def _config_evidence(hits, var: str) -> str:
-    """A bundle id anchoring this config var: a hit naming it, else any bundle id."""
+# The evidence kind that anchors each provenance rung to its WINNING source: rung 1
+# (authoritative config) -> the tox.ini/pytest.ini/... row, rung 2 (.env.example) ->
+# the env_var row, rung 3 (code scan) -> the code-read row. B1 residual (b): the node
+# must show the source that actually WON the value, not merely the first hit naming it.
+_RUNG_EVIDENCE_KIND: dict[int, str] = {1: "config_file", 2: "env_var", 3: "env_read"}
+
+
+def _config_evidence(hits, var: str, provenance: dict | None = None) -> str:
+    """A bundle id anchoring this config var to the source that WON its value
+    (per ``provenance['rung']``) when such a hit exists, else any hit naming the
+    var, else any bundle id."""
+    preferred = _RUNG_EVIDENCE_KIND.get(provenance["rung"]) if isinstance(provenance, dict) else None
+    if preferred is not None:
+        for h in hits:
+            if h.kind == preferred and h.name == var:
+                return h.evidence_id
     for h in hits:
         if h.kind in _CONFIG_EVIDENCE_KINDS and h.name == var:
             return h.evidence_id
@@ -140,6 +155,28 @@ def _service_nodes(repo_path, arch, client, model, hits, configs) -> list[NodeSp
     return specs
 
 
+def _resolve_config_value(var, ambiguous, authoritative, example, defaults_prov
+                          ) -> tuple[str | None, dict | None]:
+    """The winning value for ``var`` AND its structured provenance ``{rung, source}``
+    (Task 3 / B1 residual a), resolved by the precedence chain in ``_config_nodes``'s
+    docstring. Preserves the original truthiness-based fall-through (an empty value
+    falls to the next rung). Provenance is JSON-able and carries eligibility on its
+    own: rung 1/2 and rung-3a ``code_scan_setdefault`` bake; rung-3b
+    ``code_scan_fallback`` is advisory-only. An ambiguous or absent var -> both None."""
+    if var in ambiguous:
+        return None, None
+    av = authoritative.get(var)
+    if av:
+        return av, {"rung": 1, "source": "authoritative_config"}
+    ev = example.get(var)
+    if ev:
+        return ev, {"rung": 2, "source": "env_example"}
+    dv = defaults_prov.get(var)          # (value, "code_scan_setdefault" | "code_scan_fallback")
+    if dv and dv[0]:
+        return dv[0], {"rung": 3, "source": dv[1]}
+    return None, None
+
+
 def _config_nodes(repo_path, hits) -> list[NodeSpec]:
     """One advisory Config hint NodeSpec per env var the tests read (never scheduled).
 
@@ -176,13 +213,13 @@ def _config_nodes(repo_path, hits) -> list[NodeSpec]:
     authoritative = scan_authoritative_config(repo_path)
     ambiguous = authoritative_ambiguous_vars(repo_path)
     example = parse_env_example(repo_path)
-    defaults = scan_env_defaults(repo_path)
+    defaults = scan_env_defaults_provenance(repo_path)
     specs: list[NodeSpec] = []
     for var in sorted(read_vars):
-        value = None if var in ambiguous else (
-            authoritative.get(var) or example.get(var) or defaults.get(var)
-        )
+        value, provenance = _resolve_config_value(var, ambiguous, authoritative, example, defaults)
         data = None
+        if value is not None:
+            data = {"config_provenance": provenance}
         if value is not None and not _looks_like_dsn(value):
             # DSN-SHAPED VALUES ARE DELIBERATELY EXCLUDED HERE -- this is a
             # false-green guard, not an optimisation. Config nodes are
@@ -197,11 +234,13 @@ def _config_nodes(repo_path, hits) -> list[NodeSpec]:
             # `setup["bind"]`); the uncertified bake here must not compete
             # with it. Do NOT remove this exclusion to "support more vars" --
             # scope this feature to non-DSN scalars (DJANGO_SETTINGS_MODULE,
-            # ENVIRONMENT, ...).
-            data = {"config_value": value}
+            # ENVIRONMENT, ...). Provenance is still recorded on the node above
+            # (a DSN is a discovered value too); only the bakeable value is withheld.
+            data["config_value"] = value
         specs.append(NodeSpec(
             id=f"config:{var}", type="Config", name=var, layer="config",
-            promotion="hint", check_command=None, evidence_ref=_config_evidence(hits, var),
+            promotion="hint", check_command=None,
+            evidence_ref=_config_evidence(hits, var, provenance),
             data=data,
         ))
     return specs

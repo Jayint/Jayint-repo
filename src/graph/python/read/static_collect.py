@@ -10,8 +10,21 @@ from dataclasses import dataclass
 
 from graph.python.config_scan import (
     scan_env_reads, parse_env_example, scan_framework_config_reads,
+    scan_tox_setenv, scan_pytest_ini, scan_setup_cfg_pytest, scan_pyproject_pytest,
 )
 from graph.python.services.service_scan import scan_ci_services, scan_compose_services
+
+# Authoritative test-config sources (tox.ini/pytest.ini/setup.cfg/pyproject.toml),
+# in the same read order as config_scan._authoritative_hits. Emitting an evidence
+# row per config VAR they name lets a value WON by one of these files anchor to the
+# file, not to a code-read site (B1 residual: a tox.ini-won DJANGO_SETTINGS_MODULE
+# used to show the vendored manage.py read as its evidence).
+_AUTHORITATIVE_CONFIG_SOURCES = (
+    ("tox.ini", scan_tox_setenv),
+    ("pytest.ini", scan_pytest_ini),
+    ("setup.cfg", scan_setup_cfg_pytest),
+    ("pyproject.toml", scan_pyproject_pytest),
+)
 
 _GOAL = ("Infer local install/test/run environment requirements, not deployment "
          "requirements.")
@@ -34,8 +47,8 @@ def collect_static_evidence(repo_path: str, graph=None) -> tuple[DeterministicHi
     def _add(file, kind, *, name=None, snippet="", node_id=None):
         nonlocal n
         prefix = {"ci_service": "ci", "compose_service": "svc",
-                  "env_var": "env", "env_read": "code", "package": "pkg",
-                  "project": "proj"}.get(kind, "ev")
+                  "env_var": "env", "env_read": "code", "config_file": "cfg",
+                  "package": "pkg", "project": "proj"}.get(kind, "ev")
         hits.append(DeterministicHit(f"{prefix}.{n:02d}", file, kind,
                                      snippet=snippet, name=name, node_id=node_id))
         n += 1
@@ -61,6 +74,16 @@ def collect_static_evidence(repo_path: str, graph=None) -> tuple[DeterministicHi
             continue
         seen_vars.add(var)
         _add(str(src), "env_var", name=var, snippet="settings/framework config field")
+    # Authoritative config-file rows -- only for vars the repo actually reads, so a
+    # tox.ini/pytest.ini-WON value anchors to the file rather than a code-read site.
+    read_names = {h.name for h in hits if h.kind in ("env_var", "env_read")}
+    seen_cfg: set[str] = set()
+    for fname, scan in _AUTHORITATIVE_CONFIG_SOURCES:
+        for var, value in sorted(scan(repo_path).items()):
+            if var not in read_names or var in seen_cfg:
+                continue
+            seen_cfg.add(var)
+            _add(fname, "config_file", name=var, snippet=f"{var}={value}")
     if graph is not None:
         from graph.model import NodeType
         for node in sorted((n_ for n_ in graph.nodes if n_.type is NodeType.PACKAGE),

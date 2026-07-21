@@ -39,7 +39,8 @@ def _is_excluded(rel: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Vendored-fixture exclusion — LAST-RESORT fallback ONLY (`scan_env_defaults`).
+# Vendored-fixture exclusion — LAST-RESORT fallback ONLY (`scan_env_defaults`,
+# via its `scan_env_defaults_provenance` implementation).
 #
 # MEASURED REGRESSION (django-oauth-toolkit): a vendored EXAMPLE Django app
 # bundled INSIDE the test suite (`tests/app/idp/manage.py`) is real Python code
@@ -53,7 +54,8 @@ def _is_excluded(rel: str) -> bool:
 # or `fixtures/` directory that IS first-party source, and pruning every such
 # name outright would blind the scanner to real projects, not just vendored
 # ones. So this check is COMPOUND-PATH-aware (`tests/app`, not bare `app`) and
-# is applied ONLY inside `scan_env_defaults` (the value-producing fallback) —
+# is applied ONLY inside the value-producing fallback (`scan_env_defaults` /
+# `scan_env_defaults_provenance`) —
 # never inside `scan_env_reads`/`scan_framework_config_reads` (the read-only
 # detectors that decide which vars deserve a hint CONFIG node at all; a var
 # read only by a vendored fixture is still worth surfacing as a hint, just
@@ -182,8 +184,35 @@ def scan_env_reads(repo_path: str) -> dict[str, str]:
     return out
 
 
-def scan_env_defaults(repo_path: str) -> dict[str, str]:
-    """Map env var -> its literal default from ``os.environ.get(VAR, 'literal')``.
+# Rung-3 SPLIT provenance tags (Task 3 / B1 residual). Eligibility downstream is
+# decided from these STRINGS, never from scan internals -- ``code_scan_setdefault``
+# (3a, env-writing entrypoint idiom) stays bake-eligible; ``code_scan_fallback``
+# (3b, a read-time get/getenv default) is advisory-only.
+_SOURCE_SETDEFAULT = "code_scan_setdefault"
+_SOURCE_FALLBACK = "code_scan_fallback"
+
+
+def _is_setdefault_call(call: ast.Call) -> bool:
+    """True for ``<environ>.setdefault(...)`` (the env-*writing* form). The owner
+    is already validated by ``_var_from_call``; here we only read the method name."""
+    func = call.func
+    return isinstance(func, ast.Attribute) and func.attr == "setdefault"
+
+
+def scan_env_defaults_provenance(repo_path: str) -> dict[str, tuple[str, str]]:
+    """Map env var -> ``(literal_default, source)`` from the ``.py`` code scan,
+    tagging each var with its rung-3 SPLIT provenance ``source`` so downstream
+    bake-eligibility is decided from DATA, not scan detail:
+
+      * ``code_scan_setdefault`` (3a) -- value written by an
+        ``os.environ.setdefault(VAR, 'literal')`` call, the canonical Django
+        ``manage.py``/``wsgi.py`` entrypoint idiom. This is what the code puts
+        INTO the environment; under pytest the entrypoint never runs, so baking
+        is the only delivery path -- it stays bake-eligible.
+      * ``code_scan_fallback`` (3b) -- value found ONLY as an
+        ``os.environ.get(VAR, 'literal')`` / ``os.getenv(VAR, 'literal')``
+        *fallback* default. Advisory-only: the imported code applies that
+        default itself at test time, so refusing to bake costs nothing.
 
     LAST-RESORT fallback value source for CONFIG nodes: ``scan_authoritative_config``
     (tox.ini/pytest.ini/setup.cfg/pyproject.toml) and ``.env.example`` both rank
@@ -199,7 +228,9 @@ def scan_env_defaults(repo_path: str) -> dict[str, str]:
     rather than picking whichever file happened to be seen first. This mirrors
     ``depgraph.python.lanes.install.ground.choose_provider``'s AMBIGUOUS branch -- never pick a
     variant -- because "first file wins" previously let a value from a test
-    fixture or example app silently shadow the real one.
+    fixture or example app silently shadow the real one. When ONE agreed value
+    is written by both a setdefault AND a get, the env-writing
+    ``code_scan_setdefault`` tag wins (it is what the code actually writes).
 
     MEASURED REGRESSION FIX: a vendored/example/fixture path (``tests/app/``,
     ``examples/``, ...) is skipped entirely here -- see ``_is_vendored_fixture``
@@ -207,7 +238,8 @@ def scan_env_defaults(repo_path: str) -> dict[str, str]:
     only ever used when no authoritative config file names the var. A bundled
     example app's own default is real code but not the project's configuration.
     """
-    hits: dict[str, set[str]] = {}
+    values: dict[str, set[str]] = {}
+    setdefaulted: dict[str, bool] = {}
     for dirpath, dirnames, filenames in os.walk(repo_path):
         dirnames[:] = sorted(d for d in dirnames if d.lower() not in _EXCLUDED_SEGMENTS)
         for fname in sorted(filenames):
@@ -227,8 +259,26 @@ def scan_env_defaults(repo_path: str) -> dict[str, str]:
                 if isinstance(node, ast.Call):
                     hit = _default_from_call(node)
                     if hit:
-                        hits.setdefault(hit[0], set()).add(hit[1])
-    return {var: next(iter(values)) for var, values in hits.items() if len(values) == 1}
+                        values.setdefault(hit[0], set()).add(hit[1])
+                        setdefaulted[hit[0]] = (
+                            setdefaulted.get(hit[0], False) or _is_setdefault_call(node))
+    out: dict[str, tuple[str, str]] = {}
+    for var, seen in values.items():
+        if len(seen) != 1:
+            continue                                 # AMBIGUOUS -> drop, never pick a variant
+        source = _SOURCE_SETDEFAULT if setdefaulted[var] else _SOURCE_FALLBACK
+        out[var] = (next(iter(seen)), source)
+    return out
+
+
+def scan_env_defaults(repo_path: str) -> dict[str, str]:
+    """Map env var -> its literal default from ``os.environ.get(VAR, 'literal')``
+    / ``setdefault`` -- a thin ``{var: value}`` projection of
+    ``scan_env_defaults_provenance`` (which additionally tags each value with its
+    rung-3a/3b source). The value set, deterministic sorted walk, ambiguity drop
+    and vendored-fixture exclusion are all inherited byte-for-byte from it.
+    """
+    return {var: value for var, (value, _src) in scan_env_defaults_provenance(repo_path).items()}
 
 
 _DECOUPLE_FUNCS = frozenset({"config"})           # decouple.config('X')
