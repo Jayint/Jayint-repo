@@ -739,6 +739,123 @@ def test_environ_alias_subscript_is_allowed_stays_3a(tmp_path):
     assert prov["SUB_VAR"] == ("sub.settings", "code_scan_setdefault")
 
 
+# ── Round 6 (FINAL): two residual promote-holes. ──
+#  1. conditional/dead-code imports: a genuine import counts only as a DIRECT child
+#     of its scope body -- one nested in a compound statement contributes nothing.
+#  2. dunder mutation channel: a `__`-prefixed attribute DIRECTLY on a tracked name
+#     (os.__setattr__ / os.__dict__) poisons the name file-wide. ──
+
+def test_conditional_dead_code_import_is_not_3a(tmp_path):
+    # FIX 1: `if False: import os` never executes; the import is nested in a
+    # compound statement (not a direct scope-body child) -> contributes no genuine
+    # binding -> 3b.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "deadif.py", """
+        if False:
+            import os
+        os.environ.setdefault('DEADIF_VAR', 'deadif.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["DEADIF_VAR"] == ("deadif.settings", "code_scan_fallback")
+
+
+def test_try_guarded_import_is_not_3a(tmp_path):
+    # FIX 1: a `try: import os except ImportError` import is guarded (may not bind)
+    # -> nested in a compound statement -> contributes no genuine binding -> 3b.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "tryimp.py", """
+        try:
+            import os
+        except ImportError:
+            pass
+        os.environ.setdefault('TRY_VAR', 'try.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["TRY_VAR"] == ("try.settings", "code_scan_fallback")
+
+
+def test_toplevel_import_with_redundant_nested_import_stays_3a(tmp_path):
+    # FIX 1 (no over-demotion): a redundant `if True: import os` alongside a real
+    # top-level `import os` must NOT poison -- the nested canonical import
+    # contributes nothing, and the top-level one keeps it genuine -> 3a.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "redundant.py", """
+        import os
+        if True:
+            import os
+        os.environ.setdefault('REDUNDANT_VAR', 'redundant.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["REDUNDANT_VAR"] == ("redundant.settings", "code_scan_setdefault")
+
+
+def test_nested_import_inside_function_compound_is_not_3a(tmp_path):
+    # FIX 1 (function scope too): an import nested in a compound INSIDE a function
+    # is not a direct function-body child -> contributes nothing genuine -> 3b.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "fnnested.py", """
+        def f():
+            if True:
+                import os
+            os.environ.setdefault('FN_VAR', 'fn.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["FN_VAR"] == ("fn.settings", "code_scan_fallback")
+
+
+def test_dunder_setattr_on_os_demotes_to_3b(tmp_path):
+    # FIX 2: `os.__setattr__('environ', {})` mutates the module reflectively through
+    # a dunder ON the tracked name -> poison `os` file-wide -> 3b.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "dundersetattr.py", """
+        import os
+        os.__setattr__('environ', {})
+        os.environ.setdefault('DSET_VAR', 'dset.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["DSET_VAR"] == ("dset.settings", "code_scan_fallback")
+
+
+def test_dunder_dict_assignment_on_os_demotes_to_3b(tmp_path):
+    # FIX 2: `os.__dict__['environ'] = {}` reaches the mapping through `os.__dict__`
+    # (a dunder ON `os`) -> poison `os` file-wide -> 3b.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "dunderdict.py", """
+        import os
+        os.__dict__['environ'] = {}
+        os.environ.setdefault('DDICT_VAR', 'ddict.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["DDICT_VAR"] == ("ddict.settings", "code_scan_fallback")
+
+
+def test_dunder_on_environ_expression_stays_3a(tmp_path):
+    # FIX 2 (boundary): a dunder on the `os.environ` EXPRESSION, not on the name
+    # `os`, is a content-level read of the mapping -- never in scope -> stays 3a.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "dundercontains.py", """
+        import os
+        os.environ.__contains__('CHECK')
+        os.environ.setdefault('DCON_VAR', 'dcon.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["DCON_VAR"] == ("dcon.settings", "code_scan_setdefault")
+
+
+def test_membership_test_on_os_environ_stays_3a(tmp_path):
+    # FIX 2 (boundary): `'X' in os.environ` reads the mapping; `os` is a plain
+    # attribute base (`os.environ`), not a dunder-on-name -> stays 3a.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "membership.py", """
+        import os
+        if 'CHECK' in os.environ:
+            pass
+        os.environ.setdefault('MEMBER_VAR', 'member.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["MEMBER_VAR"] == ("member.settings", "code_scan_setdefault")
+
+
 def test_scan_env_defaults_is_a_value_projection_of_provenance(tmp_path):
     # scan_env_defaults must stay byte-identical to "just the values" of the
     # provenance scan -- existing callers (_dsn_configs) depend on the plain shape.

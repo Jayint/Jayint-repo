@@ -23,6 +23,13 @@ Mutations that leave NO local occurrence of the name -- ``exec`` of string code,
 ``globals()['os'] = ...``, ``importlib.reload``, cross-module monkeypatching -- are
 outside static reach BY CONSTRUCTION and are deliberately out of scope; they cannot
 be detected from this file's AST and are accepted as a known limitation.
+
+The classifier certifies receiver IDENTITY (that a ``setdefault`` receiver really is
+``os.environ``), not mapping CONTENTS: a reflective rebind of the mapping through the
+name -- ``os.__setattr__('environ', {})`` / ``os.__dict__['environ'] = {}`` -- is a
+dunder-on-the-name channel and IS caught (poisons the name), whereas content-level
+reads/writes of the mapping itself (``os.environ.__contains__('X')``, ``'X' in
+os.environ``) were never in scope and stay allowed.
 """
 
 from __future__ import annotations
@@ -125,7 +132,11 @@ def _const_str(node: ast.AST) -> str | None:
 #     is genuine file-wide; a genuine import INSIDE a function/class body is
 #     genuine WITHIN that subtree only; any non-canonical import (``import fake as
 #     os``, ``from os import environ as os``) is a shadow -> module-level poisons
-#     file-wide, function-local poisons that subtree.
+#     file-wide, function-local poisons that subtree. A genuine import counts ONLY
+#     as a DIRECT statement child of its scope body (round 6): one nested in a
+#     compound statement (``if``/``try``/``while``/``for``/``with``/``match``) may
+#     not execute, so it contributes nothing genuine -- though a nested NON-canonical
+#     import still poisons (shadowing is conservative regardless of reachability).
 #   * Assign / AugAssign / AnnAssign / NamedExpr(walrus) bare-name targets,
 #     ``for``/``with as``/``except as``/comprehension targets, function & lambda
 #     params, nested def/class names, match captures (see ``_local_binding_names``)
@@ -150,6 +161,13 @@ def _const_str(node: ast.AST) -> str | None:
 #     ``env`` other than ``env.X`` / ``env['X']``; ``getenv`` other than a call
 #     func) has leaked to code that could mutate it (``setattr(os, 'environ', {})``,
 #     ``configure(os)``); poison the name file-wide. See ``_escape_allowed``.
+#   * DUNDER channel (round 6, Fix 2) -- a ``__``-prefixed attribute accessed
+#     DIRECTLY on a tracked name (``os.__setattr__('environ', {})``,
+#     ``os.__dict__['environ'] = {}``) is a reflective mutation path; poison the
+#     name file-wide. Only directly on the NAME: ``os.environ.__contains__('X')`` is
+#     a dunder on the ``os.environ`` expression, not on ``os``, and stays allowed --
+#     this classifier certifies receiver IDENTITY, not mapping CONTENTS, so
+#     content-level reads/mutations of the mapping were never in its scope.
 #
 # A receiver resolves GENUINE only when its name resolves (innermost enclosing
 # scope first, then module scope) to a genuine binding of the expected kind and is
@@ -371,13 +389,17 @@ def _analyze_os_usage(tree: ast.AST) -> tuple:
     dropped -- see ``_effective_chain``) so the scanners can resolve a receiver per
     call site while still walking in document order.
 
-    Polarity (rounds 4-5): only the handled-set of binding constructs is modeled
+    Polarity (rounds 4-6): only the handled-set of binding constructs is modeled
     affirmatively; every other name-binding/mutating construct in the conservative
     catch-all DEMOTES (poisons) rather than being ignored -- see the module comment
     above. Do NOT add a genuine binding here without extending the handled-set.
     Round 5 additions: conflicting genuine KINDS in one scope poison the name;
     class scopes do not flow bindings into methods; and a genuine name that leaks
-    out of its allowed receiver positions is poisoned file-wide (escape analysis)."""
+    out of its allowed receiver positions is poisoned file-wide (escape analysis).
+    Round 6 additions: an import contributes genuine ONLY as a direct child of its
+    scope body (conditional/dead-code imports contribute nothing genuine); and a
+    dunder attribute access directly on a tracked name (``os.__setattr__`` /
+    ``os.__dict__``) poisons that name file-wide."""
     scope_genuine: dict = {}                             # scope|None -> {name: kind}
     scope_poison: dict = {}                              # scope -> set[str] (function-local)
     module_poison: set = set()                           # file-wide poison
@@ -408,12 +430,24 @@ def _analyze_os_usage(tree: ast.AST) -> tuple:
         if scope is None:
             genuine_lineno[name] = min(genuine_lineno.get(name, lineno), lineno)
 
+    # An import contributes GENUINE only when it is a DIRECT statement child of its
+    # scope's body (module / function / class body) -- an import nested in ANY
+    # compound statement (If/Try/While/For/With/Match) may not execute, so it is not
+    # trustworthy (Finding 1, round 6). This is the set of those direct statements.
+    scope_direct_ids: set = set()
+    for _n in ast.walk(tree):
+        if isinstance(_n, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            for _stmt in _n.body:
+                scope_direct_ids.add(id(_stmt))
+
     for node, chain in _iter_with_scopes(tree):
         scope = chain[-1] if chain else None
         # -- escape bookkeeping: a node is exactly one of these AST kinds --
         if isinstance(node, ast.Attribute):
             if isinstance(node.value, ast.Name):
                 attr_value_ids.add(id(node.value))
+                if node.attr.startswith("__"):           # `os.__setattr__` / `os.__dict__`
+                    module_poison.add(node.value.id)     # dunder channel -> poison the name (round 6)
         elif isinstance(node, ast.Subscript):
             if isinstance(node.value, ast.Name):
                 subscript_value_ids.add(id(node.value))
@@ -431,11 +465,15 @@ def _analyze_os_usage(tree: ast.AST) -> tuple:
             has_star = True                              # `from x import *` may shadow any name
             continue
         if isinstance(node, (ast.Import, ast.ImportFrom)):
+            direct = id(node) in scope_direct_ids        # direct child of the scope body?
             for local, is_genuine, kind in _import_bindings(node):
                 if is_genuine:
-                    add_genuine(scope, local, kind, getattr(node, "lineno", 0))
+                    if direct:                           # nested canonical import: contributes
+                        add_genuine(scope, local, kind, getattr(node, "lineno", 0))
+                    # nothing (neither genuine nor poison -- a redundant `if True: import os`
+                    # must not demote a real top-level `import os`; Finding 1, round 6)
                 else:
-                    add_poison(scope, local)             # shadowing / unrelated import
+                    add_poison(scope, local)             # shadowing import poisons even when nested
             continue
         if isinstance(node, (ast.Global, ast.Nonlocal)):
             module_poison.update(node.names)             # escaping rebind -> poison everywhere
