@@ -4,7 +4,17 @@ survives construction). The `correct_action` is the oracle the grader matches an
 agent's diagnosis against."""
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_SRC = _REPO_ROOT / "src"
+for _p in (_REPO_ROOT, _SRC):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
+
+from graph.model import package_id, syslib_id  # noqa: E402
 
 FAILURE_CLASSES: frozenset[str] = frozenset({
     "SYSLIB_MISSING", "COMPILER_ABSENT", "VERSION_CONFLICT", "OVERINCLUDE", "TOOL_ABSENT",
@@ -27,6 +37,7 @@ class Injection:
     #   | {"kind":"repin","target":"<pkg>"}
     correct_action: dict
     note: str = ""
+    correct_anchor: str = ""    # symptom node parse->integrate should ground to; "" == REFUSE
 
 
 # One injection per class. Repos are already fetched by the build_script_eval corpus.
@@ -64,3 +75,14 @@ def select(only: frozenset[str] = frozenset(),
     return [i for i in PILOT_INJECTIONS
             if (not only or i.injection_id in only)
             and (not classes or i.failure_class in classes)]
+
+
+# Test-domain injections: the fault lets the BUILD succeed but makes import/collection
+# FAIL, so parse() sees its native domain. correct_anchor = the symptom node.
+TEST_DOMAIN_INJECTIONS: tuple[Injection, ...] = (
+    Injection("td_mnf_dropdep", "requests", "python:3.11-slim", "MODULE_NOT_FOUND",
+              {"op": "strip_line", "match": "urllib3"},
+              {"kind": "install", "target": "urllib3"},
+              "strip urllib3 install -> `import requests` fails ModuleNotFoundError: urllib3",
+              correct_anchor=package_id("urllib3", None)),
+)
