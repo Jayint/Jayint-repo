@@ -681,7 +681,8 @@ _FENCE_BOT = "──────────────────────
 
 
 def _scaffold_agentic(steps, numbered_script: str, closing_line: str,
-                      graph_context_text: "str | None") -> str:
+                      graph_context_text: "str | None",
+                      env_state_text: "str | None" = None) -> str:
     """The workbench, FENCED. The numbered script, the ledger and the turn budget are harness state,
     not tool output — and nothing in the classic bytes said so: they were pasted bare onto the end of
     a message whose first half was pytest's stdout. The fence is the cheapest possible way to stop the
@@ -690,6 +691,8 @@ def _scaffold_agentic(steps, numbered_script: str, closing_line: str,
     ledger = _ledger_note(steps)
     if ledger:
         parts.append(ledger)
+    if env_state_text and env_state_text.strip():
+        parts.append(env_state_text)
     if graph_context_text and graph_context_text.strip():
         parts.append("GRAPH CONTEXT (certified state):\n" + graph_context_text)
     parts.append(closing_line)
@@ -697,7 +700,8 @@ def _scaffold_agentic(steps, numbered_script: str, closing_line: str,
 
 
 def _build_agentic(steps, *, system_prompt, numbered_script, closing_line,
-                   graph_context_text, rejected, keep_last_obs) -> "list[dict]":
+                   graph_context_text, rejected, keep_last_obs,
+                   env_state_text=None) -> "list[dict]":
     """The agentic transcript. Same flat Step list, same recency gradient, same ledger — only the
     SHAPE of each message changes (see _MSG_STYLE)."""
     msgs: list[dict] = [{"role": "system", "content": system_prompt}]
@@ -744,7 +748,8 @@ def _build_agentic(steps, *, system_prompt, numbered_script, closing_line,
                      "content": "⚠ REJECTED by the host — " + (rejected.get("reason") or "invalid call")
                                 + "\nThat call did not run. Make a different one."})
 
-    scaffold = _scaffold_agentic(steps, numbered_script, closing_line, graph_context_text)
+    scaffold = _scaffold_agentic(steps, numbered_script, closing_line, graph_context_text,
+                                 env_state_text)
     if msgs[-1]["role"] == "user":
         msgs[-1]["content"] += "\n\n" + scaffold
     else:
@@ -835,14 +840,17 @@ def _elide_old_observations(msgs: "list[dict]", obs_indices: "list[int]", keep_l
 
 
 def _scaffold(steps, numbered_script: str, closing_line: str,
-              graph_context_text: "str | None", rejection: "str | None") -> str:
+              graph_context_text: "str | None", rejection: "str | None",
+              env_state_text: "str | None" = None) -> str:
     """The live decision block appended to the last user turn: the numbered CURRENT script (the only
     place the model edits — stale earlier scripts are not re-shown), the do-not-retry ledger, optional
-    graph context / rejection, and the closing turn-budget line."""
+    env-state / graph context / rejection, and the closing turn-budget line."""
     parts = [_SCRIPT_DELIM + "\n" + numbered_script]
     ledger = _ledger_note(steps)
     if ledger:
         parts.append(ledger)
+    if env_state_text and env_state_text.strip():
+        parts.append(env_state_text)
     if graph_context_text and graph_context_text.strip():
         parts.append("GRAPH CONTEXT (certified state):\n" + graph_context_text)
     if rejection:
@@ -854,7 +862,8 @@ def _scaffold(steps, numbered_script: str, closing_line: str,
 def build_messages(steps, *, system_prompt: str, numbered_script: str, closing_line: str,
                    graph_context_text: "str | None" = None, rejection: "str | None" = None,
                    rejected: "dict | None" = None,
-                   keep_last_obs: "int | None" = None) -> "list[dict]":
+                   keep_last_obs: "int | None" = None,
+                   env_state_text: "str | None" = None) -> "list[dict]":
     """Reconstruct the growing conversation from the flat Step list. Pure: same inputs the blob
     renderer gets. Returns ``[{role, content}, ...]`` — system, then baseline observation, then an
     (assistant action, user observation) pair per acting step, with the live scaffold merged onto the
@@ -865,7 +874,8 @@ def build_messages(steps, *, system_prompt: str, numbered_script: str, closing_l
     if agentic():
         return _build_agentic(steps, system_prompt=system_prompt, numbered_script=numbered_script,
                               closing_line=closing_line, graph_context_text=graph_context_text,
-                              rejected=rejected, keep_last_obs=keep_last_obs)
+                              rejected=rejected, keep_last_obs=keep_last_obs,
+                              env_state_text=env_state_text)
     msgs: list[dict] = [{"role": "system", "content": system_prompt}]
     obs_indices: list[int] = []                          # indices of user OBSERVATION turns (for elision)
     run_obs: list[tuple[int, str]] = []                  # (msg_idx, raw) of RUN outputs (baseline/build)
@@ -899,7 +909,8 @@ def build_messages(steps, *, system_prompt: str, numbered_script: str, closing_l
         idx, raw = run_obs[-1]
         msgs[idx]["content"] = _LAST_RUN_LABEL + "\n" + (_obs_compressed(raw, _immediate_cap()) or "(no output)")
     # Merge the live scaffold onto the last user turn LAST (never disturbed by the steps above).
-    scaffold = _scaffold(steps, numbered_script, closing_line, graph_context_text, rejection)
+    scaffold = _scaffold(steps, numbered_script, closing_line, graph_context_text, rejection,
+                         env_state_text)
     if msgs[-1]["role"] == "user":
         msgs[-1]["content"] += "\n\n" + scaffold
     else:                                                # empty history → no user turn yet

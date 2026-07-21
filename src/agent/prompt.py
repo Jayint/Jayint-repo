@@ -148,7 +148,8 @@ class ReactPlanner:
                 fail_lineno: int | None = None,
                 turn: int | None = None, max_turns: int | None = None,
                 rejection: str | None = None,
-                result=None, causes=None, prev_states=None) -> str:
+                result=None, causes=None, prev_states=None,
+                env_state: "str | None" = None) -> str:
         parts = [
             ("CURRENT setup.sh (line numbers are for Edit refs and match the build failure's "
              "\"line N\" — the \"n| \" prefix is NOT part of the script):\n"
@@ -162,6 +163,8 @@ class ReactPlanner:
         ctx = self._graph_text(graph, result, causes, prev_states)
         if ctx:
             parts.append("GRAPH CONTEXT (certified state):\n" + ctx)
+        if env_state:
+            parts.append(env_state)
         if rejection:                          # same-turn retry after a tool misuse (high salience)
             parts.append("YOUR LAST TOOL CALL WAS REJECTED — fix it and try again: " + rejection)
         parts.append(_closing_line(turn, max_turns))
@@ -175,7 +178,7 @@ class ReactPlanner:
         return ctx if ctx.strip() else None
 
     def _messages(self, history, script, observation, graph, fail_lineno, turn, max_turns, rejection,
-                  rejected=None, result=None, causes=None, prev_states=None):
+                  rejected=None, result=None, causes=None, prev_states=None, env_state=None):
         """The LLM message list for the active prompt style (lever REACT_PROMPT_STYLE, read per-call
         so a VM run can flip it via env). `messages` (DEFAULT): the growing assistant/user conversation
         (message_view) — the model's own thought+action as real turns, the current observation as the
@@ -191,21 +194,23 @@ class ReactPlanner:
                 numbered_script=_numbered(script, fail_lineno),
                 closing_line=_closing_line(turn, max_turns),
                 graph_context_text=self._graph_text(graph, result, causes, prev_states),
-                rejection=rejection, rejected=rejected)
+                rejection=rejection, rejected=rejected, env_state_text=env_state)
         return [
             {"role": "system", "content": self.system_prompt},
             {"role": "user",
              "content": self._render(history, script, observation, graph, fail_lineno,
-                                     turn, max_turns, rejection, result, causes, prev_states)},
+                                     turn, max_turns, rejection, result, causes, prev_states,
+                                     env_state)},
         ]
 
     def plan(self, history, script: str, observation: str, graph, fail_lineno: int | None = None,
              turn: int | None = None, max_turns: int | None = None, rejection: str | None = None,
              rejected: "dict | None" = None,
-             result=None, causes=None, prev_states=None):
+             result=None, causes=None, prev_states=None,
+             env_state: "str | None" = None):
         messages = self._messages(history, script, observation, graph, fail_lineno,
                                   turn, max_turns, rejection, rejected,
-                                  result, causes, prev_states)
+                                  result, causes, prev_states, env_state)
         # Native tool-calling is PRIMARY: tool_choice="required" forces exactly one explore/edit
         # call, and structured JSON args mean no markdown/backtick/`Action:`-label drift. The text
         # path (parse_action on the message content) is a FALLBACK for a provider/turn that returns

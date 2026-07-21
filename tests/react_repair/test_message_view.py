@@ -291,3 +291,19 @@ def test_short_history_not_elided_at_default():
              "BUILD OK. TESTS 2/2 passed.\n2 passed in 1s\n")
     out = "\n".join(m["content"] for m in _build(h))
     assert "elided" not in out
+
+
+# --- env-state block: inserted between the do-not-retry ledger and GRAPH CONTEXT ---
+def test_build_messages_includes_env_state_on_live_turn():
+    msgs = build_messages(
+        [], system_prompt="SYS", numbered_script="1| pip install app",
+        closing_line="Turn 1/30.",
+        env_state_text="ENVIRONMENT STATE (after this turn's setup.sh)\n  pip installed (1): flask 3.0.0")
+    last = msgs[-1]["content"]
+    assert "ENVIRONMENT STATE (after this turn's setup.sh)" in last
+    assert "pip installed (1): flask 3.0.0" in last
+
+
+def test_build_messages_no_env_state_line_when_absent():
+    msgs = build_messages([], system_prompt="SYS", numbered_script="1| x", closing_line="C")
+    assert "ENVIRONMENT STATE" not in msgs[-1]["content"]
