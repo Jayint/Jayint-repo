@@ -611,6 +611,134 @@ def test_round4_django_with_unrelated_os_param_stays_3a(tmp_path):
     assert prov["DJANGO_SETTINGS_MODULE"] == ("myproj.settings", "code_scan_setdefault")
 
 
+# ── Round 5: three residual class-closing holes (Codex round 5). ──
+#  1. conflicting genuine imports of DIFFERENT kinds onto one name -> poison.
+#  2. class scopes do not flow bindings into methods (Python scoping).
+#  3. escape analysis: a genuine name leaking out of its receiver slot -> poison. ──
+
+def test_conflicting_genuine_import_kinds_onto_one_name_is_not_3a(tmp_path):
+    # HOLE #1: `import os as x` (module) + `from os import environ as x` binds `x`
+    # to the module AND to the environ mapping -- `x` is neither, `x.environ` is
+    # nonsense -> poison in-scope -> 3b.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "conflict.py", """
+        import os as x
+        from os import environ as x
+        x.environ.setdefault('CONFLICT_VAR', 'conflict.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov.get("CONFLICT_VAR") != ("conflict.settings", "code_scan_setdefault")
+
+
+def test_duplicate_same_kind_import_os_stays_3a(tmp_path):
+    # HOLE #1 (other direction): two identical `import os` are a same-kind
+    # duplicate, NOT a conflict -> stays genuine 3a.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "dup.py", """
+        import os
+        import os
+        os.environ.setdefault('DUP_VAR', 'dup.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["DUP_VAR"] == ("dup.settings", "code_scan_setdefault")
+
+
+def test_class_body_import_does_not_reach_method_is_not_3a(tmp_path):
+    # HOLE #2: a class-body `import os` does NOT flow into a method body (Python
+    # methods do not close over the class namespace) -> with no module-level
+    # `import os`, the method receiver is unresolved -> 3b.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "clsmethod.py", """
+        class C:
+            import os
+            def f(self):
+                os.environ.setdefault('CLS_VAR', 'cls.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov.get("CLS_VAR") != ("cls.settings", "code_scan_setdefault")
+
+
+def test_class_body_import_plus_module_import_method_resolves_via_module_3a(tmp_path):
+    # HOLE #2 (semantics): the method resolves to MODULE scope (class binding is
+    # skipped, not a file-wide demote) -> a module-level `import os` keeps it 3a.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "clsmod.py", """
+        import os
+        class C:
+            import os
+            def f(self):
+                os.environ.setdefault('CLSMOD_VAR', 'clsmod.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["CLSMOD_VAR"] == ("clsmod.settings", "code_scan_setdefault")
+
+
+def test_class_body_direct_call_resolves_via_class_binding_3a(tmp_path):
+    # HOLE #2 (direct-body): a call written DIRECTLY in the class body DOES see the
+    # class-body binding -> 3a.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "clsdirect.py", """
+        class C:
+            import os
+            os.environ.setdefault('CLSDIRECT_VAR', 'clsdirect.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["CLSDIRECT_VAR"] == ("clsdirect.settings", "code_scan_setdefault")
+
+
+def test_setattr_on_os_environ_demotes_to_3b(tmp_path):
+    # HOLE #3: `setattr(os, 'environ', {})` passes the module object to code that
+    # mutates it; `os` appears as a call ARGUMENT (not a receiver) -> escape -> 3b.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "setattr.py", """
+        import os
+        setattr(os, 'environ', {})
+        os.environ.setdefault('SETATTR_VAR', 'setattr.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov.get("SETATTR_VAR") != ("setattr.settings", "code_scan_setdefault")
+
+
+def test_os_passed_as_call_argument_demotes_to_3b(tmp_path):
+    # HOLE #3 (general escape): passing the module object into ANY call
+    # (`configure(os)`) could mutate it -> escape -> 3b.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "configure.py", """
+        import os
+        configure(os)
+        os.environ.setdefault('CONFIGURE_VAR', 'configure.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov.get("CONFIGURE_VAR") != ("configure.settings", "code_scan_setdefault")
+
+
+def test_os_attribute_access_is_not_an_escape_stays_3a(tmp_path):
+    # HOLE #3 (allowed): plain attribute access (`os.path.join(...)`) is a receiver
+    # position, NOT an escape -> the setdefault stays 3a.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "attraccess.py", """
+        import os
+        print(os.path.join('a', 'b'))
+        os.environ.setdefault('ATTR_VAR', 'attr.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["ATTR_VAR"] == ("attr.settings", "code_scan_setdefault")
+
+
+def test_environ_alias_subscript_is_allowed_stays_3a(tmp_path):
+    # HOLE #3 (environ-kind): an environ alias may be subscripted (`env['X']`) as
+    # well as attribute-accessed (`env.setdefault`) -> both are receiver positions,
+    # no escape -> 3a.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "envsub.py", """
+        from os import environ as env
+        env['SUB_READ']
+        env.setdefault('SUB_VAR', 'sub.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["SUB_VAR"] == ("sub.settings", "code_scan_setdefault")
+
+
 def test_scan_env_defaults_is_a_value_projection_of_provenance(tmp_path):
     # scan_env_defaults must stay byte-identical to "just the values" of the
     # provenance scan -- existing callers (_dsn_configs) depend on the plain shape.

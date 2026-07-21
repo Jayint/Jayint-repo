@@ -11,6 +11,18 @@ through an explicit HANDLED-SET of binding constructs; every OTHER construct tha
 can bind or mutate a tracked name demotes it to advisory 3b. Constructs outside
 the handled set demote to 3b -- never extend 3a without extending the handled set
 (see ``_analyze_os_usage`` and the scope-resolution comment below).
+
+SOUNDNESS CONTRACT (review round 5): classification is SOUND for any file in which
+every AST occurrence of a tracked name (``os`` / ``environ`` / ``getenv`` and their
+genuine aliases) is EXPLAINED by the handled set -- i.e. the name appears only as a
+binding we model or in an allowed receiver position for its kind. The escape rule
+(``_escape_allowed``) enforces exactly this: any genuine name that leaks into a
+non-receiver position (a call argument, container, return, comparison, ...) is
+poisoned file-wide, so the name can never reach code that mutates it out of view.
+Mutations that leave NO local occurrence of the name -- ``exec`` of string code,
+``globals()['os'] = ...``, ``importlib.reload``, cross-module monkeypatching -- are
+outside static reach BY CONSTRUCTION and are deliberately out of scope; they cannot
+be detected from this file's AST and are accepted as a known limitation.
 """
 
 from __future__ import annotations
@@ -129,10 +141,23 @@ def _const_str(node: ast.AST) -> str | None:
 #   * ``type os = ...`` (``ast.TypeAlias``, 3.12+) -- poison that name file-wide.
 #   * ``os.environ = ...`` / ``+=`` / annotated -- an Attribute ``X.environ``
 #     assignment target replaces the mapping; poison the base name ``X`` file-wide.
+#   * CONFLICTING GENUINE kinds in one scope (round 5, Finding 1) -- ``import os as
+#     x`` + ``from os import environ as x`` binds ``x`` to two different objects;
+#     the name is neither, so poison it in that scope (same-kind duplicates such as
+#     two ``import os`` stay genuine).
+#   * ESCAPE (round 5, Finding 3) -- a genuine name that appears in ANY Load
+#     position other than its allowed receiver slot (``os`` other than ``os.X``;
+#     ``env`` other than ``env.X`` / ``env['X']``; ``getenv`` other than a call
+#     func) has leaked to code that could mutate it (``setattr(os, 'environ', {})``,
+#     ``configure(os)``); poison the name file-wide. See ``_escape_allowed``.
 #
 # A receiver resolves GENUINE only when its name resolves (innermost enclosing
 # scope first, then module scope) to a genuine binding of the expected kind and is
-# not poisoned. MODULE-level ORDERING guard: a module-level call site lexically
+# not poisoned. CLASS scopes are NOT enclosing for methods (round 5, Finding 2): a
+# call site's resolution chain drops every ``ClassDef`` except its own innermost
+# scope (``_effective_chain``), so a class-body binding reaches call sites in the
+# class body only, never its methods (Python does not close methods over the class
+# namespace). MODULE-level ORDERING guard: a module-level call site lexically
 # BEFORE the first module-level genuine import of its receiver name is unresolved
 # -> 3b (the binding does not exist yet at import time). Ordering is NOT applied
 # inside function bodies -- they run after module import time, so a call in a def
@@ -155,6 +180,20 @@ def _iter_with_scopes(tree: ast.AST):
         child_chain = chain + (node,) if isinstance(node, _SCOPE_NODES) else chain
         for child in ast.iter_child_nodes(node):
             stack.append((child, child_chain))
+
+
+def _effective_chain(chain: tuple) -> tuple:
+    """The lexical scope chain a call site RESOLVES names through. Python method
+    bodies do NOT close over the enclosing CLASS namespace, so every ``ClassDef``
+    scope is dropped from the chain -- EXCEPT the innermost scope itself, so a call
+    written DIRECTLY in a class body still sees that body's bindings (Finding 2,
+    round 5). Net effect: a class-body binding of a tracked name reaches call sites
+    in the class body only, never its methods -- as genuine OR as local poison.
+    Module-level (file-wide) poison is unaffected -- it is applied before any chain
+    walk."""
+    if not chain:
+        return chain
+    return tuple(s for s in chain[:-1] if not isinstance(s, ast.ClassDef)) + (chain[-1],)
 
 
 def _import_bindings(node: ast.AST):
@@ -307,15 +346,38 @@ def _poison_environ_attr_targets(node: ast.AST, module_poison: set) -> None:
             module_poison.add(t.value.id)
 
 
+def _escape_allowed(kind: str, nid: int, attr_value_ids: set,
+                    subscript_value_ids: set, call_func_ids: set) -> bool:
+    """A genuine tracked name may appear ONLY in the receiver position(s) allowed
+    for its KIND (lite escape analysis, Finding 3, round 5): a module-kind name
+    (``os``) as an Attribute base (``os.environ``, ``os.getenv``, ``os.path.join``,
+    any ``os.X``); an environ-kind name additionally as a Subscript base
+    (``env['X']``); a getenv-kind name only as the func of a Call (``getenv('X')``).
+    ANY other Load occurrence -- a call argument (``setattr(os, ...)``,
+    ``configure(os)``), a container element, a return, a comparison, an f-string --
+    is an escape and poisons the name file-wide."""
+    if kind in ("os", "environ") and nid in attr_value_ids:
+        return True                                      # os.X / env.setdefault (attr base)
+    if kind == "environ" and nid in subscript_value_ids:
+        return True                                      # env['X'] (subscript base)
+    if kind == "getenv" and nid in call_func_ids:
+        return True                                      # getenv('X') (call func)
+    return False
+
+
 def _analyze_os_usage(tree: ast.AST) -> tuple:
     """Return ``(usage, node_scopes)`` for one file: an ``_OsUsage`` plus a map
-    from each ``Call``/``Subscript`` node to its scope chain (so the scanners can
-    resolve a receiver per call site while still walking in document order).
+    from each ``Call``/``Subscript`` node to its EFFECTIVE scope chain (class scopes
+    dropped -- see ``_effective_chain``) so the scanners can resolve a receiver per
+    call site while still walking in document order.
 
-    Polarity (round 4): only the handled-set of binding constructs is modeled
+    Polarity (rounds 4-5): only the handled-set of binding constructs is modeled
     affirmatively; every other name-binding/mutating construct in the conservative
     catch-all DEMOTES (poisons) rather than being ignored -- see the module comment
-    above. Do NOT add a genuine binding here without extending the handled-set."""
+    above. Do NOT add a genuine binding here without extending the handled-set.
+    Round 5 additions: conflicting genuine KINDS in one scope poison the name;
+    class scopes do not flow bindings into methods; and a genuine name that leaks
+    out of its allowed receiver positions is poisoned file-wide (escape analysis)."""
     scope_genuine: dict = {}                             # scope|None -> {name: kind}
     scope_poison: dict = {}                              # scope -> set[str] (function-local)
     module_poison: set = set()                           # file-wide poison
@@ -323,12 +385,12 @@ def _analyze_os_usage(tree: ast.AST) -> tuple:
     genuine_names: set = set()                           # every name ever bound genuine
     node_scopes: dict = {}
     has_star = False
-
-    def add_genuine(scope, name: str, kind: str, lineno: int) -> None:
-        scope_genuine.setdefault(scope, {})[name] = kind
-        genuine_names.add(name)
-        if scope is None:
-            genuine_lineno[name] = min(genuine_lineno.get(name, lineno), lineno)
+    # Escape-analysis bookkeeping (Finding 3): the role each child Name plays, plus
+    # every Load-context bare-name occurrence with its (effective) scope chain.
+    attr_value_ids: set = set()
+    subscript_value_ids: set = set()
+    call_func_ids: set = set()
+    load_names: list = []
 
     def add_poison(scope, name: str) -> None:
         if scope is None:
@@ -336,10 +398,34 @@ def _analyze_os_usage(tree: ast.AST) -> tuple:
         else:
             scope_poison.setdefault(scope, set()).add(name)  # function-local -> subtree
 
+    def add_genuine(scope, name: str, kind: str, lineno: int) -> None:
+        bucket = scope_genuine.setdefault(scope, {})
+        prev = bucket.get(name)
+        if prev is not None and prev != kind:            # two genuine imports, DIFFERENT kinds
+            add_poison(scope, name)                      # -> name is neither; poison in-scope
+        bucket[name] = kind
+        genuine_names.add(name)
+        if scope is None:
+            genuine_lineno[name] = min(genuine_lineno.get(name, lineno), lineno)
+
     for node, chain in _iter_with_scopes(tree):
         scope = chain[-1] if chain else None
+        # -- escape bookkeeping: a node is exactly one of these AST kinds --
+        if isinstance(node, ast.Attribute):
+            if isinstance(node.value, ast.Name):
+                attr_value_ids.add(id(node.value))
+        elif isinstance(node, ast.Subscript):
+            if isinstance(node.value, ast.Name):
+                subscript_value_ids.add(id(node.value))
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                call_func_ids.add(id(node.func))
+        elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+            load_names.append(
+                (node.id, id(node), _effective_chain(chain), getattr(node, "lineno", None)))
+        # -- bindings / catch-all --
         if isinstance(node, (ast.Call, ast.Subscript)):
-            node_scopes[node] = chain
+            node_scopes[node] = _effective_chain(chain)
             continue                                     # a call/subscript binds no name
         if isinstance(node, ast.ImportFrom) and any(a.name == "*" for a in node.names):
             has_star = True                              # `from x import *` may shadow any name
@@ -372,6 +458,22 @@ def _analyze_os_usage(tree: ast.AST) -> tuple:
 
     if has_star:
         module_poison |= genuine_names                   # a star import may shadow any tracked name
+
+    # Escape pass (Finding 3): a genuine name that resolves at its OWN occurrence but
+    # sits OUTSIDE an allowed receiver position has leaked to code that could mutate
+    # it (setattr/configure/pass-as-arg) -> poison file-wide. Uses the pre-escape
+    # resolution (a superset of the post-escape one), so every leak is caught and
+    # over-poisoning can only ever demote, never promote.
+    prelim = _OsUsage(scope_genuine, scope_poison, frozenset(module_poison), genuine_lineno)
+    escaped: set = set()
+    for name, nid, eff_chain, lineno in load_names:
+        if name not in genuine_names or name in escaped:
+            continue
+        kind = prelim._resolve_kind(name, eff_chain, lineno)
+        if kind is not None and not _escape_allowed(
+                kind, nid, attr_value_ids, subscript_value_ids, call_func_ids):
+            escaped.add(name)                            # bare name leaked out of a receiver slot
+    module_poison |= escaped
 
     usage = _OsUsage(
         {s: dict(b) for s, b in scope_genuine.items()},
