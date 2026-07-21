@@ -76,3 +76,34 @@ def test_render_declared_per_file_cap_not_per_section(tmp_path):
     assert "… (truncated)" in out
     # Loosely bounded: label + heading + one capped body, nowhere near 5 * 200 bytes.
     assert len(out.encode("utf-8")) < 600
+
+
+from src.agent.env_state import PIP_LIST_CMD, render_pip_list
+
+
+def test_pip_list_cmd_is_read_only_freeze():
+    assert "pip list" in PIP_LIST_CMD and "--format=freeze" in PIP_LIST_CMD
+
+
+def test_render_pip_list_formats_name_and_version():
+    raw = "flask==3.0.0\npsycopg2-binary==2.9.9\n"
+    out = render_pip_list(raw)
+    assert out == "pip installed (2): flask 3.0.0, psycopg2-binary 2.9.9"
+
+
+def test_render_pip_list_keeps_editable_and_skips_noise():
+    raw = "# comment\n\n-e git+https://x#egg=app\nclick==8.1.7\n"
+    out = render_pip_list(raw)
+    assert out.startswith("pip installed (2): ")
+    assert "-e git+https://x#egg=app" in out and "click 8.1.7" in out
+
+
+def test_render_pip_list_caps_and_counts_remainder():
+    raw = "".join(f"p{i}==1.0\n" for i in range(250))
+    out = render_pip_list(raw, cap=200)
+    assert out.startswith("pip installed (250): ")
+    assert ", +50 more" in out
+
+
+def test_render_pip_list_empty_when_no_packages():
+    assert render_pip_list("") == "" and render_pip_list("\n#x\n") == ""

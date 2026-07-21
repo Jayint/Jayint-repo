@@ -154,3 +154,27 @@ def render_declared(repo_path: "str | os.PathLike[str] | None", *, cap_bytes: in
     if not sections:
         return ""
     return "DECLARED (from the repo, static)\n" + "\n".join(sections)
+
+
+PIP_LIST_CMD = "python -m pip list --format=freeze 2>/dev/null"
+
+
+def render_pip_list(freeze_raw: str, *, cap: int = 200) -> str:
+    """`pip list --format=freeze` stdout → a one-line `pip installed (N): name ver, ...`.
+    Freeze format is one `name==version` per line (no columnar header to strip); editable /
+    URL installs (`-e ...`) have no `==` and are kept verbatim."""
+    pkgs: list[str] = []
+    for line in (freeze_raw or "").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "==" in line:
+            name, ver = line.split("==", 1)
+            pkgs.append(f"{name} {ver}")
+        else:
+            pkgs.append(line)
+    if not pkgs:
+        return ""
+    n = len(pkgs)
+    extra = f", +{n - cap} more" if n > cap else ""
+    return f"pip installed ({n}): " + ", ".join(pkgs[:cap]) + extra
