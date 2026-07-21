@@ -35,6 +35,27 @@ def test_build_stamps_resolved_python_on_project_node(tmp_path):
     assert project_resolved_python(g) == "3.10"
 
 
+def test_project_resolved_python_normalizes_and_validates():
+    from graph.model import (
+        DepGraph, Node, Layer, State, DiscoveredBy, runtime_id,
+    )
+    def _proj(minor):
+        return Node(id="project:x", type=NodeType.PROJECT, name="x", layer=Layer.PIP,
+                    discovered_by=DiscoveredBy.STATIC_SCAN, state=State.UNKNOWN,
+                    data={"resolved_python": minor})
+    # full patch stamp -> major.minor (READ-time normalization)
+    assert project_resolved_python(DepGraph(nodes=(_proj("3.11.9"),))) == "3.11"
+    # already-minor stamp passes through unchanged
+    assert project_resolved_python(DepGraph(nodes=(_proj("3.11"),))) == "3.11"
+    # garbage is not propagated
+    assert project_resolved_python(DepGraph(nodes=(_proj("not-a-version"),))) is None
+    # legacy RUNTIME-node fallback also normalizes a full version
+    rt = Node(id=runtime_id("3.10"), type=NodeType.RUNTIME, name="python 3.10.4",
+              layer=Layer.RUNTIME, discovered_by=DiscoveredBy.STATIC_SCAN,
+              state=State.UNKNOWN, version="3.10.4")
+    assert project_resolved_python(DepGraph(nodes=(rt,)), runtime_fallback=True) == "3.10"
+
+
 def test_rendered_setup_asserts_interpreter_minor(tmp_path):
     g = _build(tmp_path, "3.10")
     script = render_build_script(g)

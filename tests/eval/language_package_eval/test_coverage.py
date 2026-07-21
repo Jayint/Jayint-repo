@@ -208,6 +208,23 @@ class TestGraphTierExtraction:
         g = DepGraph().with_node(_node("pkg:x", NodeType.PACKAGE, "x", version="1.0"))
         assert runtime_minors_in_graph(g) == frozenset()
 
+    def test_runtime_minors_normalizes_full_patch_version_to_minor(self):
+        # An explicit resolved target may stamp a full patch version; the oracle
+        # grades in minors, so the reader must truncate (else 3.11 missing +
+        # 3.11.9 extra for the same interpreter).
+        from src.eval.language_package_eval.coverage import runtime_minors_in_graph
+        g = DepGraph().with_node(
+            _node("project:x", NodeType.PROJECT, "x", data={"resolved_python": "3.11.9"})
+        )
+        assert runtime_minors_in_graph(g) == frozenset({"3.11"})
+
+    def test_runtime_minors_rejects_garbage_stamp(self):
+        from src.eval.language_package_eval.coverage import runtime_minors_in_graph
+        g = DepGraph().with_node(
+            _node("project:x", NodeType.PROJECT, "x", data={"resolved_python": "not-a-version"})
+        )
+        assert runtime_minors_in_graph(g) == frozenset()
+
     def test_package_versions(self):
         from src.eval.language_package_eval.coverage import package_versions_in_graph
         assert package_versions_in_graph(_graph_for_scoring()) == {

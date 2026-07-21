@@ -552,26 +552,42 @@ def runtime_id(minor: str) -> str:
     return f"runtime:python-{minor}"
 
 
-def project_resolved_python(graph: "DepGraph", *, runtime_fallback: bool = False) -> str | None:
-    """The target python minor the graph was resolved for.
+_MINOR_RE = re.compile(r"^(\d+)\.(\d+)")
 
-    The PROJECT node carries it on ``data['resolved_python']`` (stamped in the
-    pipeline once the target env is known — construction no longer mints a
-    RUNTIME node for this). Returns ``None`` when it was never stamped; nothing
-    is invented (no host-python default).
+
+def project_resolved_python(graph: "DepGraph", *, runtime_fallback: bool = False) -> str | None:
+    """The target python the graph was resolved for, **normalized to
+    ``major.minor``** (READ-time normalization — single choke point).
+
+    The PROJECT node carries the raw value on ``data['resolved_python']``
+    (stamped in the pipeline once the target env is known — construction no
+    longer mints a RUNTIME node for this). The stamp may be a full patch version
+    (e.g. ``3.11.9`` from an explicit resolved target), but every consumer (the
+    setup.sh interpreter assertion and the eval RUNTIME-tier oracle, which
+    grades in minors) needs ``major.minor`` — so this reader truncates HERE,
+    once, rather than at each stamp/read site. Returns ``None`` when nothing is
+    stamped (no invented default) **and** when the stored value is not a valid
+    ``\\d+.\\d+`` (garbage is not propagated).
 
     ``runtime_fallback`` (readers of OLD on-disk graphs only): when the PROJECT
-    stamp is absent, fall back to a legacy RUNTIME node's ``version`` — graphs
-    serialized before RUNTIME minting was removed still carry one. The renderer
-    leaves this False so a graph without a fresh stamp renders no assertion.
+    stamp is absent, fall back to a legacy RUNTIME node's ``version`` (also
+    minor-normalized here) — graphs serialized before RUNTIME minting was
+    removed still carry one. The renderer leaves this False so a graph without a
+    fresh stamp renders no assertion.
     """
+    raw: str | None = None
     for n in graph.nodes:
         if n.type is NodeType.PROJECT:
             rp = n.data.get("resolved_python")
             if rp:
-                return rp
-    if runtime_fallback:
+                raw = rp
+                break
+    if raw is None and runtime_fallback:
         for n in graph.nodes:
             if n.type is NodeType.RUNTIME and n.version:
-                return n.version
-    return None
+                raw = n.version
+                break
+    if not raw:
+        return None
+    m = _MINOR_RE.match(str(raw))
+    return f"{m.group(1)}.{m.group(2)}" if m else None

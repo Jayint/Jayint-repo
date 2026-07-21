@@ -501,15 +501,18 @@ def test_interpreter_assertion_is_first_graph_derived_preamble_line():
     g = DepGraph(nodes=(_pkg("pkg:requests", "requests", "2.31.0"), _project_py("3.12")))
     out = render_build_script(g)
     lines = out.splitlines()
-    assertion = next(ln for ln in lines
-                     if ln.startswith("python3 -c") and "(3,12)" in ln.replace(" ", ""))
-    # After `set -Eeuo pipefail`, before the interpreter-agnostic instrument floor.
-    assert lines.index("set -Eeuo pipefail") < lines.index(assertion)
+    # POSITIONAL (not merely relative): the assertion comment is the FIRST
+    # non-blank line after `set -Eeuo pipefail`, and its command the second —
+    # ahead of the interpreter-agnostic normalize/pytest instrument floor.
+    pipefail = lines.index("set -Eeuo pipefail")
+    after = [ln for ln in lines[pipefail + 1:] if ln.strip()]
+    assert after[0].startswith("# Assert the interpreter minor")
+    assert after[1].startswith("python3 -c") and "(3,12)" in after[1].replace(" ", "")
     normalize = next(ln for ln in lines if "command -v python " in ln)
-    assert lines.index(assertion) < lines.index(normalize)
+    assert lines.index(after[1]) < lines.index(normalize)
     # Loud, minor-naming error message; single `python3 -c`, no double quotes inside.
     assert "graph resolved for python 3.12" in out
-    assert "sys.version_info" in assertion
+    assert "sys.version_info" in after[1]
 
 
 def test_no_interpreter_assertion_when_resolved_python_absent():
@@ -518,6 +521,39 @@ def test_no_interpreter_assertion_when_resolved_python_absent():
     out = render_build_script(g)
     assert "graph resolved for python" not in out
     assert "sys.version_info" not in out
+
+
+def test_interpreter_assertion_normalizes_full_patch_version_to_minor():
+    # A full patch stamp (3.12.4) renders a minor-only check + message (read-time
+    # normalization in project_resolved_python) — no `3.12.4` leaks into setup.sh.
+    g = DepGraph(nodes=(_project_py("3.12.4"),))
+    out = render_build_script(g)
+    assertion = next(ln for ln in out.splitlines() if ln.startswith("python3 -c"))
+    assert "(3,12)" in assertion.replace(" ", "")
+    assert "3.12.4" not in out
+    assert "graph resolved for python 3.12," in out
+
+
+def test_rendered_interpreter_assertion_executes_pass_and_fail():
+    # Execute the rendered line under `sh` with the CURRENT interpreter: a matching
+    # stamp exits 0; a wrong stamp exits nonzero and names the mismatch on stderr.
+    import subprocess
+    import sys
+
+    def _assertion_line(minor):
+        g = DepGraph(nodes=(_project_py(minor),))
+        return next(ln for ln in render_build_script(g).splitlines()
+                    if ln.startswith("python3 -c"))
+
+    real = f"{sys.version_info[0]}.{sys.version_info[1]}"
+    wrong = f"{sys.version_info[0]}.{sys.version_info[1] + 1}"  # can't equal the live minor
+
+    ok = subprocess.run(["sh", "-c", _assertion_line(real)], capture_output=True, text=True)
+    assert ok.returncode == 0, (ok.returncode, ok.stderr)
+
+    bad = subprocess.run(["sh", "-c", _assertion_line(wrong)], capture_output=True, text=True)
+    assert bad.returncode != 0
+    assert f"graph resolved for python {wrong}" in bad.stderr
 
 
 def test_pipefail_safe_instrument_floor_present():
