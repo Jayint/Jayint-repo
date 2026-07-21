@@ -138,12 +138,17 @@ def test_java_maps_to_default_jre(tmp_path):
     assert out.get(tool_id("java")).chosen_fix == "apt:default-jre-headless"
 
 
-def test_anchor_falls_back_to_test_node_without_project(tmp_path):
+def test_no_anchor_edge_without_project(tmp_path):
+    # The Project hub is the SOLE anchor: the pipeline mints it (_add_project_node)
+    # before this scan ever runs, so the old Test-node fallback was dead code. A
+    # hand-built graph with no Project still mints the tool node but draws no
+    # requires edge (never invent an owner) rather than hanging it off the Test goal.
     _write(tmp_path, "x.py", "import subprocess\nsubprocess.run(['git', 'log'])\n")
     test = Node(id=TEST_NODE_ID, type=NodeType.TEST, name="repo_tests_pass",
                 layer=Layer.TESTS, discovered_by=DiscoveredBy.GOAL)
     out = add_subprocess_tool_nodes(DepGraph(nodes=(test,)), str(tmp_path))
-    assert any(e.src == TEST_NODE_ID and e.dst == tool_id("git") for e in out.edges)
+    assert out.get(tool_id("git")) is not None                 # tool node still minted
+    assert not any(e.dst == tool_id("git") for e in out.edges)  # but unowned — no anchor edge
 
 
 def test_noop_when_no_tools_found(tmp_path):

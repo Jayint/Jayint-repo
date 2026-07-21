@@ -27,7 +27,7 @@ from graph.python.config_scan import _const_str, _is_excluded
 # `command -v <tool>` — it is a binary CAPABILITY, the same thing construction and runtime ingest
 # mint. Minting `tool:adb` here while ingest minted `binary:adb` put the same executable in the
 # graph twice, under two ids, with nothing to reconcile them.
-from graph.model import TEST_NODE_ID, capability_id
+from graph.model import capability_id
 from graph.model import (
     DepGraph,
     DiscoveredBy,
@@ -122,20 +122,17 @@ def scan_subprocess_tools(repo_path: str) -> dict[str, str]:
 
 
 def _anchor_id(graph: DepGraph) -> str | None:
-    """Node the discovered tools hang off: the repo's own code invokes them, so
-    prefer the Project hub; fall back to the Test goal; None if neither exists."""
+    """Node the discovered tools hang off: the Project hub (the repo's own code
+    invokes them), which the pipeline's ``_add_project_node`` always mints before
+    this scan runs. None only for a hand-built graph with no Project."""
     proj = next((n for n in graph.nodes if n.type is NodeType.PROJECT), None)
-    if proj is not None:
-        return proj.id
-    if graph.get(TEST_NODE_ID) is not None:
-        return TEST_NODE_ID
-    return None
+    return proj.id if proj is not None else None
 
 
 def add_subprocess_tool_nodes(graph: DepGraph, repo_path: str) -> DepGraph:
     """Add a ``Tool`` node (``apt:`` fix, ``command -v`` check) for each
     allowlisted CLI binary the repo shells out to, with a ``requires`` edge from
-    the Project (or Test) anchor. Returns a NEW graph; no-op when none found.
+    the Project anchor. Returns a NEW graph; no-op when none found.
 
     The tool NAME is the node's canonical id (``tool:adb``) — the apt package is
     the fix, not the identity — mirroring ``ldd_probe``'s soname-is-the-id rule.

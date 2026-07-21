@@ -34,7 +34,7 @@ import re
 from dataclasses import dataclass
 
 from graph.contracts.executor import Executor
-from graph.model import syslib_id, TEST_NODE_ID
+from graph.model import syslib_id
 from graph.model import (
     DepGraph, DiscoveredBy, Edge, EdgeType, Node, NodeType, State,
 )
@@ -224,21 +224,18 @@ _CORE_SONAMES: frozenset[str] = frozenset({
 
 
 def _anchor_id(graph: DepGraph) -> str | None:
-    """Node the discovered libs hang off: prefer the Project hub, else the Test
-    goal (both legal ``requires`` sources), else None."""
+    """Node the discovered libs hang off: the Project hub, which the pipeline's
+    ``_add_project_node`` always mints before this scan runs. None only for a
+    hand-built graph with no Project (a no-op — nothing to anchor)."""
     proj = next((n for n in graph.nodes if n.type is NodeType.PROJECT), None)
-    if proj is not None:
-        return proj.id
-    if graph.get(TEST_NODE_ID) is not None:
-        return TEST_NODE_ID
-    return None
+    return proj.id if proj is not None else None
 
 
 def add_ctypes_runtime_libs(graph: DepGraph, executor: Executor) -> DepGraph:
     """Scan the installed closure's source for ctypes/cffi library literals and
     mint a ``SystemLib`` node (apt fix via PROVIDER_TABLE) for each, anchored to
-    the Project (or Test) with a ``requires`` edge. Returns a NEW graph; a no-op
-    when no literals are found or no anchor exists. Idempotent: an existing
+    the Project with a ``requires`` edge. Returns a NEW graph; a no-op when no
+    literals are found or no anchor exists. Idempotent: an existing
     ``syslib:<soname>`` node is kept (only the edge is added)."""
     result = executor.run(CTYPES_GREP_CMD)
     hits = parse_ctypes_grep(result.stdout or "")
