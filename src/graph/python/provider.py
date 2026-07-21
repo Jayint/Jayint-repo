@@ -21,6 +21,7 @@ from graph.contracts.executor import Executor
 from graph.python.lanes.install.ground import DistGuesser, RecordProvider
 from graph.model import DepGraph
 from graph.python.read.evidence import collect_python_dependency_evidence
+from graph.runtime_plan import RuntimePlan, EMPTY_PLAN
 
 
 class PythonProvider:
@@ -80,7 +81,11 @@ class PythonProvider:
 
     def service_obligations(
         self, graph: DepGraph, repo: str, service_classifier: object | None = None
-    ) -> DepGraph:
+    ) -> "tuple[DepGraph, RuntimePlan]":
+        # Task 4: the classifier returns a RuntimePlan (Service+Config construction
+        # artifact); the GRAPH is passed through UNCHANGED (services/config no longer
+        # live in the constructed graph — the loop re-admits plan services at loop
+        # start). ``service_classifier is None`` => empty plan, graph untouched.
         if service_classifier is None:
-            return graph
-        return service_classifier(graph, repo)
+            return graph, EMPTY_PLAN
+        return graph, service_classifier(graph, repo)

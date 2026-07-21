@@ -4,22 +4,28 @@ The LLM-free, table-free replacement for the env-classifier's Service+Config out
 reads the repo, builds one evidence-only ServiceNode per declared backing service (via
 :func:`service_construct.build_service_nodes` — no model, no service ``kind`` table),
 attaches a derived ``data["setup"]`` compat view ONLY to certifiable services, repoints
-config DSNs into ``setup["bind"]``, and emits advisory Config hint nodes — all admitted
-through the pure :func:`patch_gate.admit_proposal`. A ``declared_unverifiable`` service
-(no probe) is still admitted and surfaced to the agent, but carries no ``setup``.
+config DSNs into ``setup["bind"]``, and derives advisory Config obligations. A
+``declared_unverifiable`` service (no probe) is still surfaced to the agent, but carries
+no ``setup``.
 
-Every graph node gets a canonical ``data["service"]`` (``dataclasses.asdict(ServiceNode)``)
-plus, when certifiable, the derived ``data["setup"]`` view — so the eight existing readers
-of ``data["setup"]`` keep working unchanged, and ``emit._is_service_reciped``
-(``bool(data.get("setup"))``) means "certifiable" for free.
+Task 4 — the classifier NO LONGER admits Service/Config nodes into the constructed
+graph. It returns a :class:`RuntimePlan` (the construction artifact + serialization
+boundary): SERVICE ``Node`` objects go in ``service_obligations`` (still built through
+the pure :func:`patch_gate.admit_proposal` so the setup-shape / probe / evidence
+validation is unchanged — they are extracted from the admitted throwaway graph), and the
+Config tier goes in ``config_obligations`` as ``(var, value, provenance, bake_eligible)``.
+The v3-arm loop later re-admits ``service_obligations`` into its working graph (same ids
+→ ``with_node`` idempotency), so certify/frontier/hollow-pass/advise/repoint keep reading
+SERVICE nodes from the graph unchanged.
+
+Every service Node still gets a canonical ``data["service"]`` (``asdict(ServiceNode)``)
+plus, when certifiable, the derived ``data["setup"]`` view.
 
 Kept in its OWN module; ``make_construction_classifier`` (below) is the entrypoint
 ``run_v3_e2e`` / ``build_advisory_for_repo`` call.
 
-Best-effort: the whole body is wrapped in a try/except that returns the input ``graph``
-on any error — this NEVER raises into the build. Every admitted ``NodeSpec.evidence_ref``
-is a real ``collect_static_evidence`` bundle id (else ``validate_proposal`` would reject
-the batch).
+Best-effort: the whole body is wrapped in a try/except that returns an EMPTY plan on any
+error — this NEVER raises into the build.
 """
 from __future__ import annotations
 
@@ -44,13 +50,12 @@ from graph.patch.gate import admit_proposal
 from graph.python.services.repoint import render_bind_steps
 from graph.python.services.service_construct import build_service_nodes
 from graph.python.read.static_collect import collect_static_evidence
+from graph.runtime_plan import ConfigObligation, RuntimePlan, EMPTY_PLAN
 
 logger = logging.getLogger(__name__)
 
 # Evidence kinds that name a concrete service/kind — preferred anchor for a Service node.
 _STRONG_SERVICE_KINDS = frozenset({"compose_service", "service_binding", "ci_service"})
-# Evidence kinds that name a read/declared env var — preferred anchor for a Config node.
-_CONFIG_EVIDENCE_KINDS = frozenset({"env_read", "env_var"})
 
 
 def _looks_like_dsn(value: str) -> bool:
@@ -92,28 +97,6 @@ def _service_evidence(hits, service_name: str, kind: str | None) -> str:
     """A bundle id anchoring this service: a strong hit naming it, else any bundle id."""
     for h in hits:
         if h.kind in _STRONG_SERVICE_KINDS and h.name in (service_name, kind):
-            return h.evidence_id
-    return hits[0].evidence_id
-
-
-# The evidence kind that anchors each provenance rung to its WINNING source: rung 1
-# (authoritative config) -> the tox.ini/pytest.ini/... row, rung 2 (.env.example) ->
-# the env_var row, rung 3 (code scan) -> the code-read row. B1 residual (b): the node
-# must show the source that actually WON the value, not merely the first hit naming it.
-_RUNG_EVIDENCE_KIND: dict[int, str] = {1: "config_file", 2: "env_var", 3: "env_read"}
-
-
-def _config_evidence(hits, var: str, provenance: dict | None = None) -> str:
-    """A bundle id anchoring this config var to the source that WON its value
-    (per ``provenance['rung']``) when such a hit exists, else any hit naming the
-    var, else any bundle id."""
-    preferred = _RUNG_EVIDENCE_KIND.get(provenance["rung"]) if isinstance(provenance, dict) else None
-    if preferred is not None:
-        for h in hits:
-            if h.kind == preferred and h.name == var:
-                return h.evidence_id
-    for h in hits:
-        if h.kind in _CONFIG_EVIDENCE_KINDS and h.name == var:
             return h.evidence_id
     return hits[0].evidence_id
 
@@ -181,14 +164,16 @@ def _resolve_config_value(var, ambiguous, authoritative, example_prov, defaults_
     return None, None
 
 
-def _config_nodes(repo_path, hits) -> list[NodeSpec]:
-    """One advisory Config hint NodeSpec per env var the tests read (never scheduled).
+def _config_obligations(repo_path) -> list[ConfigObligation]:
+    """One advisory :class:`ConfigObligation` per env var the tests read (never
+    scheduled). Task 4 — the Config tier is plan-only now (no graph node, no gate,
+    no evidence anchor): the obligation carries ``(var, value, provenance,
+    bake_eligible)``, consumed ONLY by the render's ``#@config-env`` marker block.
 
     FIX B1 + MEASURED REGRESSION FIX (django-oauth-toolkit): when a value for
-    that var is statically known, it is attached as ``data["config_value"]`` so
-    ``build_script._config_env_marker`` can bake it into the image as a
-    Dockerfile ``ENV`` at render time. A var with no discoverable value is left
-    exactly as before: a nameless advisory hint with no value payload.
+    that var is statically known it is carried as ``value`` so the renderer can
+    bake it into the image as a Dockerfile ``ENV``. A var with no discoverable
+    value stays a nameless advisory hint (``value=None``).
 
     Value PROVENANCE precedence (highest first) -- this is the fix, not just
     the category-safe allowlist that predates it:
@@ -218,74 +203,74 @@ def _config_nodes(repo_path, hits) -> list[NodeSpec]:
     ambiguous = authoritative_ambiguous_vars(repo_path)
     example = parse_env_example_provenance(repo_path)
     defaults = scan_env_defaults_provenance(repo_path)
-    specs: list[NodeSpec] = []
+    obs: list[ConfigObligation] = []
     for var in sorted(read_vars):
         value, provenance = _resolve_config_value(var, ambiguous, authoritative, example, defaults)
-        data = None
-        if value is not None:
-            data = {"config_provenance": provenance}
-        if value is not None and not _looks_like_dsn(value):
-            # DSN-SHAPED VALUES ARE DELIBERATELY EXCLUDED HERE -- this is a
-            # false-green guard, not an optimisation. Config nodes are
-            # advisory by design (no probe, never certified -- see module
-            # docstring above). A stale `.env.example` DSN (e.g.
-            # DATABASE_URL=postgres://localhost/db) baked straight into the
-            # image as `ENV` would let the app import cleanly while silently
-            # pointing at the WRONG host, masking a real failure instead of
-            # surfacing it -- exactly the false-green class this codebase has
-            # been burned by before. A DSN-shaped value already has a
-            # CERTIFIED binding path (`_dsn_configs` -> `render_bind_steps` ->
-            # `setup["bind"]`); the uncertified bake here must not compete
-            # with it. Do NOT remove this exclusion to "support more vars" --
-            # scope this feature to non-DSN scalars (DJANGO_SETTINGS_MODULE,
-            # ENVIRONMENT, ...). Provenance is still recorded on the node above
-            # (a DSN is a discovered value too); only the bakeable value is withheld.
-            data["config_value"] = value
-        specs.append(NodeSpec(
-            id=f"config:{var}", type="Config", name=var, layer="config",
-            promotion="hint", check_command=None,
-            evidence_ref=_config_evidence(hits, var, provenance),
-            data=data,
-        ))
-    return specs
+        # DSN-SHAPED VALUES ARE DELIBERATELY WITHHELD FROM BAKE -- this is a
+        # false-green guard, not an optimisation. Config obligations are advisory
+        # by design (never certified). A stale `.env.example` DSN (e.g.
+        # DATABASE_URL=postgres://localhost/db) baked straight into the image as
+        # `ENV` would let the app import cleanly while silently pointing at the
+        # WRONG host, masking a real failure -- exactly the false-green class this
+        # codebase has been burned by before. A DSN-shaped value already has a
+        # CERTIFIED binding path (`_dsn_configs` -> `render_bind_steps` ->
+        # `setup["bind"]`); the uncertified bake must not compete with it. Do NOT
+        # remove this exclusion to "support more vars" -- scope this feature to
+        # non-DSN scalars (DJANGO_SETTINGS_MODULE, ...). Provenance is still
+        # recorded on the obligation (a DSN is a discovered value too); only the
+        # bakeable value is withheld.
+        bake_value = value if (value is not None and not _looks_like_dsn(value)) else None
+        obs.append(ConfigObligation.create(var, bake_value, provenance))
+    return obs
+
+
+def _service_obligations(graph, repo_path: str, arch, client, model) -> tuple:
+    """The gate-validated SERVICE ``Node`` objects for the plan.
+
+    Services are still built as ``NodeSpec``s and run through the pure
+    :func:`patch_gate.admit_proposal` (against a THROWAWAY copy of ``graph``) so the
+    setup-shape / non-empty-probe / read-only / evidence validation is UNCHANGED; the
+    admitted SERVICE nodes are then extracted from the throwaway result and handed to
+    the plan. The input ``graph`` is never mutated. Empty tuple when the repo declares
+    no service (or the batch is rejected)."""
+    hits = collect_static_evidence(repo_path, graph)
+    if not hits:
+        return ()
+    bundle_ids = frozenset(h.evidence_id for h in hits)
+    configs = _dsn_configs(repo_path)
+    service_nodes = _service_nodes(repo_path, arch, client, model, hits, configs)
+    if not service_nodes:
+        return ()
+    proposal = PatchProposal(add_requirements=tuple(service_nodes), add_edges=())
+    result = admit_proposal(graph, proposal, known_evidence_ids=bundle_ids)
+    if not result.accepted:
+        logger.warning("clean service proposal rejected: %s", result.errors)
+        return ()
+    return tuple(n for spec in service_nodes if (n := result.graph.get(spec.id)) is not None)
 
 
 def classify_services_clean(graph, repo_path: str, client=None, model: str = "",
-                            arch: dict | None = None):
-    """Admit deterministic Service + Config nodes for ``repo_path`` into ``graph``.
+                            arch: dict | None = None) -> RuntimePlan:
+    """Build the Service + Config :class:`RuntimePlan` for ``repo_path``.
 
-    Returns a NEW graph with the admitted nodes, or the input ``graph`` unchanged on a
-    rejected proposal or ANY error (best-effort — never crashes the build).
-    """
+    Returns a ``RuntimePlan`` (the construction artifact); the input ``graph`` is NEVER
+    modified — Task 4 moves Service/Config out of the constructed graph. On ANY error the
+    ``EMPTY_PLAN`` is returned (best-effort — never crashes the build)."""
     try:
         arch = arch or {}
-        hits = collect_static_evidence(repo_path, graph)
-        if not hits:
-            return graph
-        bundle_ids = frozenset(h.evidence_id for h in hits)
-
-        configs = _dsn_configs(repo_path)
-        service_nodes = _service_nodes(repo_path, arch, client, model, hits, configs)
-        config_nodes = _config_nodes(repo_path, hits)
-
-        proposal = PatchProposal(
-            add_requirements=tuple(service_nodes + config_nodes), add_edges=())
-        if proposal.is_empty():
-            return graph
-        result = admit_proposal(graph, proposal, known_evidence_ids=bundle_ids)
-        if not result.accepted:
-            logger.warning("clean service/config proposal rejected: %s", result.errors)
-            return graph
-        return result.graph
+        service_obs = _service_obligations(graph, repo_path, arch, client, model)
+        config_obs = tuple(_config_obligations(repo_path))
+        return RuntimePlan(service_obligations=service_obs, config_obligations=config_obs)
     except Exception as exc:                     # best-effort: never crash the build
         logger.warning("clean service/config classify skipped: %s", exc)
-        return graph
+        return EMPTY_PLAN
 
 
 def make_construction_classifier(client=None, model: str = "", arch: dict | None = None):
-    """Return classify(graph, repo_path) -> graph: the evidence-only construction-time
-    Service+Config classifier (replaces the deleted LLM env_classifier). No model is
-    ever called; ``client``/``model``/``arch`` are accepted for call-site parity only."""
-    def classify(graph, repo_path: str):
+    """Return classify(graph, repo_path) -> RuntimePlan: the evidence-only
+    construction-time Service+Config classifier (replaces the deleted LLM
+    env_classifier). No model is ever called; ``client``/``model``/``arch`` are
+    accepted for call-site parity only."""
+    def classify(graph, repo_path: str) -> RuntimePlan:
         return classify_services_clean(graph, repo_path, client=client, model=model, arch=arch)
     return classify

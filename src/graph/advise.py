@@ -350,7 +350,8 @@ def build_advisory_for_repo(
     classify: Callable | None = None,
     uv_sources_enabled: bool = False,
     llm_dist_guesser: DistGuesser | None = None,
-) -> tuple[str, DepGraph | None]:
+    return_plan: bool = False,
+):
     """Build the dep graph in a fresh scratch container and render the advisory.
 
     Returns ``(advisory_str, graph)``.  On **any** failure (Docker down, resolve
@@ -394,11 +395,21 @@ def build_advisory_for_repo(
                 uv_sources_enabled=uv_sources_enabled,
                 llm_dist_guesser=llm_dist_guesser,
             )
+        from graph.runtime_plan import EMPTY_PLAN
+        plan = EMPTY_PLAN
         if classify is not None:
             from graph.contracts.registry import PROVIDERS, select_provider   # defensive: mirrors build.py's provider-import style
             provider = select_provider(repo_path, PROVIDERS, default=PROVIDERS[0])
-            graph = provider.service_obligations(graph, repo_path, classify)   # Phase 3
-        return render_dep_graph_advisory(graph), graph
+            # Task 4: service_obligations returns (graph, plan). The GRAPH is unchanged
+            # (Service/Config are the construction artifact now); the plan carries them.
+            graph, plan = provider.service_obligations(graph, repo_path, classify)   # Phase 3
+        advisory = render_dep_graph_advisory(graph)
+        if return_plan:
+            return advisory, graph, plan
+        return advisory, graph
     except Exception as exc:  # noqa: BLE001 — advisory must never break a run
         logger.warning("dep-graph advisory unavailable: %s", exc)
+        from graph.runtime_plan import EMPTY_PLAN
+        if return_plan:
+            return "", None, EMPTY_PLAN
         return "", None

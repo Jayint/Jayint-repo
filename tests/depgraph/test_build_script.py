@@ -6,6 +6,13 @@ from graph.model import (
 from graph.compile.build_script import render_build_script, _LAYER_ORDER
 from graph.patch.block import Block, compile_replay_blocks
 from graph.compile.emit import _is_reciped, _apt_name, _pip_spec
+from graph.runtime_plan import ConfigObligation, RuntimePlan
+
+
+def _cfg_plan(var, value, provenance=None):
+    """A RuntimePlan carrying ONE Config obligation — the Task-4 marker path
+    (classify -> RuntimePlan -> render_build_script(plan=...))."""
+    return RuntimePlan(config_obligations=(ConfigObligation.create(var, value, provenance),))
 
 
 def test_empty_graph_emits_preamble():
@@ -218,7 +225,10 @@ def _need(id_, type_, name, layer, **kw):
                 discovered_by=DiscoveredBy.STATIC_SCAN, state=State.MISSING, **kw)
 
 
-def test_need_stubs_are_comment_only():
+def test_need_stubs_are_deleted():
+    # Task 4: the CONFIG/SERVICE `#@need` stub tier is GONE. A graph carrying
+    # advisory CONFIG/SERVICE nodes renders NO stub for them (Config moved to the
+    # RuntimePlan; an advisory service is surfaced via the plan, not setup.sh).
     g = DepGraph(nodes=(
         _pkg("pkg:psycopg2", "psycopg2", "2.9.9"),
         _need("service:postgres", NodeType.SERVICE, "postgres", Layer.SERVICES,
@@ -227,29 +237,12 @@ def test_need_stubs_are_comment_only():
               evidence="ev:settings:DATABASE_URL"),
     ))
     out = render_build_script(g)
-    assert "#@need service:postgres  state=missing" in out
-    assert "#@check pg_isready -q" in out
-    assert "#@need config:DATABASE_URL  state=missing" in out
-    # services/config render AFTER pip (highest layer rank)
-    assert out.index("psycopg2==2.9.9") < out.index("#@need service:postgres")
-    # the stub carries NO real command. SERVICES is the last layer, so the
-    # service stub runs to EOF; every non-blank line there must be a comment.
-    lines = out.splitlines()
-    start = next(i for i, ln in enumerate(lines)
-                 if ln.startswith("#@need service:postgres"))
-    body = lines[start:]
-    assert any("(no command" in ln for ln in body)
-    for ln in body:
-        if ln.strip():
-            assert ln.startswith("#"), f"non-comment line in #@need stub: {ln!r}"
-
-    # exhaustively prove EVERY #@need stub (config + service) is comment-only:
-    # anchor at the first #@need line — from there to EOF there must be no
-    # executable line (every non-blank line starts with '#').
-    first_need = next(i for i, ln in enumerate(lines) if ln.startswith("#@need "))
-    for ln in lines[first_need:]:
-        if ln.strip():
-            assert ln.startswith("#"), f"non-comment line in #@need region: {ln!r}"
+    assert "#@need" not in out
+    assert "(no command" not in out
+    assert "# ==================== CONFIG ====================" not in out
+    assert "# ==================== SERVICES ====================" not in out
+    # the real pip node still renders
+    assert "psycopg2==2.9.9" in out
 
 
 def test_manual_block_renders_and_suppresses_its_need():
@@ -273,14 +266,16 @@ def test_manual_block_renders_and_suppresses_its_need():
     assert "#@need service:postgres" not in out
 
 
-def test_uncovered_need_still_stubbed_with_block_present():
+def test_uncovered_config_node_renders_no_stub():
+    # Task 4: no `#@need` stubs — a graph CONFIG node renders nothing, block present
+    # or not (Config lives in the RuntimePlan now, not the graph).
     g = DepGraph(nodes=(
         _need("config:DATABASE_URL", NodeType.CONFIG, "DATABASE_URL", Layer.CONFIG),
     ))
     blk = Block(block_id="svc:x", wave="services", commands=("true",),
                 target_node_ids=("service:other",))
     out = render_build_script(g, manual_blocks=(blk,))
-    assert "#@need config:DATABASE_URL" in out
+    assert "#@need config:DATABASE_URL" not in out
 
 
 def test_block_appears_in_its_wave_section_after_pip():
@@ -303,7 +298,7 @@ def test_block_with_empty_targets_renders_and_covers_nothing():
     out = render_build_script(g, manual_blocks=(blk,))
     assert "#@block meta:setup" in out
     assert "echo setup" in out
-    assert "#@need config:DATABASE_URL" in out          # empty targets -> no coverage
+    assert "#@need config:DATABASE_URL" not in out       # Task 4: no need stubs at all
 
 
 def test_block_with_unknown_wave_raises():
@@ -325,7 +320,7 @@ def test_manifest_counts_hash_and_meta():
     ))
     out = render_build_script(g)
     preamble = out[:out.index("set -Eeuo pipefail")]
-    assert "#   nodes: 2 reciped (1 system, 1 pip) + 1 needs (1 service)" in preamble
+    assert "#   nodes: 2 reciped (1 system, 1 pip)" in preamble   # Task 4: no "+ N needs"
     assert "#   graph-hash: sha256:" in preamble
     # meta fields live in the comment header, before the set line (not in body)
     for needle in ("python: 3.11", "platform: linux/amd64", "exclude-newer: 2026-06-01"):
@@ -427,7 +422,7 @@ def test_golden_snapshot_byte_for_byte():
         "# setup.sh — COMPILED from the certified dependency graph. DO NOT EDIT.\n"
         "# Edit the graph and re-render; this file is an artifact, not a source.\n"
         "#\n"
-        "#   nodes: 4 reciped (1 system, 1 toolchain, 2 pip) + 2 needs (1 service, 1 config)\n"
+        "#   nodes: 4 reciped (1 system, 1 toolchain, 2 pip)\n"
         "#   graph-hash: sha256:<HASH>\n"
         "#\n"
         "set -Eeuo pipefail\n"
@@ -473,19 +468,9 @@ def test_golden_snapshot_byte_for_byte():
         "else\n"
         '    echo "V3_NODE_INSTALL_FAILED pkg:typing-extensions" >> /tmp/v3_failed_nodes.log\n'
         "fi\n"
-        "\n"
-        "# ==================== CONFIG ====================\n"
-        "#\n"
-        "#@need config:DATABASE_URL  state=missing\n"
-        "#@evidence ev:settings:DATABASE_URL\n"
-        "#     (no command — propose a governed block to satisfy this)\n"
-        "\n"
-        "# ==================== SERVICES ====================\n"
-        "#\n"
-        "#@need service:postgres  state=missing\n"
-        "#@check pg_isready -q\n"
-        "#@evidence ev:readme:db\n"
-        "#     (no command — propose a governed block to satisfy this)\n"
+        # Task 4: the CONFIG + SERVICES `#@need` stub sections are gone — advisory
+        # CONFIG/SERVICE graph nodes render nothing (Config -> RuntimePlan marker
+        # block; advisory service -> plan/advise, never a setup.sh line).
     )
     assert normalized == expected
 
@@ -599,121 +584,73 @@ def test_build_script_order_agrees_with_certify_on_shared_tiers():
 # layer). No value known -> unchanged advisory-comment-only stub.
 # ---------------------------------------------------------------------------
 
-def test_config_need_with_known_value_emits_config_env_marker():
-    g = DepGraph(nodes=(
-        _need("config:DJANGO_SETTINGS_MODULE", NodeType.CONFIG,
-              "DJANGO_SETTINGS_MODULE", Layer.CONFIG,
-              data={"config_value": "settings",
-                    "config_provenance": {"rung": 1, "source": "authoritative_config"}}),
-    ))
-    out = render_build_script(g)
+def test_config_marker_from_plan_is_comment_only_after_pip():
+    # Task 4: markers come from the RuntimePlan into a dedicated block immediately
+    # after the PIP section. The block is comment-only (a hand-off for the Dockerfile
+    # renderer, never a live command — setup.sh's own `export` dies with its RUN layer).
+    g = DepGraph(nodes=(_pkg("pkg:psycopg2", "psycopg2", "2.9.9"),))
+    plan = _cfg_plan("DJANGO_SETTINGS_MODULE", "settings",
+                     {"rung": 1, "source": "authoritative_config"})
+    out = render_build_script(g, plan=plan)
     assert "#@config-env DJANGO_SETTINGS_MODULE=settings" in out
-    # still comment-only: setup.sh runs in a Docker RUN layer, so `export` here
-    # would never persist into the later container the tests run in — the
-    # marker is a hand-off for the Dockerfile renderer, not a live command.
     lines = out.splitlines()
-    marker_line = next(ln for ln in lines if ln.startswith("#@config-env"))
-    assert marker_line.startswith("#")
+    marker_i = next(i for i, ln in enumerate(lines) if ln.startswith("#@config-env"))
+    assert lines[marker_i].startswith("#")
+    # the block's header comment is present and precedes the marker
+    header_i = next(i for i, ln in enumerate(lines) if ln.startswith("# ---- Config env"))
+    assert header_i < marker_i
+    # position: after the pip install line
+    assert out.index("psycopg2==2.9.9") < out.index("#@config-env")
 
 
-def test_config_need_without_value_has_no_marker():
-    g = DepGraph(nodes=(
-        _need("config:DATABASE_URL", NodeType.CONFIG, "DATABASE_URL", Layer.CONFIG),
-    ))
-    out = render_build_script(g)
+def test_config_marker_without_value_has_no_marker():
+    out = render_build_script(DepGraph(), plan=_cfg_plan("DATABASE_URL", None))
     assert "#@config-env" not in out
-    assert "#     (no command — propose a governed block to satisfy this)" in out
+    assert "# ---- Config env" not in out                # empty block is a strict no-op
 
 
-def test_config_need_with_unknown_sentinel_has_no_marker():
-    g = DepGraph(nodes=(
-        _need("config:DEBUG", NodeType.CONFIG, "DEBUG", Layer.CONFIG,
-              data={"config_value": "?"}),
-    ))
-    out = render_build_script(g)
+def test_config_marker_with_unknown_sentinel_has_no_marker():
+    out = render_build_script(DepGraph(), plan=_cfg_plan("DEBUG", "?"))
     assert "#@config-env" not in out
 
 
-def test_config_env_marker_skips_secret_named_vars():
-    g = DepGraph(nodes=(
-        _need("config:DJANGO_SECRET_KEY", NodeType.CONFIG, "DJANGO_SECRET_KEY",
-              Layer.CONFIG, data={"config_value": "insecure-dev-key"}),
-    ))
-    out = render_build_script(g)
+def test_config_marker_skips_secret_named_vars():
+    out = render_build_script(DepGraph(), plan=_cfg_plan("DJANGO_SECRET_KEY", "insecure-dev-key"))
     assert "#@config-env" not in out
 
 
-def test_config_env_marker_skips_denylisted_incidentals():
-    g = DepGraph(nodes=(
-        _need("config:PYTHONPATH", NodeType.CONFIG, "PYTHONPATH", Layer.CONFIG,
-              data={"config_value": "/app"}),
-    ))
-    out = render_build_script(g)
+def test_config_marker_skips_denylisted_incidentals():
+    out = render_build_script(DepGraph(), plan=_cfg_plan("PYTHONPATH", "/app"))
     assert "#@config-env" not in out
 
 
-def test_config_env_marker_skips_value_containing_newline():
+def test_config_marker_skips_value_containing_newline():
     # A multi-line value cannot round-trip through a single "#@config-env
-    # VAR=value" comment line; the refusal guard must still hold now that the
-    # value is read from `data["config_value"]` instead of `chosen_fix`.
-    g = DepGraph(nodes=(
-        _need("config:MULTILINE_VAR", NodeType.CONFIG, "MULTILINE_VAR", Layer.CONFIG,
-              data={"config_value": "line1\nline2"}),
-    ))
-    out = render_build_script(g)
+    # VAR=value" comment line; the refusal guard must hold on the plan value.
+    out = render_build_script(DepGraph(), plan=_cfg_plan("MULTILINE_VAR", "line1\nline2"))
     assert "#@config-env" not in out
-
-
-def test_need_stubs_with_config_env_marker_still_comment_only():
-    # Regression-proof the exhaustive comment-only invariant from
-    # test_need_stubs_are_comment_only above, now that CONFIG needs can carry
-    # an extra `#@config-env` line.
-    g = DepGraph(nodes=(
-        _pkg("pkg:psycopg2", "psycopg2", "2.9.9"),
-        _need("config:DJANGO_SETTINGS_MODULE", NodeType.CONFIG,
-              "DJANGO_SETTINGS_MODULE", Layer.CONFIG,
-              data={"config_value": "settings",
-                    "config_provenance": {"rung": 1, "source": "authoritative_config"}}),
-    ))
-    out = render_build_script(g)
-    lines = out.splitlines()
-    first_need = next(i for i, ln in enumerate(lines) if ln.startswith("#@need "))
-    for ln in lines[first_need:]:
-        if ln.strip():
-            assert ln.startswith("#"), f"non-comment line in #@need region: {ln!r}"
 
 
 # ---------------------------------------------------------------------------
 # Task 3 (B1 review #1) — bake-eligibility FAILS CLOSED on config provenance:
 # only rung 1 / rung 2 / rung 3+`code_scan_setdefault` bake. Absent, malformed,
 # unknown-source, and serialized-legacy provenance are advisory-only (never bake).
+# Now carried on the RuntimePlan's ConfigObligation.bake_eligible.
 # ---------------------------------------------------------------------------
 
-_UNSET = object()   # distinguishes "no provenance key at all" from an explicit None
-
-
-def _cfg_need(value, provenance=_UNSET):
-    kw = {"config_value": value}
-    if provenance is not _UNSET:
-        kw["config_provenance"] = provenance
-    return _need("config:DJANGO_SETTINGS_MODULE", NodeType.CONFIG,
-                 "DJANGO_SETTINGS_MODULE", Layer.CONFIG, data=kw)
-
-
-def test_config_env_marker_refused_when_provenance_absent():
-    # A legacy / hand-built CONFIG node carrying only `config_value` (no
-    # provenance) must NOT bake -- fail closed, no matter the allowlist.
-    out = render_build_script(DepGraph(nodes=(_cfg_need("settings"),)))
+def test_config_marker_refused_when_provenance_absent():
+    # A value with NO provenance must NOT bake -- fail closed, no matter the allowlist.
+    out = render_build_script(DepGraph(), plan=_cfg_plan("DJANGO_SETTINGS_MODULE", "settings", None))
     assert "#@config-env" not in out
 
 
-def test_config_env_marker_refused_for_rung3b_fallback():
-    out = render_build_script(DepGraph(nodes=(
-        _cfg_need("settings", {"rung": 3, "source": "code_scan_fallback"}),)))
+def test_config_marker_refused_for_rung3b_fallback():
+    out = render_build_script(DepGraph(), plan=_cfg_plan(
+        "DJANGO_SETTINGS_MODULE", "settings", {"rung": 3, "source": "code_scan_fallback"}))
     assert "#@config-env" not in out
 
 
-def test_config_env_marker_refused_for_malformed_provenance():
+def test_config_marker_refused_for_malformed_provenance():
     bad_provenances = (
         None, {}, "nope", 3,
         {"rung": 99},                                   # unknown rung
@@ -728,43 +665,45 @@ def test_config_env_marker_refused_for_malformed_provenance():
         {"rung": 1.0, "source": "authoritative_config"},    # float rung is not an int
     )
     for bad in bad_provenances:
-        out = render_build_script(DepGraph(nodes=(_cfg_need("settings", bad),)))
+        out = render_build_script(DepGraph(), plan=_cfg_plan("DJANGO_SETTINGS_MODULE", "settings", bad))
         assert "#@config-env" not in out, f"malformed provenance baked: {bad!r}"
 
 
-def test_config_env_marker_refused_for_unknown_rung3_source():
-    out = render_build_script(DepGraph(nodes=(
-        _cfg_need("settings", {"rung": 3, "source": "code_scan_bogus"}),)))
+def test_config_marker_refused_for_unknown_rung3_source():
+    out = render_build_script(DepGraph(), plan=_cfg_plan(
+        "DJANGO_SETTINGS_MODULE", "settings", {"rung": 3, "source": "code_scan_bogus"}))
     assert "#@config-env" not in out
 
 
-def test_config_env_marker_bakes_for_each_valid_rung2_env_file():
+def test_config_marker_bakes_for_each_valid_rung2_env_file():
     for src in (".env.example", ".env.sample", ".env.template"):
-        out = render_build_script(DepGraph(nodes=(
-            _cfg_need("settings", {"rung": 2, "source": src}),)))
+        out = render_build_script(DepGraph(), plan=_cfg_plan(
+            "DJANGO_SETTINGS_MODULE", "settings", {"rung": 2, "source": src}))
         assert "#@config-env DJANGO_SETTINGS_MODULE=settings" in out, src
 
 
-def test_config_env_marker_bakes_for_rung3a_setdefault():
-    out = render_build_script(DepGraph(nodes=(
-        _cfg_need("settings", {"rung": 3, "source": "code_scan_setdefault"}),)))
+def test_config_marker_bakes_for_rung3a_setdefault():
+    out = render_build_script(DepGraph(), plan=_cfg_plan(
+        "DJANGO_SETTINGS_MODULE", "settings", {"rung": 3, "source": "code_scan_setdefault"}))
     assert "#@config-env DJANGO_SETTINGS_MODULE=settings" in out
 
 
-def test_config_provenance_survives_json_round_trip_and_gate_still_refuses_3b():
-    # Serialized-graph path (Node.from_dict): provenance survives to_dict/from_dict
-    # and the gate still refuses a rung-3b value after the round trip.
-    node = _cfg_need("settings", {"rung": 3, "source": "code_scan_fallback"})
-    restored = Node.from_dict(node.to_dict())
-    assert restored.data["config_provenance"] == {"rung": 3, "source": "code_scan_fallback"}
-    out = render_build_script(DepGraph(nodes=(restored,)))
+def test_config_obligation_survives_json_round_trip_and_gate_still_refuses_3b():
+    # Serialized-plan path (ConfigObligation.from_dict): bake_eligible survives the
+    # round trip and the renderer still refuses a rung-3b value.
+    ob = ConfigObligation.create("DJANGO_SETTINGS_MODULE", "settings",
+                                 {"rung": 3, "source": "code_scan_fallback"})
+    restored = ConfigObligation.from_dict(ob.to_dict())
+    assert restored.bake_eligible is False
+    out = render_build_script(DepGraph(), plan=RuntimePlan(config_obligations=(restored,)))
     assert "#@config-env" not in out
 
 
-def test_config_provenance_survives_json_round_trip_and_bakes_eligible():
-    node = _cfg_need("settings", {"rung": 1, "source": "authoritative_config"})
-    restored = Node.from_dict(node.to_dict())
-    out = render_build_script(DepGraph(nodes=(restored,)))
+def test_config_obligation_survives_json_round_trip_and_bakes_eligible():
+    ob = ConfigObligation.create("DJANGO_SETTINGS_MODULE", "settings",
+                                 {"rung": 1, "source": "authoritative_config"})
+    restored = ConfigObligation.from_dict(ob.to_dict())
+    out = render_build_script(DepGraph(), plan=RuntimePlan(config_obligations=(restored,)))
     assert "#@config-env DJANGO_SETTINGS_MODULE=settings" in out
 
 

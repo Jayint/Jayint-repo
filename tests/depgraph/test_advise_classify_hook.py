@@ -6,9 +6,12 @@ if str(_SRC) not in sys.path:
 
 import graph.advise as advise
 from graph.model import DepGraph, Node, NodeType, Layer, DiscoveredBy, State
+from graph.runtime_plan import RuntimePlan
 
 
-def test_classify_hook_invoked_and_graph_returned(monkeypatch):
+def test_classify_hook_invoked_and_plan_returned(monkeypatch):
+    # Task 4: classify returns a RuntimePlan; service_obligations passes the GRAPH
+    # through unchanged and threads the plan out (return_plan=True).
     base = DepGraph()
 
     class _FakeScratch:
@@ -22,11 +25,13 @@ def test_classify_hook_invoked_and_graph_returned(monkeypatch):
     tag = Node(id="service:tagged", type=NodeType.SERVICE, name="tagged", layer=Layer.SERVICES,
                discovered_by=DiscoveredBy.RUNTIME, state=State.MISSING)
     def _classify(graph, repo_path):
-        return graph.with_node(tag)
+        return RuntimePlan(service_obligations=(tag,))
 
-    adv, graph = advise.build_advisory_for_repo("/repo", "python:3.11-slim", classify=_classify)
+    adv, graph, plan = advise.build_advisory_for_repo(
+        "/repo", "python:3.11-slim", classify=_classify, return_plan=True)
     assert adv == "ADV"
-    assert graph.get("service:tagged") is not None       # classify ran on the built graph
+    assert graph is base                                  # graph passthrough (unchanged)
+    assert plan.get_service("service:tagged") is not None  # classify's plan threaded out
 
 
 def test_classify_none_is_passthrough(monkeypatch):

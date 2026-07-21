@@ -3,7 +3,7 @@
 # setup.sh — COMPILED from the certified dependency graph. DO NOT EDIT.
 # Edit the graph and re-render; this file is an artifact, not a source.
 #
-#   nodes: 0 reciped (none) + 0 needs
+#   nodes: 0 reciped (none)
 #   graph-hash: sha256:a461bf77bc4e
 #
 set -Eeuo pipefail

@@ -14,6 +14,7 @@ from collections.abc import Callable
 from typing import Protocol
 
 from graph.model import DepGraph
+from graph.runtime_plan import RuntimePlan
 
 
 class ClosureMode(enum.Enum):
@@ -92,10 +93,14 @@ class EcosystemProvider(Protocol):
         graph: DepGraph,
         repo: str,
         service_classifier: object | None = None,
-    ) -> DepGraph:
-        """PHASE 3 — service tier. Runs the (opaque, ecosystem-supplied) service
-        classifier over the converged graph and returns a new graph with setup-shape
-        Service nodes. ``service_classifier is None`` => returns ``graph`` unchanged.
-        The classifier is an injected ``Callable[[DepGraph, str], DepGraph]`` (envstate
-        owns it); providers never import envstate."""
+    ) -> "tuple[DepGraph, RuntimePlan]":
+        """PHASE 3 — service tier (Task 4 contract). Runs the (opaque,
+        ecosystem-supplied) service classifier over the converged graph and returns
+        ``(graph, plan)``: the GRAPH is passed through UNCHANGED (Service/Config no
+        longer live in the constructed graph — they are the construction artifact
+        :class:`~graph.runtime_plan.RuntimePlan`, which the v3-arm loop re-admits into
+        its working graph at loop start). ``service_classifier is None`` => returns
+        ``(graph, EMPTY_PLAN)``. The classifier is an injected
+        ``Callable[[DepGraph, str], RuntimePlan]`` (envstate owns it); providers never
+        import envstate."""
         ...

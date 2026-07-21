@@ -1,14 +1,14 @@
-"""Gated SERVICE-node provisioning (V3_INCLUDE_SERVICES) — build-time install
-lines in setup.sh + the separate runtime ENTRYPOINT start script.
+"""Gated SERVICE provisioning (V3_INCLUDE_SERVICES) — build-time install lines in
+setup.sh + the separate runtime ENTRYPOINT start script.
 
-Default OFF must be byte-identical to the pre-existing #@need-stub-only
-rendering (SERVICE nodes are advisory-only, same as CONFIG). ON activates each
-reciped SERVICE node's ``data['setup']['install']`` commands in setup.sh (build-
-time-safe) and makes ``render_service_start_script`` available to bake the
-runtime start/probe/createdb/post sequence into a Dockerfile ENTRYPOINT.
+Task 4 — services are the construction artifact (:class:`RuntimePlan`) now:
+``render_service_start_script`` reads the plan, and ``render_build_script`` locally
+admits the plan's services (the SAME ``with_node`` idempotency the v3 loop uses) so the
+existing graph-based service-render machinery still runs. A graph that already carries a
+SERVICE node (e.g. the loop-final graph after admission) renders it too. The Config/Service
+``#@need`` stub tier is DELETED.
 
-See .superpowers/sdd/service-inclusion-findings.md for the full design trace
-and .superpowers/sdd/service-mechanism-report.md for this mechanism's report.
+Default OFF: services never render into the build-time script.
 """
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ from pathlib import Path
 
 from graph.model import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
 from graph.compile.build_script import render_build_script, render_service_start_script
+from graph.runtime_plan import RuntimePlan
 from graph.python.services.service_recipes import render_probe_poll
 
 # A realistic known-kind recipe dict, shaped exactly like
@@ -42,44 +43,42 @@ def _service(id_="service:postgres", name="postgres", setup=None, **kw):
                 check_command=check_command, data={"setup": setup}, **kw)
 
 
+def _plan(*services):
+    return RuntimePlan(service_obligations=tuple(services))
+
+
 def _pkg(id_, name, version):
     return Node(id=id_, type=NodeType.PACKAGE, name=name, layer=Layer.PIP,
                 discovered_by=DiscoveredBy.RESOLVER, state=State.MISSING, version=version)
 
 
 # ---------------------------------------------------------------------------
-# render_service_start_script
+# render_service_start_script — now reads the RuntimePlan
 # ---------------------------------------------------------------------------
 
-def test_start_script_empty_graph_is_noop():
+def test_start_script_empty_plan_is_noop():
     assert render_service_start_script(None) == ""
-    assert render_service_start_script(DepGraph()) == ""
+    assert render_service_start_script(RuntimePlan()) == ""
 
 
-def test_start_script_no_service_nodes_is_noop():
-    g = DepGraph(nodes=(_pkg("pkg:requests", "requests", "2.31.0"),))
-    assert render_service_start_script(g) == ""
+def test_start_script_no_service_obligations_is_noop():
+    assert render_service_start_script(RuntimePlan(service_obligations=())) == ""
 
 
 def test_start_script_service_with_no_setup_data_is_skipped():
-    # A SERVICE node admitted with no data["setup"] should never happen post
-    # patch_gate (§1), but the predicate must not crash or emit a bare id.
-    g = DepGraph(nodes=(
-        Node(id="service:mystery", type=NodeType.SERVICE, name="mystery",
-             layer=Layer.SERVICES, discovered_by=DiscoveredBy.CLASSIFIER,
-             state=State.MISSING),
-    ))
-    assert render_service_start_script(g) == ""
+    # A SERVICE obligation with no data["setup"] should never happen post patch_gate
+    # (§1), but the predicate must not crash or emit a bare id.
+    plan = _plan(Node(id="service:mystery", type=NodeType.SERVICE, name="mystery",
+                      layer=Layer.SERVICES, discovered_by=DiscoveredBy.CLASSIFIER,
+                      state=State.MISSING))
+    assert render_service_start_script(plan) == ""
 
 
 def test_start_script_postgres_emits_start_probe_createdb_post_and_execs():
-    g = DepGraph(nodes=(_service(),))
-    out = render_service_start_script(g)
+    out = render_service_start_script(_plan(_service()))
     assert "service postgresql start" in out
-    # Bounded wait loop that does NOT exit the script (see the shell-execution
-    # tests below) — deliberately NOT service_recipes.render_probe_poll's
-    # `exit 0`/`exit 1` wrapper, which would kill v3_start_services.sh dead
-    # the instant the first service's probe succeeds.
+    # Bounded wait loop that does NOT exit the script — deliberately NOT
+    # service_recipes.render_probe_poll's `exit 0`/`exit 1` wrapper.
     assert "for _i in $(seq 1 30); do pg_isready && break; sleep 1; done" in out
     assert "createdb -O app app" in out
     assert "CREATE USER app" in out
@@ -100,8 +99,8 @@ def test_start_script_multiple_services_all_present():
                                 "DEBIAN_FRONTEND=noninteractive apt-get install -y redis-server"],
                    "start": "redis-server --daemonize yes", "probe": "redis-cli ping",
                    "createdb": None, "post": []}
-    g = DepGraph(nodes=(_service(), _service("service:redis", "redis", setup=redis_setup)))
-    out = render_service_start_script(g)
+    out = render_service_start_script(
+        _plan(_service(), _service("service:redis", "redis", setup=redis_setup)))
     assert "service postgresql start" in out
     assert "redis-server --daemonize yes" in out
     assert out.count('exec "$@"') == 1          # exec is the SCRIPT's tail, not per-node
@@ -109,23 +108,16 @@ def test_start_script_multiple_services_all_present():
 
 
 def test_start_script_is_deterministic():
-    g1 = DepGraph(nodes=(_service("service:postgres", "postgres"),
-                         _service("service:redis", "redis")))
-    g2 = DepGraph(nodes=(_service("service:redis", "redis"),
-                         _service("service:postgres", "postgres")))
-    assert render_service_start_script(g1) == render_service_start_script(g1)  # pure
+    p1 = _plan(_service("service:postgres", "postgres"), _service("service:redis", "redis"))
+    p2 = _plan(_service("service:redis", "redis"), _service("service:postgres", "postgres"))
+    assert render_service_start_script(p1) == render_service_start_script(p1)  # pure
     # topo_order breaks ties by (layer rank, name) — insertion order shouldn't matter
-    assert render_service_start_script(g1) == render_service_start_script(g2)
+    assert render_service_start_script(p1) == render_service_start_script(p2)
 
 
 # ---------------------------------------------------------------------------
-# Shell-execution — LOAD-BEARING: proves the rendered script actually reaches
-# `exec "$@"` past a succeeding probe. Regression test for the bug where
-# service_recipes.render_probe_poll's `exit 0` (safe as the tail of a
-# throwaway check script) terminated the WHOLE v3_start_services.sh the
-# instant the first probe succeeded — later services' post/createdb and the
-# final `exec "$@"` never ran, so `docker run -d <image> tail -f /dev/null`
-# exited immediately and the container was dead before any `docker exec`.
+# Shell-execution — LOAD-BEARING: proves the rendered script reaches `exec "$@"`
+# past a succeeding probe (regression for the render_probe_poll `exit 0` bug).
 # Requires a real `bash` on PATH.
 # ---------------------------------------------------------------------------
 
@@ -147,8 +139,7 @@ def _run_start_script(script_text: str, *args: str) -> subprocess.CompletedProce
 
 
 def test_start_script_reaches_exec_past_a_succeeding_probe():
-    g = DepGraph(nodes=(_true_probe_service(),))
-    script = render_service_start_script(g)
+    script = render_service_start_script(_plan(_true_probe_service()))
     proc = _run_start_script(script, "echo", "__REACHED_EXEC__")
     assert "__REACHED_EXEC__" in proc.stdout, (
         f'start script did not reach exec "$@": rc={proc.returncode} '
@@ -157,10 +148,6 @@ def test_start_script_reaches_exec_past_a_succeeding_probe():
 
 
 def test_start_script_two_services_first_probe_success_does_not_short_circuit_second(tmp_path):
-    """The FIRST service's probe succeeding must not skip the SECOND service's
-    setup — each service's block (start/probe/post/createdb) must run to
-    completion before the next one starts, and exec "$@" must still be the
-    final thing reached."""
     marker_post = tmp_path / "second_post_ran"
     marker_createdb = tmp_path / "second_createdb_ran"
     second_setup = {
@@ -168,13 +155,13 @@ def test_start_script_two_services_first_probe_success_does_not_short_circuit_se
         "createdb": f"touch {marker_createdb}",
         "post": [f"touch {marker_post}"],
     }
-    g = DepGraph(nodes=(
+    plan = _plan(
         _true_probe_service("service:first", "first"),
         Node(id="service:second", type=NodeType.SERVICE, name="second",
              layer=Layer.SERVICES, discovered_by=DiscoveredBy.CLASSIFIER,
              state=State.MISSING, data={"setup": second_setup}),
-    ))
-    script = render_service_start_script(g)
+    )
+    script = render_service_start_script(plan)
     proc = _run_start_script(
         script, "bash", "-c",
         f"test -f {marker_post} && echo POST_RAN; "
@@ -186,33 +173,25 @@ def test_start_script_two_services_first_probe_success_does_not_short_circuit_se
     assert "__REACHED_EXEC__" in proc.stdout, f'exec "$@" never reached: {proc}'
 
 
-# ---------------------------------------------------------------------------
-# Coercion — `post` (and the other list-valued setup fields) may arrive as a
-# bare string instead of a list; naive `for cmd in post` iteration over a
-# string explodes it character-by-character (list("mc mb x") == ['m', 'c',
-# ' ', 'm', 'b', ...]).
-# ---------------------------------------------------------------------------
-
 def test_start_script_coerces_string_post_into_one_command_line():
     setup = {"install": [], "start": ":", "probe": "true",
              "createdb": None, "post": "createbucket foo"}
-    g = DepGraph(nodes=(
-        Node(id="service:strpost", type=NodeType.SERVICE, name="strpost",
-             layer=Layer.SERVICES, discovered_by=DiscoveredBy.CLASSIFIER,
-             state=State.MISSING, data={"setup": setup}),
-    ))
-    out = render_service_start_script(g)
+    plan = _plan(Node(id="service:strpost", type=NodeType.SERVICE, name="strpost",
+                      layer=Layer.SERVICES, discovered_by=DiscoveredBy.CLASSIFIER,
+                      state=State.MISSING, data={"setup": setup}))
+    out = render_service_start_script(plan)
     lines = out.splitlines()
     assert any(ln.strip() == "createbucket foo" for ln in lines), (
         f"expected 'createbucket foo' as one literal command line, got:\n{out}"
     )
-    # no one-char-per-line artifact from character-splitting the string
     exploded_chars = set("createbucto fg")
     assert not any(ln.strip() and ln.strip() in exploded_chars for ln in lines)
 
 
 # ---------------------------------------------------------------------------
-# render_build_script(include_services=...) — the setup.sh half
+# render_build_script(include_services=...) — the setup.sh half. A SERVICE node
+# already in the graph (loop-admitted) still renders; the plan path is exercised
+# separately below.
 # ---------------------------------------------------------------------------
 
 def test_flag_off_default_is_byte_identical_to_explicit_false():
@@ -221,10 +200,6 @@ def test_flag_off_default_is_byte_identical_to_explicit_false():
 
 
 def test_flag_off_default_contains_none_of_the_service_commands_and_matches_explicit_false():
-    # Strengthened byte-identity-off check, combined into one assertion: the
-    # default call (no `include_services` kwarg at all) must both equal the
-    # explicit-False call AND contain none of the service's install/start
-    # command strings, for a graph that DOES carry a service node.
     g = DepGraph(nodes=(_pkg("pkg:requests", "requests", "2.31.0"), _service()))
     default_out = render_build_script(g)
     assert default_out == render_build_script(g, include_services=False)
@@ -233,7 +208,7 @@ def test_flag_off_default_contains_none_of_the_service_commands_and_matches_expl
     assert _POSTGRES_SETUP["start"] not in default_out
 
 
-def test_flag_off_no_active_service_commands_in_setup_sh():
+def test_flag_off_no_active_service_commands_and_no_stub():
     g = DepGraph(nodes=(_pkg("pkg:requests", "requests", "2.31.0"), _service()))
     out = render_build_script(g)
     # none of the service's install/start/createdb/post commands are active
@@ -241,26 +216,21 @@ def test_flag_off_no_active_service_commands_in_setup_sh():
     assert "service postgresql start" not in out
     assert "createdb -O app app" not in out
     assert "CREATE USER app" not in out
-    # today's inert stub is unchanged
-    assert "#@need service:postgres  state=missing" in out
-    assert "#     (no command — propose a governed block to satisfy this)" in out
+    # Task 4: NO #@need stub either (deleted); no #@node for an inactive service
+    assert "#@need service:postgres" not in out
+    assert "#@node service:postgres" not in out
+    assert "# ==================== SERVICES ====================" not in out
+
+
+def test_flag_off_service_only_graph_renders_no_services_section():
+    # A graph with ONLY a service node renders no SERVICES section when the flag is off.
+    g = DepGraph(nodes=(_service(),))
+    out = render_build_script(g)
+    assert "# ==================== SERVICES ====================" not in out
     assert "#@node service:postgres" not in out
 
 
-def test_flag_off_matches_pre_service_work_golden_shape():
-    # Regression pin: a graph with ONLY a service node renders identically to
-    # the pre-existing test_need_stubs_are_comment_only expectations (no
-    # non-comment line anywhere in the SERVICES section) when the flag is off.
-    g = DepGraph(nodes=(_service(),))
-    out = render_build_script(g)
-    lines = out.splitlines()
-    start = next(i for i, ln in enumerate(lines) if ln.startswith("#@need service:postgres"))
-    for ln in lines[start:]:
-        if ln.strip():
-            assert ln.startswith("#"), f"non-comment line in #@need stub: {ln!r}"
-
-
-def test_flag_on_install_lines_active_and_need_stub_suppressed():
+def test_flag_on_install_lines_active_and_no_stub_from_graph_service():
     g = DepGraph(nodes=(_service(),))
     out = render_build_script(g, include_services=True)
     assert "apt-get update" in out
@@ -271,26 +241,33 @@ def test_flag_on_install_lines_active_and_need_stub_suppressed():
     assert "service postgresql start" not in out
     assert "createdb -O app app" not in out
     assert "CREATE USER app" not in out
-    # the probe-poll check_command still renders (it always did, under #@need;
-    # now it renders under #@node — same host-verifiable contract)
+    # the probe-poll check_command still renders (now under #@node)
     assert "for i in $(seq 1 15); do pg_isready" in out
 
 
+def test_flag_on_install_lines_active_from_plan_admission():
+    # Task 4: the plan path — services come from the RuntimePlan, locally admitted.
+    out = render_build_script(DepGraph(), plan=_plan(_service()), include_services=True)
+    assert "DEBIAN_FRONTEND=noninteractive apt-get install -y postgresql" in out
+    assert "#@node service:postgres" in out
+    assert "service postgresql start" not in out         # runtime-only, never here
+
+
 def test_flag_on_only_affects_services_with_setup_data():
-    # A SERVICE node with no data["setup"] must still fall back to the #@need
-    # stub even when the flag is on (never emitted as an install-active node).
+    # A SERVICE node with no data["setup"] renders nothing (no stub, no #@node).
     g = DepGraph(nodes=(
         Node(id="service:mystery", type=NodeType.SERVICE, name="mystery",
              layer=Layer.SERVICES, discovered_by=DiscoveredBy.CLASSIFIER,
              state=State.MISSING),
     ))
     out = render_build_script(g, include_services=True)
-    assert "#@need service:mystery  state=missing" in out
+    assert "#@need service:mystery" not in out
     assert "#@node service:mystery" not in out
 
 
-def test_flag_on_config_nodes_still_advisory_only():
-    # CONFIG never carries a setup payload (findings §1) — unaffected either way.
+def test_flag_on_config_graph_node_renders_nothing():
+    # Task 4: a CONFIG graph node is not part of the plan/marker path and renders
+    # nothing (Config markers come from plan.config_obligations, not graph nodes).
     g = DepGraph(nodes=(
         Node(id="config:DATABASE_URL", type=NodeType.CONFIG, name="DATABASE_URL",
              layer=Layer.CONFIG, discovered_by=DiscoveredBy.STATIC_SCAN,
@@ -298,11 +275,13 @@ def test_flag_on_config_nodes_still_advisory_only():
         _service(),
     ))
     out = render_build_script(g, include_services=True)
-    assert "#@need config:DATABASE_URL  state=missing" in out
+    assert "#@need config:DATABASE_URL" not in out
+    assert "config:DATABASE_URL" not in out
 
 
-def test_flag_on_manifest_counts_service_as_reciped_not_needs():
+def test_flag_on_manifest_counts_service_as_reciped():
     g = DepGraph(nodes=(_service(),))
     out = render_build_script(g, include_services=True)
     preamble = out[:out.index("set -Eeuo pipefail")]
-    assert "1 reciped (1 service) + 0 needs" in preamble
+    assert "1 reciped (1 service)" in preamble
+    assert "needs" not in preamble                        # Task 4: no needs tally

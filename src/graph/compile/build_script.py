@@ -23,11 +23,7 @@ from graph.compile.emit import (
 )
 from graph.model import DepGraph, Layer, Node, NodeType, project_resolved_python
 from graph.patch.block import Block  # runtime (script's render/parse folded in here, 3c-1)
-from graph.python.config_scan import (  # config-provenance vocabulary (single source of truth)
-    _ENV_EXAMPLE_FILES,
-    _SOURCE_AUTHORITATIVE,
-    _SOURCE_SETDEFAULT,
-)
+from graph.runtime_plan import ConfigObligation, RuntimePlan
 
 _BANNER = (
     "#!/usr/bin/env bash",
@@ -259,19 +255,16 @@ def _installable_project(graph: DepGraph) -> Node | None:
     return None
 
 
-_NEED_TYPES: tuple[NodeType, ...] = (NodeType.CONFIG, NodeType.SERVICE)
-
-# FIX B1 — CONFIG needs are MODELLED but were never RENDERED: a node whose
-# value IS known (classify_services_clean._config_nodes' `data["config_value"]`
-# convention, resolved from scan_env_defaults/.env.example) gets an additional
-# machine-parseable marker line so multi_docker_eval_adapter can bake it as a
-# Dockerfile ENV. setup.sh itself cannot do this: it runs inside one Docker RUN
-# layer, and `export` there dies with that layer — it neither survives into
-# the image nor into the later `docker exec` the eval harness runs pytest
-# through (see multi_docker_eval_adapter._render_dockerfile). The marker stays
-# a bare "#" comment for exactly that reason: it is a hand-off to a DIFFERENT
-# artifact, never a live command in this one (test_need_stubs_are_comment_only's
-# exhaustive comment-only invariant covers this line too).
+# FIX B1 / Task 4 — a Config obligation whose value IS known and bake-eligible
+# gets a machine-parseable `#@config-env VAR=value` marker so
+# multi_docker_eval_adapter can bake it as a Dockerfile ENV. setup.sh itself
+# cannot do this: it runs inside one Docker RUN layer, and `export` there dies
+# with that layer — it neither survives into the image nor into the later
+# `docker exec` the eval harness runs pytest through. The marker is a hand-off to
+# a DIFFERENT artifact, never a live command in this one. Task 4 moved the Config
+# tier OUT of the graph into the RuntimePlan, so the markers now render from
+# `plan.config_obligations` into a DEDICATED block (see `_config_env_block` and
+# its placement in `render_build_script`) rather than off inert CONFIG need-stubs.
 _CONFIG_ENV_UNKNOWN = "?"
 # Never bake a secret-shaped var name into an image layer (Dockerfile ENV
 # values are visible in `docker history`/inspect) — mirrors the same-purpose
@@ -305,111 +298,57 @@ _CONFIG_ENV_ALLOWLIST = frozenset({
 })
 
 
-def _known_config_value(node: Node) -> str | None:
-    """The value carried in a CONFIG node's ``data["config_value"]`` (set by
-    ``classify_services_clean._config_nodes`` from a real static source --
-    ``scan_env_defaults``/``.env.example`` -- never invented here), or ``None``
-    when there is no real value known. Same refusals as before: a blank value,
-    the ``"?"`` unknown sentinel, or anything containing a newline."""
-    value = node.data.get("config_value")
+def _known_config_value(value) -> str | None:
+    """The bakeable value for a Config obligation, or ``None`` when there is no real
+    value: a non-str, a blank value, the ``"?"`` unknown sentinel, or anything
+    containing a newline (a multi-line value cannot round-trip through one
+    ``#@config-env VAR=value`` comment line)."""
     if not isinstance(value, str) or not value or value == _CONFIG_ENV_UNKNOWN or "\n" in value:
         return None
     return value
 
 
-# The FULL (rung, source) pairs that may bake, grounded in config_scan's provenance
-# vocabulary (never a duplicated magic string). Rung-1/2/3 sources are ALL a closed,
-# enumerable set here -- rung 1 is exactly `_SOURCE_AUTHORITATIVE`, rung 2 is exactly
-# the `.env.*` template filenames `parse_env_example_provenance` can win from, and
-# rung 3's ONLY bake-eligible source is `_SOURCE_SETDEFAULT` (3a); rung-3b
-# `_SOURCE_FALLBACK` is deliberately absent. There is no open-vocabulary rung.
-_BAKE_ELIGIBLE_SOURCES_BY_RUNG: dict[int, frozenset[str]] = {
-    1: frozenset({_SOURCE_AUTHORITATIVE}),
-    2: frozenset(_ENV_EXAMPLE_FILES),
-    3: frozenset({_SOURCE_SETDEFAULT}),
-}
-
-
-def _config_bake_eligible(node: Node) -> bool:
-    """Bake-eligibility keyed on a CONFIG node's ``data["config_provenance"]``
-    ``{rung, source}`` (B1 residual c / review #1+#2). FAILS CLOSED on the FULL
-    pair: baking a Dockerfile ENV is safety-sensitive (a wrong value silently
-    shadows the real config), so a value bakes ONLY when its provenance is an
-    exactly-recognized (rung, source) pair in ``_BAKE_ELIGIBLE_SOURCES_BY_RUNG``:
-
-      * rung 1 with source ``authoritative_config``.
-      * rung 2 with source == the winning ``.env.*`` template filename.
-      * rung 3 with source ``code_scan_setdefault`` (the env-*writing*
-        ``os.environ.setdefault`` entrypoint idiom -- the DJANGO_SETTINGS_MODULE
-        payoff).
-
-    Everything else is advisory-only and NEVER bakes: ABSENT provenance (a legacy
-    serialized or hand-built ``config_value``-only node), a non-int / bool / float
-    ``rung`` (``type(rung) is int`` explicitly rejects ``bool``, an ``int``
-    subclass), an unknown ``rung``, a missing / empty / non-``str`` / unrecognized
-    ``source``, and rung-3b ``code_scan_fallback``. In production every discovered
-    value is stamped by ``classify_services_clean._resolve_config_value``, so a
-    missing or off-vocabulary stamp is a signal to withhold, not to trust."""
-    prov = node.data.get("config_provenance")
-    if not isinstance(prov, dict):
-        return False
-    rung = prov.get("rung")
-    if type(rung) is not int or rung not in _BAKE_ELIGIBLE_SOURCES_BY_RUNG:
-        return False                                  # rejects bool/float/unknown-rung
-    source = prov.get("source")
-    return isinstance(source, str) and source in _BAKE_ELIGIBLE_SOURCES_BY_RUNG[rung]
-
-
-def _config_env_marker(node: Node) -> str | None:
-    """``#@config-env VAR=value`` for a CONFIG node with a known, safe-to-bake
-    value; ``None`` when no value is known, the var is not on the
-    settings-module allowlist (FIX 3), its provenance is a rung-3b advisory-only
-    fallback (Task 3), or -- belt-and-braces, since the allowlist should already
-    make these unreachable -- it looks secret/incidental."""
-    if node.type is not NodeType.CONFIG:
+def _config_env_marker(ob: ConfigObligation) -> str | None:
+    """``#@config-env VAR=value`` for a Config obligation with a known, safe-to-bake
+    value; ``None`` when no value is known, the var is not on the settings-module
+    allowlist (FIX 3), it is not provenance-bake-eligible (Task 3 fail-closed gate,
+    carried on the obligation as ``bake_eligible``), or -- belt-and-braces, since
+    the allowlist should already make these unreachable -- it looks secret/incidental."""
+    if ob.var not in _CONFIG_ENV_ALLOWLIST:
         return None
-    if node.name not in _CONFIG_ENV_ALLOWLIST:
+    if not ob.bake_eligible:
         return None
-    if not _config_bake_eligible(node):
-        return None
-    value = _known_config_value(node)
+    value = _known_config_value(ob.value)
     if value is None:
         return None
-    if node.name in _CONFIG_ENV_DENYLIST or _CONFIG_ENV_SECRET_RE.search(node.name):
+    if ob.var in _CONFIG_ENV_DENYLIST or _CONFIG_ENV_SECRET_RE.search(ob.var):
         return None
-    return f"#@config-env {node.name}={value}"
+    return f"#@config-env {ob.var}={value}"
 
 
-def _need_block(graph: DepGraph, node: Node) -> list[str]:
-    from graph.advise import _best_evidence_line  # lazy: avoid load-order coupling
-    reqs = [d.id for d in graph.requires_of(node.id) if _is_reciped(d)]
-    head = f"#@need {node.id}  state={node.state.value}"
-    if reqs:
-        head += "  requires=" + ",".join(sorted(reqs))
-    out = ["#", head]
-    if node.check_command:
-        out.append(f"#@check {node.check_command}")
-    ev = _best_evidence_line(node.evidence)
-    if ev:
-        out.append(f"#@evidence {ev}")
-    out.append("#     (no command — propose a governed block to satisfy this)")
-    marker = _config_env_marker(node)
-    if marker:
-        out.append(marker)
-    return out
+# The dedicated config-env marker block header. Task 4 relocated the markers from
+# inert CONFIG need-stubs (deleted) into ONE block at a DEFINED position — see
+# `render_build_script` (immediately after the PIP section, sorted by var name).
+_CONFIG_ENV_HEADER = (
+    "# ---- Config env (Dockerfile ENV hand-off; baked by the eval adapter, "
+    "inert here) ----"
+)
 
 
-def _need_in_layer(
-    graph: DepGraph, layer: Layer, covered: set[str], *, include_services: bool = False
-) -> list[Node]:
-    nodes = [n for n in graph.nodes
-             if n.layer is layer and n.type in _NEED_TYPES
-             and not _is_reciped(n) and n.id not in covered
-             # once a SERVICE node is install-active (include_services), it must
-             # not ALSO render as a #@need stub — mirrors _reciped_in_layer's
-             # exclusion of _is_reciped nodes above.
-             and not (include_services and _is_service_reciped(n))]
-    return sorted(nodes, key=lambda n: n.id)
+def _config_env_block(plan: RuntimePlan | None) -> list[str]:
+    """The dedicated ``#@config-env`` marker block for ``plan``'s bake-eligible Config
+    obligations, sorted by var name; ``[]`` when nothing bakes (a strict no-op).
+
+    Each marker is a bare ``#`` comment — a hand-off to the Dockerfile renderer, never
+    a live command (setup.sh runs in one Docker RUN layer whose ``export`` cannot
+    persist into the image or the later ``docker exec``)."""
+    if plan is None:
+        return []
+    markers = [m for ob in sorted(plan.config_obligations, key=lambda c: c.var)
+               if (m := _config_env_marker(ob)) is not None]
+    if not markers:
+        return []
+    return [_CONFIG_ENV_HEADER, *markers]
 
 
 def _block_block(block: Block) -> list[str]:
@@ -456,29 +395,23 @@ def _closure_meta(graph: DepGraph) -> dict[str, str]:
 
 _TYPE_WORD = {NodeType.SYSTEM_LIB: "system", NodeType.TOOL: "toolchain",
               NodeType.PACKAGE: "pip", NodeType.SERVICE: "service"}
-_NEED_WORD = {NodeType.SERVICE: "service", NodeType.CONFIG: "config"}
 
 
 def _manifest(graph: DepGraph, manual_blocks, *, include_services: bool = False) -> list[str]:
+    # Task 4: the manifest counts only RECIPED (installable) nodes. The Config/Service
+    # `#@need` stub tier is gone — Config moved to the RuntimePlan (rendered as a
+    # `#@config-env` block), and a SERVICE node is either install-active (reciped, and
+    # counted below) or advisory-only (surfaced via the plan/advise, never a setup.sh
+    # line). There is no separate "+ N needs" tally to keep in sync anymore.
     reciped = [n for n in graph.nodes
                if _is_reciped(n) or (include_services and _is_service_reciped(n))]
-    covered = {nid for b in manual_blocks for nid in b.target_node_ids}
-    needs = [n for n in graph.nodes
-             if n.type in _NEED_TYPES and not _is_reciped(n) and n.id not in covered
-             and not (include_services and _is_service_reciped(n))]
     counts = Counter(_TYPE_WORD.get(n.type, n.type.value) for n in reciped)
     count_str = ", ".join(f"{counts[w]} {w}" for w in ("system", "toolchain", "pip", "service")
                           if counts.get(w))
-    need_counts = Counter(_NEED_WORD.get(n.type, n.type.value) for n in needs)
-    need_str = ", ".join(f"{need_counts[w]} {w}"
-                         for w in ("service", "config")
-                         if need_counts.get(w))
-    needs_suffix = f" ({need_str})" if need_str else ""
     meta = _closure_meta(graph)
     meta_str = "   ".join(f"{k}: {v}" for k, v in meta.items())
     lines = list(_BANNER)  # full banner; _BANNER[-1] is the "#" separator (keep it)
-    lines.append(f"#   nodes: {len(reciped)} reciped ({count_str or 'none'}) "
-                 f"+ {len(needs)} needs{needs_suffix}")
+    lines.append(f"#   nodes: {len(reciped)} reciped ({count_str or 'none'})")
     hash_line = f"#   graph-hash: {_graph_hash(graph)}"
     if meta_str:
         hash_line += "   " + meta_str
@@ -512,22 +445,38 @@ def render_build_script(
     graph: DepGraph | None,
     manual_blocks: tuple[Block, ...] = (),
     *,
+    plan: RuntimePlan | None = None,
     include_services: bool = False,
 ) -> str:
     """Project a certified DepGraph into one install-only setup.sh.
 
-    ``include_services`` (default False — the pre-existing, byte-identical
-    behavior: SERVICE nodes render as inert ``#@need`` stubs, same as CONFIG)
-    gates a SECOND behavior, additive on top of the first: when True, every
-    ``_is_service_reciped`` SERVICE node's ``data['setup']['install']`` commands
-    (build-time-safe package installs, e.g. ``apt-get install -y postgresql``)
-    become ACTIVE lines in this script, and that node no longer renders as a
-    ``#@need`` stub. ``start``/``createdb``/``post`` are NEVER emitted here — a
-    daemon started inside a Dockerfile ``RUN`` layer is dead by the time a later
-    ``docker run`` container starts (see ``render_service_start_script``, the
-    runtime counterpart rendered as a separate ENTRYPOINT-wrapper artifact)."""
+    Task 4 — the Service and Config tiers come from the ``plan``
+    (:class:`~graph.runtime_plan.RuntimePlan`), NOT from ``#@need`` stub nodes in
+    the graph (those are deleted):
+
+      * ``plan``'s Config obligations render as a dedicated ``#@config-env`` marker
+        block immediately after the PIP section, sorted by var name (see
+        ``_config_env_block``). Only bake-eligible entries appear; the block is a
+        hand-off for the eval adapter's Dockerfile ENV baking, inert in setup.sh.
+      * ``plan``'s service obligations are locally admitted into ``graph`` (the SAME
+        ``with_node`` idempotency the v3 loop uses at loop start), so — when
+        ``include_services`` is True — every ``_is_service_reciped`` SERVICE node's
+        ``data['setup']['install']`` commands (build-time-safe package installs, e.g.
+        ``apt-get install -y postgresql``) become ACTIVE lines. ``start``/``createdb``/
+        ``post`` are NEVER emitted here — a daemon started inside a Dockerfile ``RUN``
+        layer is dead by the time a later ``docker run`` container starts (see
+        ``render_service_start_script``, the runtime counterpart).
+
+    ``include_services`` defaults False (services never render into the build-time
+    script); ``plan=None`` renders neither service installs nor config markers."""
     if graph is None:
         graph = DepGraph()
+    # Task 4 ADMISSION at render time: fold the plan's service obligations into the
+    # graph (same with_node idempotency as the v3 loop's loop-start admission) so the
+    # existing service-rendering machinery below reads them from one place. A SERVICE
+    # node already in the graph with the same id collapses onto the plan's copy.
+    if plan is not None:
+        graph = plan.admit_services(graph)
     # single call site: derive commands, then emit
     graph = populate_setup_commands(graph, include_services=include_services)
     # §4.4 (post-review): the instrument (python->python3 symlink + pytest floor)
@@ -554,7 +503,6 @@ def render_build_script(
         "# Ensure the pytest runner (fallback; also baked into v3-base). Best-effort, never aborts.",
         'python3 -c "import pytest" >/dev/null 2>&1 || python3 -m pip install --break-system-packages pytest || true',
     ]
-    covered = {nid for b in manual_blocks for nid in b.target_node_ids}
     blocks_by_wave: dict[str, list] = {}
     for b in manual_blocks:
         blocks_by_wave.setdefault(b.wave, []).append(b)
@@ -568,12 +516,19 @@ def render_build_script(
                 section += _node_block(graph, node, apt_done)
         for b in blocks_by_wave.get(layer.value, ()):
             section += _block_block(b)
-        for node in _need_in_layer(graph, layer, covered, include_services=include_services):
-            section += _need_block(graph, node)
         if section:
             parts.append("")
             parts.append(_section_header(layer))
             parts.extend(section)
+        # Config-env markers render in a DEDICATED block immediately after the PIP
+        # section (a defined, deterministic position — the old carrier, the CONFIG
+        # #@need stub, is gone). Emitted whether or not PIP had installs, so a
+        # marker-only repo still renders it at a fixed spot.
+        if layer is Layer.PIP:
+            cfg_block = _config_env_block(plan)
+            if cfg_block:
+                parts.append("")
+                parts.extend(cfg_block)
     # SOFT requirements files render after every layer section (every pinned
     # dependency is installed above, so the constraints file has the full
     # closure to protect) and before the PROJECT capstone (order matters — see
@@ -699,20 +654,23 @@ def _service_start_block(node: Node) -> list[str]:
     return out
 
 
-def render_service_start_script(graph: DepGraph | None) -> str:
+def render_service_start_script(plan: RuntimePlan | None) -> str:
     """Bash ENTRYPOINT-wrapper script: start + probe-wait + post + createdb for
-    every reciped SERVICE node (dependency-ordered), terminated with
-    ``exec "$@"`` so it composes as ``ENTRYPOINT ["/bin/bash",
+    every reciped SERVICE obligation in ``plan`` (dependency-ordered), terminated
+    with ``exec "$@"`` so it composes as ``ENTRYPOINT ["/bin/bash",
     "/v3_start_services.sh"]`` — the wrapped foreground command (``tail -f
     /dev/null`` in the eval harness) still runs, just after every service is
     live. Pure — no Docker, no network, no LLM.
 
-    Empty string when the graph has no reciped SERVICE node — the Dockerfile
+    Task 4 — reads the RuntimePlan (the Service construction artifact), not a graph.
+    Empty string when the plan has no reciped SERVICE obligation — the Dockerfile
     side must then add NO ``ENTRYPOINT`` at all, so a repo with zero services
     (the common case) is a strict no-op end to end."""
-    if graph is None:
-        graph = DepGraph()
-    nodes = _service_nodes_for_start(graph)
+    if plan is None:
+        return ""
+    # Build a throwaway graph from the plan's service obligations so the existing
+    # dependency-ordering machinery (`_service_nodes_for_start`) is reused unchanged.
+    nodes = _service_nodes_for_start(DepGraph(nodes=tuple(plan.service_obligations)))
     if not nodes:
         return ""
     parts: list[str] = list(_SERVICE_START_BANNER) + ["set -Eeuo pipefail", ""]
