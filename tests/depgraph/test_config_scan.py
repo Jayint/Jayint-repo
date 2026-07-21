@@ -464,6 +464,153 @@ def test_canonical_django_manage_py_stays_3a(tmp_path):
     assert prov["DJANGO_SETTINGS_MODULE"] == ("proj.settings", "code_scan_setdefault")
 
 
+# ── Round 4: POLARITY INVERSION -- unknown binding constructs demote to 3b.
+# The analyzer models an explicit handled-set; every other construct that can
+# bind/mutate a tracked name (function-local imports, star imports, del, TypeAlias,
+# os.environ reassignment) demotes the receiver rather than defaulting it genuine. ──
+
+def test_func_local_from_os_import_environ_as_os_is_not_3a(tmp_path):
+    # HOLE #1: `import os` module-wide + a function-local `from os import environ
+    # as os` rebinds `os` to a MAPPING inside f; `os.environ.setdefault` there is
+    # not the genuine os.environ -> must demote to advisory 3b.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "shadow.py", """
+        import os
+        def f():
+            from os import environ as os
+            os.environ.setdefault('X_VAR', 'shadow.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["X_VAR"] == ("shadow.settings", "code_scan_fallback")
+
+
+def test_func_local_import_os_is_locally_genuine_3a(tmp_path):
+    # HOLE #1 (other direction): a genuine import INSIDE a function makes the name
+    # genuine WITHIN that subtree -- with no module-level `import os` at all, the
+    # function-local `import os` is the real module -> stays bake-eligible 3a.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "localimp.py", """
+        def f():
+            import os
+            os.environ.setdefault('LOCAL_VAR', 'local.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["LOCAL_VAR"] == ("local.settings", "code_scan_setdefault")
+
+
+def test_module_setdefault_before_import_is_not_3a(tmp_path):
+    # HOLE #1 (ordering): a MODULE-level call site lexically BEFORE the first
+    # module-level genuine import cannot see it yet -> unresolved -> 3b.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "early.py", """
+        os.environ.setdefault('EARLY_VAR', 'early.settings')
+        import os
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["EARLY_VAR"] == ("early.settings", "code_scan_fallback")
+
+
+def test_setdefault_in_def_below_toplevel_import_stays_3a(tmp_path):
+    # The ordering guard is MODULE-level only: a call inside a def runs after
+    # module import time, so a def below a top-of-file `import os` stays 3a.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "late.py", """
+        import os
+        def main():
+            os.environ.setdefault('LATE_VAR', 'late.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["LATE_VAR"] == ("late.settings", "code_scan_setdefault")
+
+
+def test_setdefault_in_def_above_bottom_import_stays_3a(tmp_path):
+    # A def defined ABOVE a bottom-of-file `import os` still sees the genuine os
+    # at call time (function bodies run after import) -> 3a, no ordering demote.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "bottom.py", """
+        def main():
+            os.environ.setdefault('BOTTOM_VAR', 'bottom.settings')
+        import os
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["BOTTOM_VAR"] == ("bottom.settings", "code_scan_setdefault")
+
+
+def test_star_import_demotes_module_setdefault_to_3b(tmp_path):
+    # HOLE #2: `from fake import *` may shadow `os`; a star import poisons all
+    # tracked names FILE-WIDE -> the setdefault demotes to advisory 3b.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "star.py", """
+        import os
+        from fake import *
+        os.environ.setdefault('STAR_VAR', 'star.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["STAR_VAR"] == ("star.settings", "code_scan_fallback")
+
+
+def test_func_del_os_demotes_to_3b(tmp_path):
+    # HOLE #3: `del os` unbinds the name; poison it file-wide -> 3b.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "delos.py", """
+        import os
+        def f():
+            del os
+            os.environ.setdefault('DEL_VAR', 'del.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["DEL_VAR"] == ("del.settings", "code_scan_fallback")
+
+
+def test_type_alias_shadowing_os_demotes_to_3b(tmp_path):
+    # HOLE #3: `type os = ...` (PEP 695, 3.12+) rebinds `os` -> poison file-wide.
+    import sys
+    if sys.version_info < (3, 12):
+        import pytest
+        pytest.skip("ast.TypeAlias requires Python 3.12+")
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "typealias.py", """
+        import os
+        type os = int
+        os.environ.setdefault('TYPE_VAR', 'type.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["TYPE_VAR"] == ("type.settings", "code_scan_fallback")
+
+
+def test_environ_attribute_reassigned_demotes_to_3b(tmp_path):
+    # HOLE #4: `os.environ = {}` replaces the mapping; a later `os.environ.set
+    # default` operates on the replacement dict -> poison `os` file-wide -> 3b.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "reassign.py", """
+        import os
+        os.environ = {}
+        os.environ.setdefault('REASSIGN_VAR', 'reassign.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["REASSIGN_VAR"] == ("reassign.settings", "code_scan_fallback")
+
+
+def test_round4_django_with_unrelated_os_param_stays_3a(tmp_path):
+    # REGRESSION: the canonical Django entrypoint stays bake-eligible 3a even with
+    # an unrelated `def helper(os)` whose param shadows os only in its own subtree.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "manage.py", """
+        import os
+
+        def main():
+            os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myproj.settings')
+
+        def helper(os):
+            return os
+
+        if __name__ == '__main__':
+            main()
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["DJANGO_SETTINGS_MODULE"] == ("myproj.settings", "code_scan_setdefault")
+
+
 def test_scan_env_defaults_is_a_value_projection_of_provenance(tmp_path):
     # scan_env_defaults must stay byte-identical to "just the values" of the
     # provenance scan -- existing callers (_dsn_configs) depend on the plain shape.

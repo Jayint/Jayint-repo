@@ -4,6 +4,13 @@ Pure (no Executor, no network): walks the repo on disk, AST-parses each in-scope
 ``.py`` file, and records every ``os.environ[...]`` / ``os.environ.get(...)`` /
 ``os.getenv(...)`` read (and the bare ``environ``/``getenv`` forms).  Mirrors the
 directory-exclusion scope of ``scan.py`` so examples/docs/build don't leak.
+
+Rung-3 SAFETY POLARITY (review round 4): the ``os.environ.setdefault`` -> 3a
+(bake-eligible) classifier resolves a receiver as the genuine ``os.environ`` ONLY
+through an explicit HANDLED-SET of binding constructs; every OTHER construct that
+can bind or mutate a tracked name demotes it to advisory 3b. Constructs outside
+the handled set demote to 3b -- never extend 3a without extending the handled set
+(see ``_analyze_os_usage`` and the scope-resolution comment below).
 """
 
 from __future__ import annotations
@@ -91,26 +98,46 @@ def _const_str(node: ast.AST) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Scope-aware ``os.environ`` / ``os.getenv`` resolution (review round 3).
+# Scope-aware ``os.environ`` / ``os.getenv`` resolution (review rounds 3-4).
 #
-# A file-wide "any rebinding poisons everywhere" check is both unsound (misses
-# walrus, match captures, shadowing imports) and too blunt (an unrelated
-# ``def helper(os)`` wrongly demoted a genuine top-level ``os.environ.setdefault``
-# to 3b). This does a TWO-LEVEL lexical approximation instead, asymmetric and
-# fail-closed:
-#   * MODULE-level rebindings (assignment / walrus / match capture / ``for`` /
-#     ``with as`` / ``except as`` targets, a shadowing import such as
-#     ``import fake as os`` or ``from x import os``, or any ``global``/``nonlocal``
-#     escape) poison the name at ALL call sites.
-#   * FUNCTION-local bindings (params, local assigns/walrus/for/with/except/match/
-#     comprehension targets, nested def/class names) poison ONLY call sites
-#     lexically inside that scope's subtree.
-# A receiver resolves to the genuine import iff its name is not poisoned at that
-# site (no module rebinding AND no local binding in any enclosing scope on the
-# path up to module level). Ordering is ignored in the CONSERVATIVE direction
-# only: a later module-level ``os = fake`` may demote an earlier genuine call to
-# 3b (harmless, advisory), but a poisoned name is NEVER promoted to 3a. Any doubt
-# -> 3b.
+# POLARITY (round-4 inversion): the analyzer AFFIRMATIVELY understands a fixed
+# HANDLED-SET of binding constructs; every OTHER construct that can bind or mutate
+# a tracked name DEMOTES it (fail-closed to advisory 3b) instead of being silently
+# ignored. Earlier rounds enumerated POISON, so any binding form the analyzer did
+# not know about defaulted a receiver to GENUINE and leaked a 3a promotion. Now
+# unknowns demote. NEVER extend 3a (add a genuine binding / widen resolution)
+# without extending the handled-set below in lock-step.
+#
+# The HANDLED-SET (constructs whose binding of a bare name we model precisely):
+#   * imports -- a MODULE-level genuine ``os`` / ``environ`` / ``getenv`` binding
+#     is genuine file-wide; a genuine import INSIDE a function/class body is
+#     genuine WITHIN that subtree only; any non-canonical import (``import fake as
+#     os``, ``from os import environ as os``) is a shadow -> module-level poisons
+#     file-wide, function-local poisons that subtree.
+#   * Assign / AugAssign / AnnAssign / NamedExpr(walrus) bare-name targets,
+#     ``for``/``with as``/``except as``/comprehension targets, function & lambda
+#     params, nested def/class names, match captures (see ``_local_binding_names``)
+#     -- module-level poison file-wide, function-local poison their own subtree.
+#   * ``global`` / ``nonlocal`` -- an escaping rebind, poison file-wide.
+#
+# The CONSERVATIVE CATCH-ALL (rarer constructs that can bind/mutate a tracked name
+# but carry no useful per-site value -- so a FILE-WIDE demote is cheap and closes
+# the CLASS of holes, not one instance):
+#   * ``from x import *`` (module OR function level) -- may shadow any tracked
+#     name; poison ALL tracked names file-wide.
+#   * ``del <tracked>`` (and ``del os.environ``) -- poison that name file-wide.
+#   * ``type os = ...`` (``ast.TypeAlias``, 3.12+) -- poison that name file-wide.
+#   * ``os.environ = ...`` / ``+=`` / annotated -- an Attribute ``X.environ``
+#     assignment target replaces the mapping; poison the base name ``X`` file-wide.
+#
+# A receiver resolves GENUINE only when its name resolves (innermost enclosing
+# scope first, then module scope) to a genuine binding of the expected kind and is
+# not poisoned. MODULE-level ORDERING guard: a module-level call site lexically
+# BEFORE the first module-level genuine import of its receiver name is unresolved
+# -> 3b (the binding does not exist yet at import time). Ordering is NOT applied
+# inside function bodies -- they run after module import time, so a call in a def
+# defined above a bottom-of-file ``import os`` is still genuine. Any doubt -> 3b;
+# a demote only loses bake-eligibility, never the env READ (recall is unaffected).
 # ---------------------------------------------------------------------------
 
 _SCOPE_NODES: tuple = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
@@ -205,99 +232,173 @@ def _local_binding_names(node: ast.AST) -> list[str]:
     return names
 
 
+_POISON = "_poison"          # sentinel binding kind: name unusable in this scope
+
+
 class _OsUsage:
-    """Scope-aware resolution of genuine ``os.environ`` / ``os`` / ``os.getenv``
-    names for one file. ``genuine_*`` are bound by a MODULE-level genuine ``os``
-    import; a name resolves at a call site only when not poisoned there (see the
-    module comment above)."""
+    """Scope-aware resolution of genuine ``os`` / ``os.environ`` / ``os.getenv``
+    receiver names for one file.
 
-    __slots__ = ("genuine_os", "genuine_environ", "genuine_getenv",
-                 "module_poison", "scope_locals")
+    ``scope_genuine`` maps each scope node (``None`` = module scope) to
+    ``{name: kind}`` where ``kind`` is ``"os"`` / ``"environ"`` / ``"getenv"`` -- a
+    genuine binding introduced IN that scope. ``scope_poison`` maps a function/
+    class scope to the set of names it locally shadows (subtree-only demote).
+    ``module_poison`` names are unusable FILE-WIDE: module-level rebinds,
+    ``global``/``nonlocal`` escapes, and every conservative catch-all construct.
+    ``genuine_lineno`` records the first module-level genuine-binding line per name
+    for the module-level ordering guard.
 
-    def __init__(self, genuine_os, genuine_environ, genuine_getenv,
-                 module_poison, scope_locals):
-        self.genuine_os = genuine_os
-        self.genuine_environ = genuine_environ
-        self.genuine_getenv = genuine_getenv
-        self.module_poison = module_poison
-        self.scope_locals = scope_locals          # scope-node -> frozenset[str]
+    A name resolves at a call site only when the innermost binding on its scope
+    chain (then module scope) is a genuine binding of the expected kind and it is
+    not poisoned. Poison is checked BEFORE genuine within each scope, so the result
+    is independent of AST walk order (a name both imported genuine and later
+    rebound in the same scope resolves to poisoned)."""
 
-    def _poisoned(self, name: str, chain: tuple) -> bool:
+    __slots__ = ("scope_genuine", "scope_poison", "module_poison", "genuine_lineno")
+
+    def __init__(self, scope_genuine, scope_poison, module_poison, genuine_lineno):
+        self.scope_genuine = scope_genuine        # scope|None -> {name: kind}
+        self.scope_poison = scope_poison          # scope -> frozenset[str] (function-local)
+        self.module_poison = module_poison        # frozenset[str] (file-wide)
+        self.genuine_lineno = genuine_lineno      # name -> first module-level genuine lineno
+
+    def _resolve_kind(self, name: str, chain: tuple, lineno: int | None) -> str | None:
         if name in self.module_poison:
-            return True
-        for scope in chain:
-            if name in self.scope_locals.get(scope, frozenset()):
-                return True
-        return False
+            return None                           # file-wide poison wins over everything
+        for scope in reversed(chain):             # innermost enclosing scope first
+            if name in self.scope_poison.get(scope, frozenset()):
+                return None                       # local shadow wins over genuine in-scope
+            g = self.scope_genuine.get(scope)
+            if g is not None and name in g:
+                return g[name]
+        g = self.scope_genuine.get(None)          # module scope
+        if g is not None and name in g:
+            if not chain and lineno is not None:  # ordering guard: MODULE-level sites only
+                first = self.genuine_lineno.get(name)
+                if first is not None and lineno < first:
+                    return None                   # call precedes the genuine import
+            return g[name]
+        return None
 
-    def is_os_module(self, name: str, chain: tuple) -> bool:
-        return name in self.genuine_os and not self._poisoned(name, chain)
+    def is_os_module(self, name: str, chain: tuple, lineno: int | None = None) -> bool:
+        return self._resolve_kind(name, chain, lineno) == "os"
 
-    def is_environ_name(self, name: str, chain: tuple) -> bool:
-        return name in self.genuine_environ and not self._poisoned(name, chain)
+    def is_environ_name(self, name: str, chain: tuple, lineno: int | None = None) -> bool:
+        return self._resolve_kind(name, chain, lineno) == "environ"
 
-    def is_getenv_name(self, name: str, chain: tuple) -> bool:
-        return name in self.genuine_getenv and not self._poisoned(name, chain)
+    def is_getenv_name(self, name: str, chain: tuple, lineno: int | None = None) -> bool:
+        return self._resolve_kind(name, chain, lineno) == "getenv"
+
+
+def _poison_environ_attr_targets(node: ast.AST, module_poison: set) -> None:
+    """``os.environ = {}`` / ``os.environ += x`` / ``os.environ: T = {}`` -- an
+    assignment whose TARGET is an Attribute ``X.environ`` replaces (or mutates) the
+    mapping, so ``X``'s ``.environ`` can no longer be proven genuine. Poison the
+    base name ``X`` FILE-WIDE (conservative catch-all; rare in real repos)."""
+    if isinstance(node, ast.Assign):
+        targets: tuple = tuple(node.targets)
+    elif isinstance(node, (ast.AugAssign, ast.AnnAssign)):
+        targets = (node.target,)
+    else:
+        return
+    for t in targets:
+        if (isinstance(t, ast.Attribute) and t.attr == "environ"
+                and isinstance(t.value, ast.Name)):
+            module_poison.add(t.value.id)
 
 
 def _analyze_os_usage(tree: ast.AST) -> tuple:
     """Return ``(usage, node_scopes)`` for one file: an ``_OsUsage`` plus a map
     from each ``Call``/``Subscript`` node to its scope chain (so the scanners can
-    resolve a receiver per call site while still walking in document order)."""
-    genuine_os: set[str] = set()
-    genuine_environ: set[str] = set()
-    genuine_getenv: set[str] = set()
-    module_poison: set[str] = set()
-    scope_locals: dict = {}
-    node_scopes: dict = {}
-    _GENUINE = {"os": genuine_os, "environ": genuine_environ, "getenv": genuine_getenv}
+    resolve a receiver per call site while still walking in document order).
 
-    def bind_local(scope, name: str) -> None:
+    Polarity (round 4): only the handled-set of binding constructs is modeled
+    affirmatively; every other name-binding/mutating construct in the conservative
+    catch-all DEMOTES (poisons) rather than being ignored -- see the module comment
+    above. Do NOT add a genuine binding here without extending the handled-set."""
+    scope_genuine: dict = {}                             # scope|None -> {name: kind}
+    scope_poison: dict = {}                              # scope -> set[str] (function-local)
+    module_poison: set = set()                           # file-wide poison
+    genuine_lineno: dict = {}                            # name -> first module-level genuine line
+    genuine_names: set = set()                           # every name ever bound genuine
+    node_scopes: dict = {}
+    has_star = False
+
+    def add_genuine(scope, name: str, kind: str, lineno: int) -> None:
+        scope_genuine.setdefault(scope, {})[name] = kind
+        genuine_names.add(name)
         if scope is None:
-            module_poison.add(name)
+            genuine_lineno[name] = min(genuine_lineno.get(name, lineno), lineno)
+
+    def add_poison(scope, name: str) -> None:
+        if scope is None:
+            module_poison.add(name)                      # module-level -> file-wide
         else:
-            scope_locals.setdefault(scope, set()).add(name)
+            scope_poison.setdefault(scope, set()).add(name)  # function-local -> subtree
 
     for node, chain in _iter_with_scopes(tree):
         scope = chain[-1] if chain else None
         if isinstance(node, (ast.Call, ast.Subscript)):
             node_scopes[node] = chain
+            continue                                     # a call/subscript binds no name
+        if isinstance(node, ast.ImportFrom) and any(a.name == "*" for a in node.names):
+            has_star = True                              # `from x import *` may shadow any name
+            continue
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             for local, is_genuine, kind in _import_bindings(node):
                 if is_genuine:
-                    if scope is None:
-                        _GENUINE[kind].add(local)        # module-level genuine import
-                    # a genuine import INSIDE a function is ignored (fail-closed)
+                    add_genuine(scope, local, kind, getattr(node, "lineno", 0))
                 else:
-                    bind_local(scope, local)             # shadowing / unrelated import
+                    add_poison(scope, local)             # shadowing / unrelated import
             continue
         if isinstance(node, (ast.Global, ast.Nonlocal)):
             module_poison.update(node.names)             # escaping rebind -> poison everywhere
             continue
-        for name in _local_binding_names(node):
-            bind_local(scope, name)
+        if isinstance(node, ast.Delete):
+            for t in node.targets:                       # `del os` / `del os.environ`
+                if isinstance(t, ast.Name):
+                    module_poison.add(t.id)
+                elif (isinstance(t, ast.Attribute) and t.attr == "environ"
+                        and isinstance(t.value, ast.Name)):
+                    module_poison.add(t.value.id)
+            continue
+        if hasattr(ast, "TypeAlias") and isinstance(node, ast.TypeAlias):
+            if isinstance(node.name, ast.Name):          # `type os = ...` (3.12+)
+                module_poison.add(node.name.id)
+            continue
+        _poison_environ_attr_targets(node, module_poison)   # `os.environ = {}` etc.
+        for name in _local_binding_names(node):          # handled-set local bindings
+            add_poison(scope, name)
+
+    if has_star:
+        module_poison |= genuine_names                   # a star import may shadow any tracked name
 
     usage = _OsUsage(
-        frozenset(genuine_os), frozenset(genuine_environ), frozenset(genuine_getenv),
-        frozenset(module_poison), {k: frozenset(v) for k, v in scope_locals.items()},
+        {s: dict(b) for s, b in scope_genuine.items()},
+        {s: frozenset(v) for s, v in scope_poison.items()},
+        frozenset(module_poison),
+        dict(genuine_lineno),
     )
     return usage, node_scopes
 
 
-def _resolves_to_os_environ(owner: ast.AST, usage: _OsUsage, chain: tuple) -> bool:
+def _resolves_to_os_environ(owner: ast.AST, usage: _OsUsage, chain: tuple,
+                            lineno: int | None = None) -> bool:
     """True only when ``owner`` GENUINELY resolves to ``os.environ`` at this call
     site -- a name bound (non-poisoned) via ``from os import environ [as X]``, or
     ``<genuine-os-alias>.environ`` with a non-poisoned base. A bare
-    ``settings.environ`` base, or any poisoned/rebound name, is NOT genuine."""
+    ``settings.environ`` base, or any poisoned/rebound name, is NOT genuine.
+    ``lineno`` (the call-site line) feeds the module-level ordering guard."""
     if isinstance(owner, ast.Name):
-        return usage.is_environ_name(owner.id, chain)
+        return usage.is_environ_name(owner.id, chain, lineno)
     if isinstance(owner, ast.Attribute) and owner.attr == "environ":
         base = owner.value
-        return isinstance(base, ast.Name) and usage.is_os_module(base.id, chain)
+        return isinstance(base, ast.Name) and usage.is_os_module(base.id, chain, lineno)
     return False
 
 
-def _is_environ_receiver(owner: ast.AST, usage: _OsUsage, chain: tuple) -> bool:
+def _is_environ_receiver(owner: ast.AST, usage: _OsUsage, chain: tuple,
+                         lineno: int | None = None) -> bool:
     """Broad DETECTION of an ``environ``-shaped receiver worth surfacing as a
     config READ (advisory). A strict superset of ``_resolves_to_os_environ``: it
     keeps the pre-alias matcher UNCONDITIONALLY (a bare ``environ`` name, any
@@ -305,7 +406,7 @@ def _is_environ_receiver(owner: ast.AST, usage: _OsUsage, chain: tuple) -> bool:
     genuine, non-poisoned ``environ`` import alias. An unresolved
     ``settings.environ`` is still surfaced -- but classified advisory (3b)."""
     if isinstance(owner, ast.Name):
-        return owner.id == "environ" or usage.is_environ_name(owner.id, chain)
+        return owner.id == "environ" or usage.is_environ_name(owner.id, chain, lineno)
     return isinstance(owner, ast.Attribute) and owner.attr == "environ"
 
 
@@ -321,14 +422,15 @@ def _var_from_call(call: ast.Call, usage: _OsUsage, chain: tuple) -> str | None:
     it genuinely resolves to ``os.getenv`` at this site (``from os import getenv``,
     non-poisoned)."""
     func = call.func
+    lineno = getattr(call, "lineno", None)
     if isinstance(func, ast.Attribute):
         if func.attr in ("get", "setdefault"):
-            if not _is_environ_receiver(func.value, usage, chain):
+            if not _is_environ_receiver(func.value, usage, chain, lineno):
                 return None
         elif func.attr != "getenv":
             return None
         return _const_str(call.args[0]) if call.args else None
-    if isinstance(func, ast.Name) and usage.is_getenv_name(func.id, chain):
+    if isinstance(func, ast.Name) and usage.is_getenv_name(func.id, chain, lineno):
         return _const_str(call.args[0]) if call.args else None
     return None
 
@@ -355,7 +457,7 @@ def _default_from_call(call: ast.Call, usage: _OsUsage, chain: tuple) -> tuple[s
 
 def _var_from_subscript(sub: ast.Subscript, usage: _OsUsage, chain: tuple) -> str | None:
     """``os.environ['X']`` / ``environ['X']`` (and import-aliased ``environ``) -> ``'X'``."""
-    if not _is_environ_receiver(sub.value, usage, chain):
+    if not _is_environ_receiver(sub.value, usage, chain, getattr(sub, "lineno", None)):
         return None
     return _const_str(sub.slice)
 
@@ -421,7 +523,7 @@ def _is_setdefault_call(call: ast.Call, usage: _OsUsage, chain: tuple) -> bool:
     must not qualify."""
     func = call.func
     return (isinstance(func, ast.Attribute) and func.attr == "setdefault"
-            and _resolves_to_os_environ(func.value, usage, chain))
+            and _resolves_to_os_environ(func.value, usage, chain, getattr(call, "lineno", None)))
 
 
 def scan_env_defaults_provenance(repo_path: str) -> dict[str, tuple[str, str]]:
