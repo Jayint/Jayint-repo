@@ -22,6 +22,7 @@ from src.agent.log import ReactLog
 from src.agent.loop import RunResult, run_react
 from src.agent.prompt import ReactPlanner
 from src.agent.actions.script import strip_graph_framing
+from src.agent.env_state import env_state_enabled, render_declared
 
 # Install-tier layers only — drop TESTS so certify never re-runs the suite (spec §5).
 _INSTALL_LAYERS = tuple(l for l in EXECUTION_LAYER_ORDER if l is not Layer.TESTS)
@@ -186,6 +187,10 @@ def _gather_env_info(sandbox, repo_path) -> str:
     layout = _repo_layout(repo_path) if repo_path else ""
     if layout:
         lines += ["  Repo layout:", layout]
+    if env_state_enabled():
+        declared = render_declared(repo_path)
+        if declared:
+            lines += ["", declared]
     return "\n".join(lines)
 
 

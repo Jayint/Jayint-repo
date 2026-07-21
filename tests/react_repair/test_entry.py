@@ -252,3 +252,26 @@ def test_the_legacy_bool_param_still_turns_on_G2(monkeypatch):
     monkeypatch.delenv("REACT_GRAPH_CONTEXT", raising=False)
     monkeypatch.delenv("REACT_GRAPH_UPDATE", raising=False)
     assert rung_flags(graph_context=True) == (True, False)
+
+
+# ── DECLARED block folded into the ENVIRONMENT prompt (Task 5) ──────────────
+# NOTE: reuses _EnvSandbox (defined above) rather than a second `_FakeSandbox` — this file
+# already has a `_FakeSandbox` (rc, out, lineno) used by the docker_adapters tests; a second
+# class of the same name would silently rebind the module-global and break those 7 tests.
+
+
+def test_gather_env_info_includes_declared_block(tmp_path, monkeypatch):
+    from src.agent.entry import _gather_env_info
+    monkeypatch.setenv("REACT_ENV_STATE", "1")
+    (tmp_path / "requirements.txt").write_text("psycopg2-binary\n")
+    out = _gather_env_info(_EnvSandbox(), str(tmp_path))
+    assert "DECLARED (from the repo, static)" in out
+    assert "psycopg2-binary" in out
+
+
+def test_gather_env_info_omits_declared_when_flag_off(tmp_path, monkeypatch):
+    from src.agent.entry import _gather_env_info
+    monkeypatch.setenv("REACT_ENV_STATE", "0")
+    (tmp_path / "requirements.txt").write_text("psycopg2-binary\n")
+    out = _gather_env_info(_EnvSandbox(), str(tmp_path))
+    assert "DECLARED" not in out
