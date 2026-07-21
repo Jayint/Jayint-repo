@@ -195,7 +195,8 @@ def _config_obligations(repo_path, hits) -> list[ConfigObligation]:
     scheduled). Task 4 — the Config tier is plan-only now (no graph node, no gate):
     the obligation carries ``(var, value, provenance, bake_eligible, evidence)``,
     consumed ONLY by the render's ``#@config-env`` marker block. The ``evidence``
-    anchor ``{file, kind}`` (Task 3) names the source that actually WON the value.
+    anchor ``{file, kind}`` (Task 3) points at the source that WON the value when a
+    matching hit exists, else any hit naming the var, else ``None``.
 
     FIX B1 + MEASURED REGRESSION FIX (django-oauth-toolkit): when a value for
     that var is statically known it is carried as ``value`` so the renderer can
