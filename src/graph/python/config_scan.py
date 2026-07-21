@@ -135,8 +135,12 @@ def _const_str(node: ast.AST) -> str | None:
 #     file-wide, function-local poisons that subtree. A genuine import counts ONLY
 #     as a DIRECT statement child of its scope body (round 6): one nested in a
 #     compound statement (``if``/``try``/``while``/``for``/``with``/``match``) may
-#     not execute, so it contributes nothing genuine -- though a nested NON-canonical
-#     import still poisons (shadowing is conservative regardless of reachability).
+#     not execute, so it contributes nothing genuine. A nested NON-canonical import
+#     still poisons (shadowing is conservative regardless of reachability); a nested
+#     CANONICAL import that rebinds a name to a DIFFERENT kind than its existing
+#     genuine binding also poisons (``import os`` + ``if True: from os import environ
+#     as os`` -> ``os`` is conditionally two objects), while a same-kind redundant
+#     nested import (``if True: import os``) is a no-op.
 #   * Assign / AugAssign / AnnAssign / NamedExpr(walrus) bare-name targets,
 #     ``for``/``with as``/``except as``/comprehension targets, function & lambda
 #     params, nested def/class names, match captures (see ``_local_binding_names``)
@@ -397,9 +401,11 @@ def _analyze_os_usage(tree: ast.AST) -> tuple:
     class scopes do not flow bindings into methods; and a genuine name that leaks
     out of its allowed receiver positions is poisoned file-wide (escape analysis).
     Round 6 additions: an import contributes genuine ONLY as a direct child of its
-    scope body (conditional/dead-code imports contribute nothing genuine); and a
-    dunder attribute access directly on a tracked name (``os.__setattr__`` /
-    ``os.__dict__``) poisons that name file-wide."""
+    scope body (conditional/dead-code imports contribute nothing genuine -- but a
+    nested canonical import that rebinds a name to a DIFFERENT kind than its
+    existing genuine binding still poisons it); and a dunder attribute access
+    directly on a tracked name (``os.__setattr__`` / ``os.__dict__``) poisons that
+    name file-wide."""
     scope_genuine: dict = {}                             # scope|None -> {name: kind}
     scope_poison: dict = {}                              # scope -> set[str] (function-local)
     module_poison: set = set()                           # file-wide poison
@@ -413,6 +419,7 @@ def _analyze_os_usage(tree: ast.AST) -> tuple:
     subscript_value_ids: set = set()
     call_func_ids: set = set()
     load_names: list = []
+    nested_canonical: list = []                          # (chain, name, kind) of nested genuine imports
 
     def add_poison(scope, name: str) -> None:
         if scope is None:
@@ -468,10 +475,10 @@ def _analyze_os_usage(tree: ast.AST) -> tuple:
             direct = id(node) in scope_direct_ids        # direct child of the scope body?
             for local, is_genuine, kind in _import_bindings(node):
                 if is_genuine:
-                    if direct:                           # nested canonical import: contributes
+                    if direct:
                         add_genuine(scope, local, kind, getattr(node, "lineno", 0))
-                    # nothing (neither genuine nor poison -- a redundant `if True: import os`
-                    # must not demote a real top-level `import os`; Finding 1, round 6)
+                    else:
+                        nested_canonical.append((chain, local, kind))   # resolve vs genuine later
                 else:
                     add_poison(scope, local)             # shadowing import poisons even when nested
             continue
@@ -493,6 +500,28 @@ def _analyze_os_usage(tree: ast.AST) -> tuple:
         _poison_environ_attr_targets(node, module_poison)   # `os.environ = {}` etc.
         for name in _local_binding_names(node):          # handled-set local bindings
             add_poison(scope, name)
+
+    # Nested canonical imports (round 6 correction): a canonical import nested in a
+    # compound statement contributes nothing GENUINE, but if it rebinds a name to a
+    # DIFFERENT kind than that name's existing genuine binding (resolved from the
+    # import's scope outward), the name is conditionally two different objects and
+    # must be poisoned -- otherwise `import os` + `if True: from os import environ as
+    # os` would slip through as 3a. Same-kind (a redundant `if True: import os`) or
+    # no existing genuine binding is a no-op. Run after the walk so every direct
+    # genuine binding is known, making the decision independent of walk order.
+    for chain, local, kind in nested_canonical:
+        existing = None
+        for sc in reversed(_effective_chain(chain)):     # innermost enclosing scope first
+            g = scope_genuine.get(sc)
+            if g is not None and local in g:
+                existing = g[local]
+                break
+        else:
+            g = scope_genuine.get(None)                  # then module scope
+            if g is not None and local in g:
+                existing = g[local]
+        if existing is not None and existing != kind:
+            add_poison(chain[-1] if chain else None, local)   # conflicting nested rebind -> poison
 
     if has_star:
         module_poison |= genuine_names                   # a star import may shadow any tracked name

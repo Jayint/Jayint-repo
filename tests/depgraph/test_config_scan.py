@@ -856,6 +856,36 @@ def test_membership_test_on_os_environ_stays_3a(tmp_path):
     assert prov["MEMBER_VAR"] == ("member.settings", "code_scan_setdefault")
 
 
+def test_nested_canonical_import_rebinding_os_to_environ_kind_is_not_3a(tmp_path):
+    # Round-6 correction: a nested canonical import that is canonical in FORM but
+    # rebinds `os` to a DIFFERENT kind (environ) than its existing genuine os-kind
+    # binding must NOT slip through the "nested contributes nothing" skip -- `os` is
+    # conditionally two different objects -> poison -> 3b.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "nestedconflict.py", """
+        import os
+        if True:
+            from os import environ as os
+        os.environ.setdefault('NESTEDCONF_VAR', 'nestedconf.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["NESTEDCONF_VAR"] == ("nestedconf.settings", "code_scan_fallback")
+
+
+def test_nested_canonical_import_rebinding_os_to_getenv_kind_is_not_3a(tmp_path):
+    # Same class, getenv-kind: nested `from os import getenv as os` conflicts with
+    # the module-level os-kind binding -> poison -> 3b.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "nestedgetenv.py", """
+        import os
+        if True:
+            from os import getenv as os
+        os.environ.setdefault('NESTEDGET_VAR', 'nestedget.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["NESTEDGET_VAR"] == ("nestedget.settings", "code_scan_fallback")
+
+
 def test_scan_env_defaults_is_a_value_projection_of_provenance(tmp_path):
     # scan_env_defaults must stay byte-identical to "just the values" of the
     # provenance scan -- existing callers (_dsn_configs) depend on the plain shape.
