@@ -381,6 +381,40 @@ def test_clone_pins_sha_with_full_history(tmp_path, monkeypatch):
     checkout = next(c for c in gits if "checkout" in c)
     assert "cafebabe" in checkout
 
+def test_process_single_instance_pins_analysis_clone_to_dataset_commit(tmp_path):
+    # README adapter contract: our OWN analysis clone must honor instance["commit"] so run_v3
+    # analyzes the pinned tree, not live HEAD.
+    a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    seen = {}
+
+    def _clone(repo_url, pin_sha=None):
+        seen["pin_sha"] = pin_sha
+        return tmp_path / "v3_src"
+
+    a._clone = _clone                                             # type: ignore[assignment]
+    a._head_sha = lambda src_dir: "deadbeef"                      # type: ignore[assignment]
+    a._run_v3 = lambda src_dir, base_image, model, **kw: ("echo x", "python:3.11-slim")  # type: ignore[assignment]
+    a.process_single_instance(
+        {"instance_id": "o__r", "repo_url": "https://github.com/o/r", "commit": "cafebabe1234"})
+    assert seen["pin_sha"] == "cafebabe1234"
+
+
+def test_process_single_instance_no_commit_leaves_analysis_clone_unpinned(tmp_path):
+    # No dataset commit -> byte-identical to before: shallow current-HEAD clone (pin_sha None).
+    a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
+    seen = {}
+
+    def _clone(repo_url, pin_sha=None):
+        seen["pin_sha"] = pin_sha
+        return tmp_path / "v3_src"
+
+    a._clone = _clone                                             # type: ignore[assignment]
+    a._head_sha = lambda src_dir: "deadbeef"                      # type: ignore[assignment]
+    a._run_v3 = lambda src_dir, base_image, model, **kw: ("echo x", "python:3.11-slim")  # type: ignore[assignment]
+    a.process_single_instance({"instance_id": "o__r", "repo_url": "https://github.com/o/r"})
+    assert seen["pin_sha"] is None
+
+
 def test_render_dockerfile_default_shallow(tmp_path):
     a = MultiDockerEvalAdapter(output_dir=str(tmp_path))
     df = a._render_dockerfile("python:3.11-slim", "https://github.com/o/r")

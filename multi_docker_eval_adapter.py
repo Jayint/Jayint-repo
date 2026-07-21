@@ -181,6 +181,7 @@ class MultiDockerEvalAdapter:
         # base image routes on it (the harness always pytests) instead of an LLM
         # re-derive from the README. Absent -> classify as today (byte-identical).
         language = instance.get("language")
+        commit = instance.get("commit")   # dataset-pinned SHA (README adapter contract)
         result: Dict[str, Any] = {
             "dockerfile": None,
             "setup_scripts": {},
@@ -189,8 +190,11 @@ class MultiDockerEvalAdapter:
         }
         try:
             full_name = self._full_name(repo_url, instance_id)
-            pin_sha = self._seed_head_sha(full_name)      # None off-ablation → shallow current-HEAD clone
-            src_dir = self._clone(repo_url, pin_sha=pin_sha)
+            seed_sha = self._seed_head_sha(full_name)     # repair-ablation only; None otherwise
+            # README adapter contract: our OWN analysis clone must honor the dataset commit pin so
+            # run_v3 analyzes the pinned tree, not live HEAD (the producer separately injects the pin
+            # into the emitted Dockerfile's /testbed clone). Dataset commit wins; else the ablation seed.
+            src_dir = self._clone(repo_url, pin_sha=(commit or seed_sha))
             head_sha = self._head_sha(src_dir)
             setup_sh, resolved_base = self._run_v3(
                 src_dir, base_image, model, full_name=full_name, max_steps=max_steps,
@@ -207,7 +211,7 @@ class MultiDockerEvalAdapter:
                 result["setup_scripts"]["services_start.sh"] = services_sh
             result["dockerfile"] = self._render_dockerfile(
                 resolved_base, repo_url, include_services=bool(services_sh),
-                pin_sha=pin_sha, setup_sh=setup_sh)
+                pin_sha=seed_sha, setup_sh=setup_sh)
             result["logs"] = {"head_sha": head_sha, "resolved_base": resolved_base}
         except subprocess.CalledProcessError as e:
             tail = (getattr(e, "stderr", "") or "")[-2000:]
