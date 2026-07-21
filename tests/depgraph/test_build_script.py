@@ -714,7 +714,20 @@ def test_config_env_marker_refused_for_rung3b_fallback():
 
 
 def test_config_env_marker_refused_for_malformed_provenance():
-    for bad in (None, {}, {"rung": 99}, {"source": "code_scan_setdefault"}, "nope", 3):
+    bad_provenances = (
+        None, {}, "nope", 3,
+        {"rung": 99},                                   # unknown rung
+        {"source": "code_scan_setdefault"},             # missing rung
+        {"rung": 1},                                    # rung 1, missing source
+        {"rung": 1, "source": ""},                      # rung 1, empty source
+        {"rung": 1, "source": None},                    # rung 1, non-str source
+        {"rung": 1, "source": "bogus"},                 # rung 1, unknown source
+        {"rung": 2, "source": ".env.bogus"},            # rung 2, source not a real .env template
+        {"rung": 2, "source": "env_example"},           # rung 2, stale label (not a filename)
+        {"rung": True, "source": "authoritative_config"},   # bool rung must NOT pass the int guard
+        {"rung": 1.0, "source": "authoritative_config"},    # float rung is not an int
+    )
+    for bad in bad_provenances:
         out = render_build_script(DepGraph(nodes=(_cfg_need("settings", bad),)))
         assert "#@config-env" not in out, f"malformed provenance baked: {bad!r}"
 
@@ -723,6 +736,13 @@ def test_config_env_marker_refused_for_unknown_rung3_source():
     out = render_build_script(DepGraph(nodes=(
         _cfg_need("settings", {"rung": 3, "source": "code_scan_bogus"}),)))
     assert "#@config-env" not in out
+
+
+def test_config_env_marker_bakes_for_each_valid_rung2_env_file():
+    for src in (".env.example", ".env.sample", ".env.template"):
+        out = render_build_script(DepGraph(nodes=(
+            _cfg_need("settings", {"rung": 2, "source": src}),)))
+        assert "#@config-env DJANGO_SETTINGS_MODULE=settings" in out, src
 
 
 def test_config_env_marker_bakes_for_rung3a_setdefault():

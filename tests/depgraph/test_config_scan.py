@@ -316,6 +316,46 @@ def test_unresolvable_environ_receiver_setdefault_falls_closed_to_3b(tmp_path):
     assert prov.get("DJANGO_SETTINGS_MODULE") == ("x.settings", "code_scan_fallback")
 
 
+def test_rebound_os_name_setdefault_falls_closed_to_3b(tmp_path):
+    # `import os` then `os = object()` -- the name `os` is REBOUND, so
+    # `os.environ.setdefault` can no longer be proven to hit the real os.environ;
+    # detected (advisory) but fail-closed to 3b, never bake-eligible 3a.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "app/a.py", """
+        import os
+        os = object()
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'proj.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["DJANGO_SETTINGS_MODULE"] == ("proj.settings", "code_scan_fallback")
+
+
+def test_function_param_named_os_setdefault_falls_closed_to_3b(tmp_path):
+    # A function parameter named `os` shadows any module `os`; the receiver is
+    # unresolvable -> never 3a.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "app/b.py", """
+        import os
+        def f(os):
+            os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'proj.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov.get("DJANGO_SETTINGS_MODULE") != ("proj.settings", "code_scan_setdefault")
+
+
+def test_rebound_environ_alias_setdefault_is_not_3a(tmp_path):
+    # `from os import environ as env` then `env = {}` -- the alias is rebound to a
+    # plain dict, so `env.setdefault` must NOT be bake-eligible 3a.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "app/c.py", """
+        from os import environ as env
+        env = {}
+        env.setdefault('DJANGO_SETTINGS_MODULE', 'proj.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov.get("DJANGO_SETTINGS_MODULE") != ("proj.settings", "code_scan_setdefault")
+
+
 def test_scan_env_defaults_is_a_value_projection_of_provenance(tmp_path):
     # scan_env_defaults must stay byte-identical to "just the values" of the
     # provenance scan -- existing callers (_dsn_configs) depend on the plain shape.

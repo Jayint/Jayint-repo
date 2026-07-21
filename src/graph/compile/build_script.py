@@ -23,6 +23,11 @@ from graph.compile.emit import (
 )
 from graph.model import DepGraph, Layer, Node, NodeType, project_resolved_python
 from graph.patch.block import Block  # runtime (script's render/parse folded in here, 3c-1)
+from graph.python.config_scan import (  # config-provenance vocabulary (single source of truth)
+    _ENV_EXAMPLE_FILES,
+    _SOURCE_AUTHORITATIVE,
+    _SOURCE_SETDEFAULT,
+)
 
 _BANNER = (
     "#!/usr/bin/env bash",
@@ -312,30 +317,47 @@ def _known_config_value(node: Node) -> str | None:
     return value
 
 
+# The FULL (rung, source) pairs that may bake, grounded in config_scan's provenance
+# vocabulary (never a duplicated magic string). Rung-1/2/3 sources are ALL a closed,
+# enumerable set here -- rung 1 is exactly `_SOURCE_AUTHORITATIVE`, rung 2 is exactly
+# the `.env.*` template filenames `parse_env_example_provenance` can win from, and
+# rung 3's ONLY bake-eligible source is `_SOURCE_SETDEFAULT` (3a); rung-3b
+# `_SOURCE_FALLBACK` is deliberately absent. There is no open-vocabulary rung.
+_BAKE_ELIGIBLE_SOURCES_BY_RUNG: dict[int, frozenset[str]] = {
+    1: frozenset({_SOURCE_AUTHORITATIVE}),
+    2: frozenset(_ENV_EXAMPLE_FILES),
+    3: frozenset({_SOURCE_SETDEFAULT}),
+}
+
+
 def _config_bake_eligible(node: Node) -> bool:
     """Bake-eligibility keyed on a CONFIG node's ``data["config_provenance"]``
-    ``{rung, source}`` (B1 residual c / review #1). FAILS CLOSED: baking a
-    Dockerfile ENV is safety-sensitive (a wrong value silently shadows the real
-    config), so ONLY provenance that is explicitly, recognizably eligible bakes:
+    ``{rung, source}`` (B1 residual c / review #1+#2). FAILS CLOSED on the FULL
+    pair: baking a Dockerfile ENV is safety-sensitive (a wrong value silently
+    shadows the real config), so a value bakes ONLY when its provenance is an
+    exactly-recognized (rung, source) pair in ``_BAKE_ELIGIBLE_SOURCES_BY_RUNG``:
 
-      * rung 1 (authoritative config) and rung 2 (``.env.*``) -> eligible.
+      * rung 1 with source ``authoritative_config``.
+      * rung 2 with source == the winning ``.env.*`` template filename.
       * rung 3 with source ``code_scan_setdefault`` (the env-*writing*
         ``os.environ.setdefault`` entrypoint idiom -- the DJANGO_SETTINGS_MODULE
-        payoff) -> eligible.
+        payoff).
 
-    Everything else -- ABSENT provenance (a legacy serialized or hand-built node
-    carrying only ``config_value``), a MALFORMED dict (missing/unknown ``rung``),
-    an UNKNOWN ``source``, and rung-3b ``code_scan_fallback`` -- is advisory-only
-    and NEVER bakes. In the production pipeline every discovered value is stamped
-    with provenance by ``classify_services_clean._resolve_config_value``, so a
-    missing stamp is a signal to withhold, not to trust."""
+    Everything else is advisory-only and NEVER bakes: ABSENT provenance (a legacy
+    serialized or hand-built ``config_value``-only node), a non-int / bool / float
+    ``rung`` (``type(rung) is int`` explicitly rejects ``bool``, an ``int``
+    subclass), an unknown ``rung``, a missing / empty / non-``str`` / unrecognized
+    ``source``, and rung-3b ``code_scan_fallback``. In production every discovered
+    value is stamped by ``classify_services_clean._resolve_config_value``, so a
+    missing or off-vocabulary stamp is a signal to withhold, not to trust."""
     prov = node.data.get("config_provenance")
     if not isinstance(prov, dict):
         return False
     rung = prov.get("rung")
-    if rung in (1, 2):
-        return True
-    return rung == 3 and prov.get("source") == "code_scan_setdefault"
+    if type(rung) is not int or rung not in _BAKE_ELIGIBLE_SOURCES_BY_RUNG:
+        return False                                  # rejects bool/float/unknown-rung
+    source = prov.get("source")
+    return isinstance(source, str) and source in _BAKE_ELIGIBLE_SOURCES_BY_RUNG[rung]
 
 
 def _config_env_marker(node: Node) -> str | None:

@@ -105,11 +105,78 @@ class _OsBindings:
 _NO_OS_BINDINGS = _OsBindings()
 
 
+def _all_arg_names(args: ast.arguments) -> list[str]:
+    """Every parameter name of a function/lambda signature (all arg kinds)."""
+    slots = list(args.posonlyargs) + list(args.args) + list(args.kwonlyargs)
+    names = [a.arg for a in slots]
+    if args.vararg is not None:
+        names.append(args.vararg.arg)
+    if args.kwarg is not None:
+        names.append(args.kwarg.arg)
+    return names
+
+
+def _rebound_names(tree: ast.AST) -> set[str]:
+    """Every bare NAME bound anywhere in the module by something OTHER than the
+    ``import`` we resolved -- assignment / augmented-assign / annotated-assign
+    targets, ``for``/comprehension targets, ``with ... as`` / ``except ... as``,
+    function & lambda parameters, nested def/class names, and ``global`` /
+    ``nonlocal`` declarations. Used to fail-closed: an import-bound name that is
+    ALSO rebound here can no longer be trusted to mean the real ``os`` symbol, so
+    it is dropped (its receiver becomes unresolvable -> advisory 3b, never 3a).
+    Conservative and scope-blind by design: any rebinding anywhere disqualifies."""
+    names: set[str] = set()
+
+    def add_target(t: ast.AST) -> None:
+        if isinstance(t, ast.Name):
+            names.add(t.id)
+        elif isinstance(t, (ast.Tuple, ast.List)):
+            for e in t.elts:
+                add_target(e)
+        elif isinstance(t, ast.Starred):
+            add_target(t.value)
+        # Attribute / Subscript targets bind no bare name -> ignore.
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for t in node.targets:
+                add_target(t)
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
+            add_target(node.target)
+        elif isinstance(node, (ast.For, ast.AsyncFor)):
+            add_target(node.target)
+        elif isinstance(node, ast.comprehension):
+            add_target(node.target)
+        elif isinstance(node, (ast.With, ast.AsyncWith)):
+            for item in node.items:
+                if item.optional_vars is not None:
+                    add_target(item.optional_vars)
+        elif isinstance(node, ast.ExceptHandler):
+            if node.name:
+                names.add(node.name)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            names.add(node.name)
+            names.update(_all_arg_names(node.args))
+        elif isinstance(node, ast.Lambda):
+            names.update(_all_arg_names(node.args))
+        elif isinstance(node, ast.ClassDef):
+            names.add(node.name)
+        elif isinstance(node, (ast.Global, ast.Nonlocal)):
+            names.update(node.names)
+    return names
+
+
 def _collect_os_bindings(tree: ast.AST) -> _OsBindings:
     """Resolve ``import os [as X]`` / ``import os.path`` and
     ``from os import environ|getenv [as X]`` into the names they bind. Only
     absolute (``level == 0``) ``from os`` imports count -- a relative
-    ``from .os import ...`` is a local module, not stdlib ``os``."""
+    ``from .os import ...`` is a local module, not stdlib ``os``.
+
+    FAIL-CLOSED (review round 2): any import-bound name that is ALSO rebound
+    anywhere in the file (``os = fake``, a param named ``os``, an ``environ``
+    alias later reassigned, ...) is DROPPED -- its receiver becomes unresolvable
+    and demotes to advisory 3b. This can only turn 3a into 3b (never lose a broad
+    read), so recall is untouched."""
     os_module: set[str] = set()
     environ: set[str] = set()
     getenv: set[str] = set()
@@ -126,7 +193,12 @@ def _collect_os_bindings(tree: ast.AST) -> _OsBindings:
                     environ.add(a.asname or "environ")
                 elif a.name == "getenv":
                     getenv.add(a.asname or "getenv")
-    return _OsBindings(frozenset(os_module), frozenset(environ), frozenset(getenv))
+    rebound = _rebound_names(tree)
+    return _OsBindings(
+        frozenset(os_module - rebound),
+        frozenset(environ - rebound),
+        frozenset(getenv - rebound),
+    )
 
 
 def _resolves_to_os_environ(owner: ast.AST, b: _OsBindings) -> bool:
@@ -243,10 +315,15 @@ def scan_env_reads(repo_path: str) -> dict[str, str]:
     return out
 
 
-# Rung-3 SPLIT provenance tags (Task 3 / B1 residual). Eligibility downstream is
-# decided from these STRINGS, never from scan internals -- ``code_scan_setdefault``
-# (3a, env-writing entrypoint idiom) stays bake-eligible; ``code_scan_fallback``
-# (3b, a read-time get/getenv default) is advisory-only.
+# Config-provenance ``source`` vocabulary (Task 3 / B1). This module is the single
+# source of truth for what the scanners/classifier can emit; the bake-eligibility
+# gate (``build_script._config_bake_eligible``) grounds its allow-set in these
+# names (+ ``_ENV_EXAMPLE_FILES`` for rung 2) rather than duplicating magic strings.
+#   rung 1 -> ``_SOURCE_AUTHORITATIVE`` (emitted by classify's _resolve_config_value)
+#   rung 2 -> a member of ``_ENV_EXAMPLE_FILES`` (the winning .env template file)
+#   rung 3 -> ``_SOURCE_SETDEFAULT`` (3a, env-writing entrypoint idiom, bake-eligible)
+#             or ``_SOURCE_FALLBACK`` (3b, a read-time get/getenv default, advisory)
+_SOURCE_AUTHORITATIVE = "authoritative_config"
 _SOURCE_SETDEFAULT = "code_scan_setdefault"
 _SOURCE_FALLBACK = "code_scan_fallback"
 

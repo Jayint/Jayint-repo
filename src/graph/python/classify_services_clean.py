@@ -29,6 +29,7 @@ import os
 from urllib.parse import urlsplit
 
 from graph.python.config_scan import (
+    _SOURCE_AUTHORITATIVE,
     authoritative_ambiguous_vars,
     parse_env_example,
     parse_env_example_provenance,
@@ -170,7 +171,7 @@ def _resolve_config_value(var, ambiguous, authoritative, example_prov, defaults_
         return None, None
     av = authoritative.get(var)
     if av:
-        return av, {"rung": 1, "source": "authoritative_config"}
+        return av, {"rung": 1, "source": _SOURCE_AUTHORITATIVE}
     ev = example_prov.get(var)           # (value, ".env.example" | ".env.sample" | ".env.template")
     if ev and ev[0]:
         return ev[0], {"rung": 2, "source": ev[1]}
