@@ -403,7 +403,12 @@ def build_advisory_for_repo(
             # Task 4: service_obligations returns (graph, plan). The GRAPH is unchanged
             # (Service/Config are the construction artifact now); the plan carries them.
             graph, plan = provider.service_obligations(graph, repo_path, classify)   # Phase 3
-        advisory = render_dep_graph_advisory(graph)
+        # advise's SERVICE LISTING is preserved byte-for-byte: render the advisory from a
+        # TEMPORARY plan-admitted graph (add-if-absent; a throwaway — with_node returns a
+        # NEW graph, so `graph` itself is untouched) so declared services still appear in
+        # the advisory text, exactly as they did pre-Task-4. The RETURNED / stored
+        # construction graph stays service-free (the plan owns the services).
+        advisory = render_dep_graph_advisory(plan.admit_services(graph))
         if return_plan:
             return advisory, graph, plan
         return advisory, graph

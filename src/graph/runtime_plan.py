@@ -9,9 +9,10 @@ into the constructed DepGraph. It returns a ``RuntimePlan`` carrying:
       - the renderers (setup.sh service installs + the ENTRYPOINT start script)
         read them, and
       - the v3-arm loop ADMITS them back into its working graph at loop start
-        (the ADMISSION RULE — ``with_node`` idempotency collapses same-id
-        duplicates with runtime-discovered services). Because the services are
-        back in the graph at runtime, certify (incl. the demote counter),
+        (the ADMISSION RULE — ADD-IF-ABSENT: a plan service is admitted only when
+        no node with its id already exists, so a runtime-discovered / certified /
+        demoted / repaired same-id service is left untouched). Because the services
+        are back in the graph at runtime, certify (incl. the demote counter),
         ``scheduler_frontier``, the hollow-pass guard, advise's service listing,
         and DSN repoint all keep reading SERVICE nodes from the graph, UNCHANGED.
 
@@ -82,30 +83,42 @@ class ConfigObligation:
     """One advisory Config-tier record: an env var the tests read, its statically
     resolved value (``None`` when none was discovered, or when a DSN-shaped value
     was deliberately withheld from bake — it already has a certified bind path),
-    the structured ``{rung, source}`` provenance, and the fail-closed
-    ``bake_eligible`` flag (computed from provenance via :func:`config_bake_eligible`)."""
+    the structured ``{rung, source}`` provenance, the fail-closed ``bake_eligible``
+    flag (computed from provenance via :func:`config_bake_eligible`), and an
+    ``evidence`` anchor ``{"file", "kind"}`` naming the source that actually WON the
+    value (Task 3 binding deliverable — ``provenance.source`` records only the
+    category, e.g. ``authoritative_config``, and cannot say WHICH of
+    tox.ini/pytest.ini/setup.cfg/pyproject.toml won)."""
 
     var: str
     value: str | None = None
     provenance: dict | None = None
     bake_eligible: bool = False
+    evidence: dict | None = None
 
     @classmethod
-    def create(cls, var: str, value: str | None, provenance: dict | None) -> "ConfigObligation":
+    def create(cls, var: str, value: str | None, provenance: dict | None,
+               evidence: dict | None = None) -> "ConfigObligation":
         """Build an obligation, computing ``bake_eligible`` from ``provenance`` with
         the SAME fail-closed rule the renderer trusts — the single derivation site."""
         return cls(var=var, value=value, provenance=provenance,
-                   bake_eligible=config_bake_eligible(provenance))
+                   bake_eligible=config_bake_eligible(provenance), evidence=evidence)
 
     def to_dict(self) -> dict:
-        return {"var": self.var, "value": self.value,
-                "provenance": self.provenance, "bake_eligible": self.bake_eligible}
+        return {"var": self.var, "value": self.value, "provenance": self.provenance,
+                "bake_eligible": self.bake_eligible, "evidence": self.evidence}
 
     @classmethod
     def from_dict(cls, d: dict) -> "ConfigObligation":
+        """Fail-closed at the trust boundary: ``bake_eligible`` is RECOMPUTED from
+        ``provenance`` via the fail-closed gate — the serialized ``bake_eligible`` flag
+        is NEVER trusted. A hand-edited (or tampered) ``runtime_plan.json`` carrying
+        ``bake_eligible: true`` beside a rung-99 / bogus-source provenance therefore
+        renders NO marker; only a genuinely recognized (rung, source) pair bakes."""
         return cls(var=d["var"], value=d.get("value"),
                    provenance=d.get("provenance"),
-                   bake_eligible=bool(d.get("bake_eligible", False)))
+                   bake_eligible=config_bake_eligible(d.get("provenance")),
+                   evidence=d.get("evidence"))
 
 
 @dataclass(frozen=True)
@@ -131,12 +144,19 @@ class RuntimePlan:
         return None
 
     def admit_services(self, graph: DepGraph) -> DepGraph:
-        """Admit every service obligation as a SERVICE node — the ADMISSION RULE in
-        ONE place, reused by the v3 loop at loop start AND by the renderers.
-        ``with_node`` replaces by id, so a runtime-discovered service that shares an
-        id (idempotency) collapses onto the plan's copy rather than duplicating."""
+        """Admit every service obligation ADD-IF-ABSENT — the ADMISSION RULE in ONE
+        place, reused by the v3 loop at loop start AND by the renderers.
+
+        A plan service is added ONLY when no node with its id already exists
+        (``graph.get(id) is None``). An id that already exists — a runtime-discovered,
+        certified, demoted (``certify_fail_count``), or agent-repaired service — is left
+        BYTE-UNTOUCHED. The GRAPH stays the sole runtime state store: admission never
+        resurrects a demoted service to MISSING nor clobbers a repaired ``data['setup']``
+        with the pristine construction snapshot. A None/empty plan or an all-present set
+        is a strict no-op."""
         for node in self.service_obligations:
-            graph = graph.with_node(node)
+            if graph.get(node.id) is None:
+                graph = graph.with_node(node)
         return graph
 
     def to_dict(self) -> dict:

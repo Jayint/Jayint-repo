@@ -501,6 +501,9 @@ def test_provenance_rung1_authoritative_config(tmp_path):
     cfg = plan.get_config("DJANGO_SETTINGS_MODULE")
     assert cfg.provenance == {"rung": 1, "source": "authoritative_config"}
     assert cfg.bake_eligible is True
+    # Task 3 binding deliverable: the obligation anchors to the WINNING config file
+    # (provenance.source only records the CATEGORY, not which of four files won).
+    assert cfg.evidence == {"file": "tox.ini", "kind": "config_file"}
 
 
 def test_provenance_rung2_env_example(tmp_path):
@@ -514,12 +517,14 @@ def test_provenance_rung2_env_example(tmp_path):
 
 def test_provenance_rung2_threads_actual_env_sample_file(tmp_path):
     """B1 review #2: a value won from `.env.sample` (not `.env.example`) records
-    `.env.sample` as its provenance source."""
+    `.env.sample` as its provenance source AND anchors its evidence to the
+    `.env.sample` row, not a mislabeled `.env.example`."""
     _write(tmp_path, ".env.sample", "FLASK_APP=sample.wsgi\n")
     _write(tmp_path, "app.py", "import os\nos.environ['FLASK_APP']\n")
     plan = classify_services_clean(DepGraph(), str(tmp_path))
     cfg = plan.get_config("FLASK_APP")
     assert cfg.provenance == {"rung": 2, "source": ".env.sample"}
+    assert cfg.evidence == {"file": ".env.sample", "kind": "env_var"}
 
 
 def test_provenance_rung3a_setdefault(tmp_path):
@@ -560,10 +565,11 @@ def test_rung3a_setdefault_allowlisted_var_still_bakes(tmp_path):
     assert "#@config-env DJANGO_SETTINGS_MODULE=myproj.settings" in _render_markers(plan)
 
 
-def test_tox_won_value_has_authoritative_provenance(tmp_path):
-    """When tox.ini WINS the value over a vendored code-read site, the obligation's
-    provenance records the authoritative (rung-1) source (B1 residual b, now carried
-    as provenance rather than a per-node evidence anchor)."""
+def test_tox_won_value_anchors_evidence_to_the_tox_file_not_the_code_read(tmp_path):
+    """B1 residual (b): when tox.ini WINS the value over a vendored code-read site, the
+    obligation's evidence anchors to the tox.ini config-file source, NOT the (vendored)
+    code-read site that also mentions the var — the concrete WINNING file the plain
+    provenance CATEGORY (`authoritative_config`) cannot carry."""
     _write(tmp_path, "tox.ini", """
         [testenv]
         setenv =
@@ -576,3 +582,4 @@ def test_tox_won_value_has_authoritative_provenance(tmp_path):
     cfg = plan.get_config("DJANGO_SETTINGS_MODULE")
     assert cfg.value == "tests.settings"
     assert cfg.provenance == {"rung": 1, "source": "authoritative_config"}
+    assert cfg.evidence == {"file": "tox.ini", "kind": "config_file"}

@@ -53,10 +53,26 @@ def test_config_obligation_create_computes_bake_eligible():
     assert ob2.bake_eligible is False
 
 
-def test_config_obligation_round_trip():
+def test_config_obligation_round_trip_preserves_evidence():
     ob = ConfigObligation.create("FLASK_APP", "app.wsgi",
-                                 {"rung": 2, "source": ".env.example"})
-    assert ConfigObligation.from_dict(ob.to_dict()) == ob
+                                 {"rung": 2, "source": ".env.example"},
+                                 evidence={"file": ".env.example", "kind": "env_var"})
+    restored = ConfigObligation.from_dict(ob.to_dict())
+    assert restored == ob
+    assert restored.evidence == {"file": ".env.example", "kind": "env_var"}
+
+
+def test_from_dict_recomputes_bake_eligible_fail_closed():
+    # IMPORTANT 3 repro: a hand-edited / tampered runtime_plan.json carrying
+    # bake_eligible:true beside bogus provenance must NOT be trusted — from_dict
+    # RECOMPUTES the flag from provenance via the fail-closed gate.
+    tampered = {"var": "DJANGO_SETTINGS_MODULE", "value": "settings",
+                "provenance": {"rung": 99, "source": "bogus"}, "bake_eligible": True}
+    assert ConfigObligation.from_dict(tampered).bake_eligible is False
+    # and a legitimately-eligible pair still recomputes True
+    good = ConfigObligation.create("DJANGO_SETTINGS_MODULE", "settings",
+                                   {"rung": 1, "source": "authoritative_config"})
+    assert ConfigObligation.from_dict({**good.to_dict(), "bake_eligible": False}).bake_eligible is True
 
 
 # ── RuntimePlan ──────────────────────────────────────────────────────────────
@@ -97,14 +113,26 @@ def test_admit_services_adds_service_nodes():
     assert node is not None and node.type is NodeType.SERVICE
 
 
-def test_admit_services_is_id_idempotent():
-    # A runtime-discovered service with the SAME id must collapse (with_node
-    # replaces by id) — no duplicate SERVICE node after admission.
-    runtime_copy = _service()  # same id, e.g. discovered live at runtime
-    g = DepGraph(nodes=(runtime_copy,))
-    plan = RuntimePlan(service_obligations=(_service(),))
+def test_admit_services_add_if_absent_preserves_existing_node():
+    # CRITICAL: an existing same-id node (any state — a runtime-discovered, CERTIFIED,
+    # DEMOTED, agent-repaired service) must survive admission BYTE-UNTOUCHED. The plan's
+    # pristine MISSING copy must NOT replace it (that would resurrect a demoted service
+    # and violate graph-as-sole-runtime-state).
+    from graph.model import State
+    runtime = _service().with_state(State.SATISFIED).with_data(
+        certify_fail_count=3)
+    runtime = runtime.with_data(setup={"install": ["repaired"], "start": "svc up",
+                                       "probe": "pg_isready", "createdb": None, "post": []})
+    g = DepGraph(nodes=(runtime,))
+    plan = RuntimePlan(service_obligations=(_service(),))   # pristine MISSING copy, same id
     g2 = plan.admit_services(g)
-    assert len([n for n in g2.nodes if n.id == "service:postgres"]) == 1
+    survivors = [n for n in g2.nodes if n.id == "service:postgres"]
+    assert len(survivors) == 1
+    kept = survivors[0]
+    assert kept is runtime                                  # the exact existing node object
+    assert kept.state is State.SATISFIED
+    assert kept.data["certify_fail_count"] == 3
+    assert kept.data["setup"]["install"] == ["repaired"]    # repaired setup not clobbered
 
 
 def test_admit_services_empty_plan_is_noop():

@@ -34,6 +34,44 @@ def test_classify_hook_invoked_and_plan_returned(monkeypatch):
     assert plan.get_service("service:tagged") is not None  # classify's plan threaded out
 
 
+def test_advisory_service_listing_preserved_with_real_renderer(monkeypatch):
+    """IMPORTANT 1: the advisory's SERVICE LISTING is preserved byte-for-byte — the
+    advisory is rendered from a TEMPORARY plan-admitted graph, so a classified service
+    still appears in the text, while the RETURNED construction graph stays service-free."""
+    from graph.runtime_plan import RuntimePlan
+    from graph.python.services.service_recipes import render_probe_poll
+
+    base = DepGraph()
+
+    class _FakeScratch:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    monkeypatch.setattr(advise, "DockerExecutor", lambda *a, **k: _FakeScratch())
+    monkeypatch.setattr(advise, "build_dep_graph", lambda *a, **k: base)
+    # NOTE: render_dep_graph_advisory is the REAL one here (not mocked).
+
+    setup = {"install": ["apt-get install -y postgresql"], "start": "",
+             "probe": "pg_isready", "createdb": None, "post": [], "bind": []}
+    svc = Node(id="service:postgres", type=NodeType.SERVICE, name="postgres",
+               layer=Layer.SERVICES, discovered_by=DiscoveredBy.CLASSIFIER,
+               state=State.MISSING, check_command=render_probe_poll("pg_isready"),
+               data={"setup": setup})
+
+    def _classify(graph, repo_path):
+        return RuntimePlan(service_obligations=(svc,))
+
+    adv, graph, plan = advise.build_advisory_for_repo(
+        "/repo", "python:3.11-slim", classify=_classify, return_plan=True)
+    # the classified service is listed in the advisory text (pre-Task-4 content)
+    assert "SERVICES (declared" in adv
+    assert "postgres" in adv
+    # ...but the RETURNED / stored construction graph is service-free (plan owns it)
+    assert graph is base
+    assert graph.get("service:postgres") is None
+    assert plan.get_service("service:postgres") is not None
+
+
 def test_classify_none_is_passthrough(monkeypatch):
     base = DepGraph()
     class _FakeScratch:

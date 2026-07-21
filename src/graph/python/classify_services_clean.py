@@ -56,6 +56,32 @@ logger = logging.getLogger(__name__)
 
 # Evidence kinds that name a concrete service/kind — preferred anchor for a Service node.
 _STRONG_SERVICE_KINDS = frozenset({"compose_service", "service_binding", "ci_service"})
+# Evidence kinds that name a read/declared env var — fallback anchor for a Config obligation.
+_CONFIG_EVIDENCE_KINDS = frozenset({"env_read", "env_var"})
+
+# The evidence kind that anchors each provenance rung to its WINNING source: rung 1
+# (authoritative config) -> the tox.ini/pytest.ini/... config_file row, rung 2
+# (.env.example) -> the env_var row, rung 3 (code scan) -> the code-read row. B1
+# residual (b) / Task 3 binding deliverable: the obligation must show the file that
+# actually WON the value, not merely its provenance CATEGORY (`authoritative_config`
+# cannot say which of four config files won; `code_scan_setdefault` names no site).
+_RUNG_EVIDENCE_KIND: dict[int, str] = {1: "config_file", 2: "env_var", 3: "env_read"}
+
+
+def _config_evidence_anchor(hits, var: str, provenance: dict | None) -> dict | None:
+    """``{"file", "kind"}`` of the source that WON ``var``'s value (per
+    ``provenance['rung']``) when such a hit exists, else any hit naming the var, else
+    ``None``. Anchors to the WINNING file (tox.ini vs pytest.ini vs the code-read site),
+    the concrete provenance the plain ``provenance.source`` category cannot carry."""
+    preferred = _RUNG_EVIDENCE_KIND.get(provenance["rung"]) if isinstance(provenance, dict) else None
+    if preferred is not None:
+        for h in hits:
+            if h.kind == preferred and h.name == var:
+                return {"file": h.file, "kind": h.kind}
+    for h in hits:
+        if h.kind in _CONFIG_EVIDENCE_KINDS and h.name == var:
+            return {"file": h.file, "kind": h.kind}
+    return None
 
 
 def _looks_like_dsn(value: str) -> bool:
@@ -164,7 +190,7 @@ def _resolve_config_value(var, ambiguous, authoritative, example_prov, defaults_
     return None, None
 
 
-def _config_obligations(repo_path) -> list[ConfigObligation]:
+def _config_obligations(repo_path, hits) -> list[ConfigObligation]:
     """One advisory :class:`ConfigObligation` per env var the tests read (never
     scheduled). Task 4 — the Config tier is plan-only now (no graph node, no gate,
     no evidence anchor): the obligation carries ``(var, value, provenance,
@@ -220,11 +246,12 @@ def _config_obligations(repo_path) -> list[ConfigObligation]:
         # recorded on the obligation (a DSN is a discovered value too); only the
         # bakeable value is withheld.
         bake_value = value if (value is not None and not _looks_like_dsn(value)) else None
-        obs.append(ConfigObligation.create(var, bake_value, provenance))
+        evidence = _config_evidence_anchor(hits, var, provenance)
+        obs.append(ConfigObligation.create(var, bake_value, provenance, evidence))
     return obs
 
 
-def _service_obligations(graph, repo_path: str, arch, client, model) -> tuple:
+def _service_obligations(graph, repo_path: str, arch, client, model, hits) -> tuple:
     """The gate-validated SERVICE ``Node`` objects for the plan.
 
     Services are still built as ``NodeSpec``s and run through the pure
@@ -233,7 +260,6 @@ def _service_obligations(graph, repo_path: str, arch, client, model) -> tuple:
     admitted SERVICE nodes are then extracted from the throwaway result and handed to
     the plan. The input ``graph`` is never mutated. Empty tuple when the repo declares
     no service (or the batch is rejected)."""
-    hits = collect_static_evidence(repo_path, graph)
     if not hits:
         return ()
     bundle_ids = frozenset(h.evidence_id for h in hits)
@@ -258,8 +284,9 @@ def classify_services_clean(graph, repo_path: str, client=None, model: str = "",
     ``EMPTY_PLAN`` is returned (best-effort — never crashes the build)."""
     try:
         arch = arch or {}
-        service_obs = _service_obligations(graph, repo_path, arch, client, model)
-        config_obs = tuple(_config_obligations(repo_path))
+        hits = collect_static_evidence(repo_path, graph)   # ONE collection, shared by both tiers
+        service_obs = _service_obligations(graph, repo_path, arch, client, model, hits)
+        config_obs = tuple(_config_obligations(repo_path, hits))
         return RuntimePlan(service_obligations=service_obs, config_obligations=config_obs)
     except Exception as exc:                     # best-effort: never crash the build
         logger.warning("clean service/config classify skipped: %s", exc)

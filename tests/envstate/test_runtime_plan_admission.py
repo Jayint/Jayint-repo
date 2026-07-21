@@ -126,18 +126,28 @@ def test_plan_service_admitted_at_loop_start(monkeypatch):
 
 
 def test_plan_service_collapses_with_runtime_discovered_duplicate(monkeypatch):
-    """A runtime-discovered service already in the graph with the SAME id must
-    collapse with the plan's copy (with_node idempotency) — exactly one node."""
+    """ADD-IF-ABSENT: a runtime-discovered service already in the graph with the SAME
+    id must be left BYTE-UNTOUCHED — the plan's pristine MISSING copy must NOT replace
+    a certified/demoted/repaired existing node (no state resurrection). Exactly one node,
+    and it is the pre-existing one with its state/counter/setup preserved."""
     monkeypatch.setattr(gs_module, "next_decision", _obligation_decision)
     monkeypatch.setattr(orch, "run_structured_repair", _fake_repair_noop)
-    # graph already carries a runtime-discovered service:redis (a different instance,
-    # same id) before the loop admits the plan's copy.
-    pre = DepGraph(nodes=(_service_node("service:redis"),))
-    plan = RuntimePlan(service_obligations=(_service_node("service:redis"),))
+    # graph already carries a runtime-discovered, CERTIFIED + DEMOTED + REPAIRED
+    # service:redis before the loop admits the plan's pristine copy.
+    existing = _service_node("service:redis").with_state(State.SATISFIED).with_data(
+        certify_fail_count=3,
+        setup={"install": ["repaired-install"], "start": "redis up",
+               "probe": "redis-cli ping", "createdb": None, "post": []})
+    pre = DepGraph(nodes=(existing,))
+    plan = RuntimePlan(service_obligations=(_service_node("service:redis"),))  # pristine MISSING
     final_map, _stop = orchestrator.run_v3(
         **_inputs(_failing_gate, runtime_plan=plan, dep_graph=pre))
     reds = [n for n in final_map.dep_graph.nodes if n.id == "service:redis"]
     assert len(reds) == 1
+    kept = reds[0]
+    assert kept.state is State.SATISFIED                        # not resurrected to MISSING
+    assert kept.data["certify_fail_count"] == 3                 # demote counter preserved
+    assert kept.data["setup"]["install"] == ["repaired-install"]  # repaired setup preserved
 
 
 def test_none_plan_admission_is_noop(monkeypatch):
