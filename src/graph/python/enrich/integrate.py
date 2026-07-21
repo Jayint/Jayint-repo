@@ -75,6 +75,18 @@ def _edge_data(parsed: ParsedFailure) -> dict:
     return {"phase": parsed.phase, "via": via, "importer": importer}
 
 
+def _owner_anchor(graph: DepGraph) -> str | None:
+    """The node that OWNS a resolved provider obligation. Prefer the Test goal
+    (the spine root the production graph is always built on); fall back to the
+    Project hub for a hand-built graph that omits the Test node. Either is a legal
+    ``requires`` source. Returns None only when the graph has neither — the
+    provider is then recorded but left unowned (never invent an anchor)."""
+    if graph.get(TEST_NODE_ID) is not None:
+        return TEST_NODE_ID
+    proj = next((n for n in graph.nodes if n.type is NodeType.PROJECT), None)
+    return proj.id if proj is not None else None
+
+
 def integrate(
     graph: DepGraph,
     overlay: ObservationOverlay,
@@ -107,10 +119,11 @@ def integrate(
 
     # STRUCTURE: one requires edge owner->provider, carrying the causal chain.
     # Demand nodes (unresolved imports) get NO outgoing provider edge, but the owner
-    # still requires the (unsatisfied) capability, so hang Test->import: for demand too
-    # ONLY when it is a real capability the target needs. For provider, Test->provider.
+    # still requires the (unsatisfied) capability. The owner is the Test goal when
+    # present, else the Project hub (a hand-built graph may omit the Test node) —
+    # anchoring on the Project keeps the provider owned rather than orphaned.
     if disposition == "provider":
-        owner = TEST_NODE_ID if new_graph.get(TEST_NODE_ID) is not None else None
+        owner = _owner_anchor(new_graph)
         if owner is not None:
             edge = Edge(src=owner, dst=anchor_id, relation=EdgeType.REQUIRES,
                         origin="runtime", data=_edge_data(parsed))
