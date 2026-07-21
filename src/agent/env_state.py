@@ -178,3 +178,28 @@ def render_pip_list(freeze_raw: str, *, cap: int = 200) -> str:
     n = len(pkgs)
     extra = f", +{n - cap} more" if n > cap else ""
     return f"pip installed ({n}): " + ", ".join(pkgs[:cap]) + extra
+
+
+# One command that prints installed package names one-per-line on both Debian/Ubuntu
+# (dpkg-query) and Alpine (apk). Only one tool exists per image, so the union is that tool's
+# output; the other half prints nothing. Both halves are read-only.
+SYSPKG_PROBE_CMD = (r"(dpkg-query -W -f='${Package}\n' 2>/dev/null; apk info 2>/dev/null)")
+
+
+def parse_syspkgs(raw: str) -> "frozenset[str]":
+    return frozenset(
+        ln.strip() for ln in (raw or "").splitlines()
+        if ln.strip() and not ln.strip().startswith("#"))
+
+
+def render_syspkg_delta(base: "frozenset[str]", now: "frozenset[str]", *, cap: int = 60) -> str:
+    """Only the packages setup.sh ADDED on top of the base image. Empty `base` means the base
+    inventory could not be captured, in which case `now - base` would be the entire base (~300
+    lines of noise); omit the line rather than mislead."""
+    if not base:
+        return ""
+    added = sorted(now - base)
+    if not added:
+        return "system packages added on top of base: (none)"
+    extra = f", +{len(added) - cap} more" if len(added) > cap else ""
+    return "system packages added on top of base: " + ", ".join(added[:cap]) + extra

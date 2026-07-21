@@ -107,3 +107,40 @@ def test_render_pip_list_caps_and_counts_remainder():
 
 def test_render_pip_list_empty_when_no_packages():
     assert render_pip_list("") == "" and render_pip_list("\n#x\n") == ""
+
+
+from src.agent.env_state import SYSPKG_PROBE_CMD, parse_syspkgs, render_syspkg_delta
+
+
+def test_syspkg_probe_covers_dpkg_and_apk():
+    assert "dpkg-query" in SYSPKG_PROBE_CMD and "apk" in SYSPKG_PROBE_CMD
+
+
+def test_parse_syspkgs_one_name_per_line():
+    assert parse_syspkgs("libc6\nlibpq5\n\n# note\n") == frozenset({"libc6", "libpq5"})
+
+
+def test_render_syspkg_delta_shows_only_added():
+    base = frozenset({"libc6", "bash"})
+    now = frozenset({"libc6", "bash", "libpq5", "libpq-dev"})
+    assert render_syspkg_delta(base, now) == (
+        "system packages added on top of base: libpq-dev, libpq5")
+
+
+def test_render_syspkg_delta_none_added():
+    base = frozenset({"libc6"})
+    assert render_syspkg_delta(base, base) == "system packages added on top of base: (none)"
+
+
+def test_render_syspkg_delta_omitted_when_base_unknown():
+    # empty base = capture failed; must NOT dump the whole `now` set as if all were "added".
+    assert render_syspkg_delta(frozenset(), frozenset({"libc6", "libpq5"})) == ""
+
+
+def test_render_syspkg_delta_caps():
+    base = frozenset()
+    added = frozenset(f"pkg{i}" for i in range(80))
+    # base non-empty so the delta renders; make base a sentinel not in `added`.
+    out = render_syspkg_delta(frozenset({"_base_"}), added | {"_base_"}, cap=60)
+    assert out.startswith("system packages added on top of base: ")
+    assert ", +20 more" in out
