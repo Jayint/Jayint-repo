@@ -655,23 +655,45 @@ def _service_start_block(node: Node) -> list[str]:
     return out
 
 
-def render_service_start_script(plan: RuntimePlan | None) -> str:
-    """Bash ENTRYPOINT-wrapper script: start + probe-wait + post + createdb for
-    every reciped SERVICE obligation in ``plan`` (dependency-ordered), terminated
-    with ``exec "$@"`` so it composes as ``ENTRYPOINT ["/bin/bash",
-    "/v3_start_services.sh"]`` — the wrapped foreground command (``tail -f
-    /dev/null`` in the eval harness) still runs, just after every service is
-    live. Pure — no Docker, no network, no LLM.
+def _graph_has_service_nodes(graph: DepGraph) -> bool:
+    """True when the graph carries ANY SERVICE-type node — the signal that the v3
+    loop already ADMITTED the plan's services (add-if-absent) and has been mutating
+    them there. Deliberately type-only, NOT ``_is_service_reciped``: a demoted or
+    setup-stripped service is STILL runtime state the graph owns, so its presence
+    must keep the renderer reading the graph and never silently fall back to the
+    pristine construction plan (which would resurrect a service the graph dropped)."""
+    return any(n.type is NodeType.SERVICE for n in graph.nodes)
 
-    Task 4 — reads the RuntimePlan (the Service construction artifact), not a graph.
-    Empty string when the plan has no reciped SERVICE obligation — the Dockerfile
-    side must then add NO ``ENTRYPOINT`` at all, so a repo with zero services
-    (the common case) is a strict no-op end to end."""
-    if plan is None:
+
+def render_service_start_script(graph: DepGraph | None = None, *,
+                                plan: RuntimePlan | None = None) -> str:
+    """Bash ENTRYPOINT-wrapper script: start + probe-wait + post + createdb for
+    every reciped SERVICE node (dependency-ordered), terminated with ``exec "$@"``
+    so it composes as ``ENTRYPOINT ["/bin/bash", "/v3_start_services.sh"]`` — the
+    wrapped foreground command (``tail -f /dev/null`` in the eval harness) still
+    runs, just after every service is live. Pure — no Docker, no network, no LLM.
+
+    GRAPH-FIRST source selection (the graph is the sole runtime state store,
+    review IMPORTANT 1): when ``graph`` carries any SERVICE node — the
+    post-admission / post-repair case, where the v3 loop mutated
+    ``start``/``probe``/``post``/``createdb``/``setup`` ON the graph — the script
+    renders from THOSE nodes, so a repaired service's commands ship, never the
+    stale construction snapshot. Only when the graph has NO SERVICE node (the
+    construction-time render, where nodes were never minted) does it fall back to
+    ``plan``'s service obligations — its pre-plan behavior, restored.
+
+    Empty string when neither source has a reciped SERVICE — the Dockerfile side
+    must then add NO ``ENTRYPOINT`` at all, so a repo with zero services (the
+    common case) is a strict no-op end to end."""
+    if graph is not None and _graph_has_service_nodes(graph):
+        source = graph
+    elif plan is not None:
+        # Build a throwaway graph from the plan's service obligations so the existing
+        # dependency-ordering machinery (`_service_nodes_for_start`) is reused unchanged.
+        source = DepGraph(nodes=tuple(plan.service_obligations))
+    else:
         return ""
-    # Build a throwaway graph from the plan's service obligations so the existing
-    # dependency-ordering machinery (`_service_nodes_for_start`) is reused unchanged.
-    nodes = _service_nodes_for_start(DepGraph(nodes=tuple(plan.service_obligations)))
+    nodes = _service_nodes_for_start(source)
     if not nodes:
         return ""
     parts: list[str] = list(_SERVICE_START_BANNER) + ["set -Eeuo pipefail", ""]

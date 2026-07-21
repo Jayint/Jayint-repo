@@ -58,11 +58,11 @@ def _pkg(id_, name, version):
 
 def test_start_script_empty_plan_is_noop():
     assert render_service_start_script(None) == ""
-    assert render_service_start_script(RuntimePlan()) == ""
+    assert render_service_start_script(plan=RuntimePlan()) == ""
 
 
 def test_start_script_no_service_obligations_is_noop():
-    assert render_service_start_script(RuntimePlan(service_obligations=())) == ""
+    assert render_service_start_script(plan=RuntimePlan(service_obligations=())) == ""
 
 
 def test_start_script_service_with_no_setup_data_is_skipped():
@@ -71,11 +71,11 @@ def test_start_script_service_with_no_setup_data_is_skipped():
     plan = _plan(Node(id="service:mystery", type=NodeType.SERVICE, name="mystery",
                       layer=Layer.SERVICES, discovered_by=DiscoveredBy.CLASSIFIER,
                       state=State.MISSING))
-    assert render_service_start_script(plan) == ""
+    assert render_service_start_script(plan=plan) == ""
 
 
 def test_start_script_postgres_emits_start_probe_createdb_post_and_execs():
-    out = render_service_start_script(_plan(_service()))
+    out = render_service_start_script(plan=_plan(_service()))
     assert "service postgresql start" in out
     # Bounded wait loop that does NOT exit the script — deliberately NOT
     # service_recipes.render_probe_poll's `exit 0`/`exit 1` wrapper.
@@ -100,7 +100,7 @@ def test_start_script_multiple_services_all_present():
                    "start": "redis-server --daemonize yes", "probe": "redis-cli ping",
                    "createdb": None, "post": []}
     out = render_service_start_script(
-        _plan(_service(), _service("service:redis", "redis", setup=redis_setup)))
+        plan=_plan(_service(), _service("service:redis", "redis", setup=redis_setup)))
     assert "service postgresql start" in out
     assert "redis-server --daemonize yes" in out
     assert out.count('exec "$@"') == 1          # exec is the SCRIPT's tail, not per-node
@@ -110,9 +110,9 @@ def test_start_script_multiple_services_all_present():
 def test_start_script_is_deterministic():
     p1 = _plan(_service("service:postgres", "postgres"), _service("service:redis", "redis"))
     p2 = _plan(_service("service:redis", "redis"), _service("service:postgres", "postgres"))
-    assert render_service_start_script(p1) == render_service_start_script(p1)  # pure
+    assert render_service_start_script(plan=p1) == render_service_start_script(plan=p1)  # pure
     # topo_order breaks ties by (layer rank, name) — insertion order shouldn't matter
-    assert render_service_start_script(p1) == render_service_start_script(p2)
+    assert render_service_start_script(plan=p1) == render_service_start_script(plan=p2)
 
 
 # ---------------------------------------------------------------------------
@@ -139,7 +139,7 @@ def _run_start_script(script_text: str, *args: str) -> subprocess.CompletedProce
 
 
 def test_start_script_reaches_exec_past_a_succeeding_probe():
-    script = render_service_start_script(_plan(_true_probe_service()))
+    script = render_service_start_script(plan=_plan(_true_probe_service()))
     proc = _run_start_script(script, "echo", "__REACHED_EXEC__")
     assert "__REACHED_EXEC__" in proc.stdout, (
         f'start script did not reach exec "$@": rc={proc.returncode} '
@@ -161,7 +161,7 @@ def test_start_script_two_services_first_probe_success_does_not_short_circuit_se
              layer=Layer.SERVICES, discovered_by=DiscoveredBy.CLASSIFIER,
              state=State.MISSING, data={"setup": second_setup}),
     )
-    script = render_service_start_script(plan)
+    script = render_service_start_script(plan=plan)
     proc = _run_start_script(
         script, "bash", "-c",
         f"test -f {marker_post} && echo POST_RAN; "
@@ -179,7 +179,7 @@ def test_start_script_coerces_string_post_into_one_command_line():
     plan = _plan(Node(id="service:strpost", type=NodeType.SERVICE, name="strpost",
                       layer=Layer.SERVICES, discovered_by=DiscoveredBy.CLASSIFIER,
                       state=State.MISSING, data={"setup": setup}))
-    out = render_service_start_script(plan)
+    out = render_service_start_script(plan=plan)
     lines = out.splitlines()
     assert any(ln.strip() == "createbucket foo" for ln in lines), (
         f"expected 'createbucket foo' as one literal command line, got:\n{out}"
@@ -285,3 +285,56 @@ def test_flag_on_manifest_counts_service_as_reciped():
     preamble = out[:out.index("set -Eeuo pipefail")]
     assert "1 reciped (1 service)" in preamble
     assert "needs" not in preamble                        # Task 4: no needs tally
+
+
+# ---------------------------------------------------------------------------
+# GRAPH-FIRST source selection (review IMPORTANT 1) — the final render must read
+# loop-repaired SERVICE state from the GRAPH (the sole runtime state store), not
+# the pristine construction plan. Falls back to the plan ONLY when the graph
+# carries no SERVICE node (the construction-time render, before admission).
+# ---------------------------------------------------------------------------
+
+def _mutated_service(start):
+    """A postgres service whose ``start`` was repaired ON THE GRAPH after admission."""
+    setup = dict(_POSTGRES_SETUP)
+    setup["start"] = start
+    return _service(setup=setup)
+
+
+def test_start_script_graph_first_renders_loop_mutated_service():
+    # The v3 loop admitted the plan's service, then repaired its `start` ON THE GRAPH.
+    # The plan still carries the pristine construction command; the final render must
+    # emit the MUTATED one from the graph, never the stale plan command.
+    graph = DepGraph(nodes=(_mutated_service("service postgresql start --REPAIRED"),))
+    plan = _plan(_service())                              # pristine "service postgresql start"
+    out = render_service_start_script(graph, plan=plan)
+    assert "service postgresql start --REPAIRED" in out
+    assert "service postgresql start\n" not in out        # the stale plan command must NOT ship
+
+
+def test_start_script_falls_back_to_plan_when_graph_has_no_service_nodes():
+    # Construction-time render: services were never minted into the graph, so a graph
+    # with no SERVICE node (here: just a pip node) renders the PLAN's services — exactly
+    # as today, byte-identical to the plan-only render.
+    graph = DepGraph(nodes=(_pkg("pkg:requests", "requests", "2.31.0"),))
+    plan = _plan(_service())
+    out = render_service_start_script(graph, plan=plan)
+    assert out == render_service_start_script(plan=plan)
+    assert "service postgresql start" in out
+
+
+def test_start_script_graph_wins_even_when_it_yields_no_reciped_service():
+    # A graph carrying a SERVICE node whose setup was stripped (non-reciped) is STILL
+    # authoritative: the renderer must not silently resurrect the plan's service.
+    stripped = Node(id="service:postgres", type=NodeType.SERVICE, name="postgres",
+                    layer=Layer.SERVICES, discovered_by=DiscoveredBy.CLASSIFIER,
+                    state=State.MISSING)                  # no data["setup"]
+    graph = DepGraph(nodes=(stripped,))
+    plan = _plan(_service())
+    assert render_service_start_script(graph, plan=plan) == ""
+
+
+def test_start_script_neither_graph_nor_plan_is_noop():
+    assert render_service_start_script(None) == ""
+    assert render_service_start_script(DepGraph(), plan=None) == ""
+    assert render_service_start_script(DepGraph()) == ""

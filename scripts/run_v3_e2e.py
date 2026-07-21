@@ -230,15 +230,22 @@ def _uv_sources_enabled() -> bool:
     return os.getenv("V3_UV_SOURCES") == "1"
 
 
-def _maybe_write_services_script(plan, args) -> None:
+def _maybe_write_services_script(graph, plan, args) -> None:
     """Write the service-start ENTRYPOINT-wrapper alongside setup.sh, iff the
-    flag is on, a --services-out path was given, and the plan actually has a
-    reciped SERVICE obligation (render_service_start_script returns "" otherwise —
-    the common, zero-service case writes nothing, matching setup.sh's own
-    no-op)."""
+    flag is on, a --services-out path was given, and there is a reciped SERVICE
+    to render (render_service_start_script returns "" otherwise — the common,
+    zero-service case writes nothing, matching setup.sh's own no-op).
+
+    GRAPH-FIRST (review IMPORTANT 1): the render reads ``graph`` when it carries
+    SERVICE nodes — the post-admission/post-repair loop-final graph, whose
+    ``start``/setup were mutated in place — and falls back to ``plan`` only for the
+    construction-time render (a graph with no SERVICE nodes). Callers pass the graph
+    whose service state should ship: the loop-final ``dep_graph`` on the normal path,
+    the construction ``graph`` (no service nodes → plan fallback) on the
+    construction-only path."""
     if not args.services_out or not _include_services() or plan is None:
         return
-    text = render_service_start_script(plan)
+    text = render_service_start_script(graph, plan=plan)
     if not text:
         return
     with open(args.services_out, "w") as fh:
@@ -385,7 +392,9 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
         # the run manifest instead of being scored as a clean run.
         _write_dep_graph(graph, args.out)
         _write_runtime_plan(plan, args.out)
-        _maybe_write_services_script(plan, args)
+        # Construction graph has no SERVICE nodes (never minted at construction) → the
+        # render falls back to the plan's services, exactly as before.
+        _maybe_write_services_script(graph, plan, args)
         print("stop_reason=construction_only unresolved=[]")
         print("V3 E2E:", "CONSTRUCTION_ONLY")
         return 0
@@ -486,7 +495,10 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
         # legacy consumers ignore the extra file.
         _write_dep_graph(dep_graph, args.out)
         _write_runtime_plan(plan, args.out)
-        _maybe_write_services_script(plan, args)
+        # GRAPH-FIRST: the loop-final dep_graph carries the admitted + loop-repaired
+        # SERVICE nodes, so the start script ships the REPAIRED start/setup, not the
+        # stale construction plan (review IMPORTANT 1).
+        _maybe_write_services_script(dep_graph, plan, args)
 
     if gates_seen:
         for g in gates_seen[-1]:
