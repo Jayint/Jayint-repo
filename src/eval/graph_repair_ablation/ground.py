@@ -7,6 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from types import SimpleNamespace
 
+from graph.model import DepGraph
 from graph.python.enrich.exec_trace import parse, ObservationOverlay
 from graph.python.enrich.integrate import integrate
 from graph.view.graph_context import _anchor_for_cause
@@ -91,3 +92,16 @@ def render_grounding_report_md(agg: dict) -> str:
                 f"{cell['mislocalized']} | {cell['null_rate']:.0%} |"
             )
     return "\n".join(lines) + "\n"
+
+
+def grounding_scorecard(gcases) -> tuple[dict, str]:
+    rows: list[dict] = []
+    for c in gcases:
+        g = DepGraph(nodes=c.starting_nodes)
+        res = run_grounding(g, c.cause_text, c.command, c.failure_output, c.ctx)
+        gs = grade_grounding(res["grounded_anchor"], res["grounded_added_node"], c.correct_anchor)
+        bs = grade_grounding(res["baseline_anchor"], res["baseline_anchor"] is not None, c.correct_anchor)
+        rows.append({"failure_class": c.failure_class, "arm": "G", "score": gs.__dict__})
+        rows.append({"failure_class": c.failure_class, "arm": "B", "score": bs.__dict__})
+    agg = aggregate_grounding(rows)
+    return agg, render_grounding_report_md(agg)
