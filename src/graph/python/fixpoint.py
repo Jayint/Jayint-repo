@@ -72,8 +72,10 @@ _canon = normalize_package_name
 def _missing_import_nodes(graph, *, provided: frozenset[str], deferred: frozenset[str]):
     """Non-optional IMPORT nodes no resolved dist provides — LANE-AWARE: also
     excludes Module-routed imports and deferred-collision names so first-party
-    names never inflate the repair bound nor reach the dist-guesser. Vacuous when
-    no node is Module-routed and ``deferred`` is empty (today's real construction)."""
+    names never inflate the repair bound nor reach the dist-guesser. LIVE in real
+    post-flip construction: ``apply_routing`` stamps ``routed_provider='module'`` on
+    first-party imports and the classifier defers stem-collision names, so this
+    filter actively excludes both (not the dormant no-op the pre-flip note claimed)."""
     return [
         n for n in graph.nodes
         if n.type is NodeType.IMPORT

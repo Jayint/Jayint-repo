@@ -16,10 +16,11 @@ into the constructed DepGraph. It returns a ``RuntimePlan`` carrying:
         ``scheduler_frontier``, the hollow-pass guard, advise's service listing,
         and DSN repoint all keep reading SERVICE nodes from the graph, UNCHANGED.
 
-  * ``config_obligations`` — ``(var, value, provenance, bake_eligible)`` records
-    for the advisory Config tier (never scheduled). Consumed ONLY by the render's
-    ``#@config-env`` marker block. ``bake_eligible`` is the fail-closed provenance
-    gate (:func:`config_bake_eligible`), the SAME rule Task 3 introduced.
+  * ``config_obligations`` — ``(var, value, provenance, bake_eligible, evidence)``
+    records for the advisory Config tier (never scheduled). Consumed ONLY by the
+    render's ``#@config-env`` marker block. ``bake_eligible`` is the fail-closed
+    provenance gate (:func:`config_bake_eligible`), the SAME rule Task 3 introduced;
+    ``evidence`` is the ``{file, kind}`` anchor naming the source that WON the value.
 
 The GRAPH stays the sole runtime state store; the plan is a construction
 snapshot, serialized beside ``dep_graph.json`` as ``runtime_plan.json``.

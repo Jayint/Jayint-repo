@@ -192,9 +192,10 @@ def _resolve_config_value(var, ambiguous, authoritative, example_prov, defaults_
 
 def _config_obligations(repo_path, hits) -> list[ConfigObligation]:
     """One advisory :class:`ConfigObligation` per env var the tests read (never
-    scheduled). Task 4 — the Config tier is plan-only now (no graph node, no gate,
-    no evidence anchor): the obligation carries ``(var, value, provenance,
-    bake_eligible)``, consumed ONLY by the render's ``#@config-env`` marker block.
+    scheduled). Task 4 — the Config tier is plan-only now (no graph node, no gate):
+    the obligation carries ``(var, value, provenance, bake_eligible, evidence)``,
+    consumed ONLY by the render's ``#@config-env`` marker block. The ``evidence``
+    anchor ``{file, kind}`` (Task 3) names the source that actually WON the value.
 
     FIX B1 + MEASURED REGRESSION FIX (django-oauth-toolkit): when a value for
     that var is statically known it is carried as ``value`` so the renderer can

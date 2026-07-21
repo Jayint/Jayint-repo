@@ -512,10 +512,14 @@ def _apply_live_config_cure(
     ``cure_collect_ok`` evidence) via :func:`stamp_scratch_certified`.
 
     The stamp is a no-op unless the cure actually installed the project
-    (``cure.ok``): a repo with no installable metadata (no ``pyproject``/
-    ``setup.py``, e.g. proxy_pool) fails both rungs fast, is never stamped, and the
-    render-time poison (``emit._poison_project_certificate``) applies exactly as
-    today -- its ``setup.sh`` stays byte-identical. Only a CURED repo keeps its
+    (``cure.ok``): a repo with no installable metadata anywhere -- no
+    ``pyproject``/``setup.py``/``setup.cfg`` ``[metadata]`` and no subdir project
+    (the proxy_pool class) -- SKIPS both editable-install rungs entirely
+    (``run_cure``'s ``_has_install_target`` preflight short-circuits before either
+    rung runs, so rung 2's setuptools/wheel ensure-step never mutates the scratch
+    env), is never stamped, and the render-time poison
+    (``emit._poison_project_certificate``) applies exactly as today -- its
+    ``setup.sh`` stays byte-identical. Only a CURED repo keeps its
     capstone ``check_command`` (the poison gate honours ``scratch_certified``), so
     a ``#@check`` renders on its capstone -- the intended behavioural change.
 
@@ -730,7 +734,8 @@ def _python_package_obligations(
     """
     host_executor = host_executor or LocalSubprocessExecutor()
 
-    # Stage 1 — static import scan -> Import + Test nodes.
+    # Stage 1 — static import scan -> raw Import nodes only (the Test goal node
+    # and goal spine are minted downstream, not here).
     graph = scan_to_nodes(repo_path)
     graph = _restamp(graph, {n.id for n in graph.nodes}, _SCAN_CYCLE)
 

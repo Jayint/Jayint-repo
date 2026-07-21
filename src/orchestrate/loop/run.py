@@ -86,8 +86,8 @@ def run_v3(
     runtime_plan=None,                          # RuntimePlan | None (Task 4) — the Service+Config
                                                 # construction artifact. The ADMISSION RULE: its
                                                 # service obligations are admitted into the working
-                                                # graph at loop start (same ids → with_node
-                                                # idempotency), so the GRAPH stays the sole runtime
+                                                # graph at loop start (same ids → ADD-IF-ABSENT,
+                                                # existing node kept), so the GRAPH stays the sole runtime
                                                 # state store and certify/frontier/hollow-pass/advise/
                                                 # repoint read SERVICE nodes from the graph unchanged.
 ):
@@ -176,8 +176,8 @@ def run_v3(
     current_map: WorldModelMap = initial_world_map
     # ── Task 4 ADMISSION RULE ────────────────────────────────────────────────
     # Admit the RuntimePlan's service obligations into the working graph at loop
-    # start (before any certify/emit/decide runs). Same ids → with_node idempotency
-    # collapses them with any runtime-discovered duplicate, so there is no split-brain:
+    # start (before any certify/emit/decide runs). Same ids → ADD-IF-ABSENT leaves any
+    # runtime-discovered duplicate untouched (the plan copy is skipped), no split-brain:
     # the GRAPH remains the sole runtime state store, and every downstream consumer
     # (certify + demote counter, scheduler_frontier, the hollow-pass guard, advise's
     # service listing, DSN repoint) keeps reading SERVICE nodes from the graph

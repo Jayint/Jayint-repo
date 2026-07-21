@@ -17,11 +17,14 @@ the routing authority — a locally-shadowed name (``items``, ``blueprintapp``) 
 minted here as an Import node and routed by the classifier to the collision zone
 (deferred) or to a first-party ``Module``, never left to Phase-A's dist-guesser.
 The goal spine (``project -> module -> import -> {module|package}``) and the ``Test``
-goal node are minted downstream by ``skeleton._add_project_node``. Two drops stay
-here (they must never become install-lane Import nodes): ``_``-prefixed private/
-typing names, and excluded-dir-only imports (examples/docs/scripts/tools — a name
-seen ONLY there is out of the "run the repo properly" scope and pre-flip was never
-installed; keeping the drop preserves install-line byte-identity).
+goal node are minted downstream by ``skeleton._add_project_node``. Scan itself now
+drops NOTHING — the former scan drops were RELOCATED to the classifier (route-not-
+drop): ``_``-prefixed private/typing names are dropped by ``route.classify`` rung 0,
+and excluded-dir-only imports (examples/docs/scripts/tools — a name seen ONLY there
+is out of the "run the repo properly" scope) are routed to the collision zone
+(deferred) for post-cure arbitration, never left to install as a clear external.
+``apply_routing`` then REMOVES every Import node the ladder did not route, so
+install-line byte-identity is preserved.
 
 Static scanning is evidence, not completeness (design 4.1 / 10.1): dynamic and
 plugin imports are not visible here.  This stage never sets ``state`` beyond

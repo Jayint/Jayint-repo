@@ -459,7 +459,7 @@ def render_build_script(
         ``_config_env_block``). Only bake-eligible entries appear; the block is a
         hand-off for the eval adapter's Dockerfile ENV baking, inert in setup.sh.
       * ``plan``'s service obligations are locally admitted into ``graph`` (the SAME
-        ``with_node`` idempotency the v3 loop uses at loop start), so — when
+        ADD-IF-ABSENT admission the v3 loop uses at loop start), so — when
         ``include_services`` is True — every ``_is_service_reciped`` SERVICE node's
         ``data['setup']['install']`` commands (build-time-safe package installs, e.g.
         ``apt-get install -y postgresql``) become ACTIVE lines. ``start``/``createdb``/
@@ -472,9 +472,10 @@ def render_build_script(
     if graph is None:
         graph = DepGraph()
     # Task 4 ADMISSION at render time: fold the plan's service obligations into the
-    # graph (same with_node idempotency as the v3 loop's loop-start admission) so the
+    # graph (same ADD-IF-ABSENT admission as the v3 loop's loop-start step) so the
     # existing service-rendering machinery below reads them from one place. A SERVICE
-    # node already in the graph with the same id collapses onto the plan's copy.
+    # node already in the graph with the same id is PRESERVED; the plan's copy is
+    # skipped (add-if-absent, never an overwrite).
     if plan is not None:
         graph = plan.admit_services(graph)
     # single call site: derive commands, then emit
