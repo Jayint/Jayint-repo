@@ -203,3 +203,22 @@ def render_syspkg_delta(base: "frozenset[str]", now: "frozenset[str]", *, cap: i
         return "system packages added on top of base: (none)"
     extra = f", +{len(added) - cap} more" if len(added) > cap else ""
     return "system packages added on top of base: " + ", ".join(added[:cap]) + extra
+
+
+ENV_STATE_HEADER = "ENVIRONMENT STATE (after this turn's setup.sh)"
+
+
+def render_env_state(pip_raw: str, now_syspkgs: "frozenset[str]",
+                     base_syspkgs: "frozenset[str]", *, pip_cap: int = 200) -> str:
+    """The PER-TURN block: what's installed right now (pip + system-package delta). On a
+    build-fail turn this reflects the PARTIAL install up to the halt line — genuine signal."""
+    lines: list[str] = []
+    pip = render_pip_list(pip_raw, cap=pip_cap)
+    if pip:
+        lines.append("  " + pip)
+    delta = render_syspkg_delta(base_syspkgs, now_syspkgs)
+    if delta:
+        lines.append("  " + delta)
+    if not lines:
+        return ""
+    return ENV_STATE_HEADER + "\n" + "\n".join(lines)

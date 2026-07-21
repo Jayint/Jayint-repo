@@ -144,3 +144,24 @@ def test_render_syspkg_delta_caps():
     out = render_syspkg_delta(frozenset({"_base_"}), added | {"_base_"}, cap=60)
     assert out.startswith("system packages added on top of base: ")
     assert ", +20 more" in out
+
+
+from src.agent.env_state import ENV_STATE_HEADER, render_env_state
+
+
+def test_render_env_state_combines_pip_and_syspkg_delta():
+    out = render_env_state(
+        "flask==3.0.0\n", frozenset({"libc6", "libpq5"}), frozenset({"libc6"}))
+    assert out.startswith(ENV_STATE_HEADER)
+    assert "pip installed (1): flask 3.0.0" in out
+    assert "system packages added on top of base: libpq5" in out
+
+
+def test_render_env_state_omits_syspkg_line_when_base_unknown():
+    out = render_env_state("flask==3.0.0\n", frozenset({"libc6"}), frozenset())
+    assert "pip installed (1): flask 3.0.0" in out
+    assert "system packages added on top of base" not in out
+
+
+def test_render_env_state_empty_when_nothing_to_show():
+    assert render_env_state("", frozenset(), frozenset()) == ""
