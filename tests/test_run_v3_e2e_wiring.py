@@ -1,5 +1,6 @@
 """The 'loop closed' assertion: the selected+pinned image reaches all three
 consumers, and target_python == the pinned minor. No Docker, no network."""
+import json
 import types
 import scripts.run_v3_e2e as e2e
 from src.envstate.base_image_selection import BaseImageChoice
@@ -49,6 +50,38 @@ def test_v3_command_timeout_env_is_positive(monkeypatch):
     assert e2e._positive_env_seconds("V3_COMMAND_TIMEOUT_SECONDS", 600) == 600
     monkeypatch.setenv("V3_COMMAND_TIMEOUT_SECONDS", "invalid")
     assert e2e._positive_env_seconds("V3_COMMAND_TIMEOUT_SECONDS", 600) == 600
+
+
+def test_metered_client_persists_per_run_token_usage(tmp_path):
+    usage_path = tmp_path / "token_usage.json"
+    responses = iter([
+        types.SimpleNamespace(usage=types.SimpleNamespace(
+            prompt_tokens=10, completion_tokens=4, total_tokens=14,
+        )),
+        types.SimpleNamespace(usage=types.SimpleNamespace(
+            prompt_tokens=20, completion_tokens=6, total_tokens=26,
+        )),
+    ])
+
+    class _Completions:
+        def create(self, **_kwargs):
+            return next(responses)
+
+    delegate = types.SimpleNamespace(
+        chat=types.SimpleNamespace(completions=_Completions())
+    )
+    meter = e2e._TokenUsageMeter(str(usage_path))
+    client = e2e._MeteredClient(delegate, meter)
+
+    client.chat.completions.create(model="m", messages=[])
+    client.chat.completions.create(model="m", messages=[])
+
+    assert json.loads(usage_path.read_text()) == {
+        "input_tokens": 30,
+        "output_tokens": 10,
+        "total_tokens": 40,
+        "api_calls": 2,
+    }
 
 
 def test_runtime_handoff_exports_only_certified_confirmed_services():
@@ -154,7 +187,7 @@ def test_selected_image_and_minor_thread_to_all_consumers(monkeypatch, tmp_path)
             self.platform = platform
             self.container = None
         def execute(self, *a, **k): return None
-        def exec_readonly(self, *a, **k): return None
+        def exec_readonly(self, *a, **k): return (0, "3.10\n")
         def reset_to_base(self): return None
         def run_install_script(self, *a, **k): return None
     monkeypatch.setattr(e2e, "Sandbox", _FakeSandbox, raising=False)

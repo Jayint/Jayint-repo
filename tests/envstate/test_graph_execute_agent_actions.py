@@ -64,6 +64,15 @@ def _scope():
     )
 
 
+def _unresolved_pytest_scope():
+    return RepairScope(
+        "pkg:pytest", "python3 -m pip show pytest", "missing",
+        (), (), (), frozenset({"ev.pytest"}),
+        target_node_type="Package", target_node_name="pytest",
+        target_node_version=None, target_node_provider="pip:pytest",
+    )
+
+
 def _patch_action():
     return json.dumps({
         "type": "propose_patch",
@@ -154,12 +163,28 @@ def test_structured_action_prompt_exposes_complete_script_patch_contract():
     assert "import:<module> -> pkg:<dist>" in prompt
 
 
+def test_unresolved_package_prompt_ends_with_provider_only_contract():
+    from src.envstate.repair_scope import render_repair_scope
+
+    prompt = render_repair_scope(_unresolved_pytest_scope(), structured_actions=True)
+    assert "EXISTING unresolved Package node" in prompt
+    assert "add_requirements=[]" in prompt
+    assert "add_edges=[]" in prompt
+    assert 'provides=["pkg:pytest"]' in prompt
+    assert "pytest==<exact-version>" in prompt
+
+
 def test_probe_validator_allows_open_readonly_pipeline_and_rejects_mutations():
     assert validate_probe_command(
         "pkg-config --cflags tesseract | grep -q tesseract"
     ).allowed
     assert validate_probe_command("find /usr/include -name baseapi.h").allowed
     assert validate_probe_command("python -c 'import sys; print(sys.version)'").allowed
+    assert validate_probe_command("node --version").allowed
+    assert validate_probe_command("command -v nvm 2>/dev/null").allowed
+    assert validate_probe_command("node -v 2>&1").allowed
+    assert validate_probe_command("sed -n '1,120p' package.json").allowed
+    assert validate_probe_command("custom-inspector --summary").allowed
     for command in (
         "apt-get install -y redis",
         "rm -rf /tmp/demo",
@@ -167,6 +192,11 @@ def test_probe_validator_allows_open_readonly_pipeline_and_rejects_mutations():
         "chmod 777 /app",
         "service redis-server start",
         "python -c \"open('/tmp/x', 'w').write('x')\"",
+        "node -e \"require('fs').writeFileSync('/tmp/x', 'x')\"",
+        "sed -i 's/a/b/' package.json",
+        "sed -n '1,2w /tmp/x' package.json",
+        "custom-inspector > /tmp/copy",
+        "sh -c 'touch /tmp/x'",
     ):
         validation = validate_probe_command(command)
         assert not validation.allowed, command
@@ -241,6 +271,79 @@ def test_malformed_output_gets_structured_retry():
     assert proposal.add_providers
     retry_message = client.calls[1]["messages"][-1]["content"]
     assert json.loads(retry_message)["type"] == "action_rejected"
+
+
+def test_unresolved_package_invalid_extra_edge_is_retried_in_same_agent_call():
+    invalid = json.dumps({
+        "type": "propose_patch",
+        "target_node": "pkg:pytest",
+        "rationale": {"why": "install pytest"},
+        "patch": {
+            "add_requirements": [],
+            "add_providers": [{
+                "id": "pip:pytest", "kind": "pip",
+                "command": "python3 -m pip install --break-system-packages pytest==8.3.4",
+                "provides": ["pkg:pytest"], "override": True,
+            }],
+            "add_edges": [{
+                "source": "import:pytest", "target": "pkg:pytest",
+                "relation": "requires", "hard": True,
+            }],
+        },
+    })
+    corrected = json.dumps({
+        "type": "propose_patch",
+        "target_node": "pkg:pytest",
+        "rationale": {"why": "provider-only exact pin"},
+        "patch": {
+            "add_requirements": [],
+            "add_providers": [{
+                "id": "pip:pytest", "kind": "pip",
+                "command": "python3 -m pip install --break-system-packages pytest==8.3.4",
+                "provides": ["pkg:pytest"], "override": True,
+            }],
+            "add_edges": [], "script_patches": [],
+        },
+    })
+    client = _Client(invalid, corrected)
+    events = []
+
+    proposal = GraphExecuteAgent(client, "fake").propose(
+        _unresolved_pytest_scope(),
+        exec_readonly=lambda command: (0, ""),
+        action_observer=events.append,
+    )
+
+    assert len(client.calls) == 2
+    assert events[0]["validated"] is False
+    assert "add_edges must be empty" in events[0]["rejection"]
+    assert proposal.add_edges == ()
+    assert proposal.add_providers[0].override is True
+
+
+def test_unresolved_package_unpinned_provider_is_retried_before_patchgate():
+    unpinned = json.dumps({
+        "type": "propose_patch", "target_node": "pkg:pytest",
+        "rationale": {"why": "install pytest"},
+        "patch": {"add_providers": [{
+            "id": "pip:pytest", "kind": "pip",
+            "command": "python3 -m pip install pytest",
+            "provides": ["pkg:pytest"], "override": True,
+        }]},
+    })
+    client = _Client(unpinned, _patch_action().replace(
+        '"target_node": "syslib:libdemo"', '"target_node": "pkg:pytest"'
+    ).replace(
+        '"id": "apt:libdemo-dev", "kind": "apt", "command": "apt-get install -y libdemo-dev", "provides": ["syslib:libdemo"]',
+        '"id": "pip:pytest", "kind": "pip", "command": "python3 -m pip install pytest==8.3.4", "provides": ["pkg:pytest"]'
+    ))
+
+    proposal = GraphExecuteAgent(client, "fake").propose(
+        _unresolved_pytest_scope(), exec_readonly=lambda command: (0, "")
+    )
+
+    assert len(client.calls) == 2
+    assert proposal.add_providers[0].command.endswith("pytest==8.3.4")
 
 
 def test_abstain_is_returned_as_advice_for_host_review():

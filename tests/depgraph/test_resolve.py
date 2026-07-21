@@ -2114,6 +2114,26 @@ def test_lock_command_carries_python_platform_flag():
     assert "--python-platform aarch64-manylinux_2_28" in cmd
 
 
+def test_lock_command_translates_musllinux_tag_for_uv():
+    from python_deps.depgraph.resolve import _lock_command
+
+    cmd = _lock_command("/tmp/wd", "3.11", None, "aarch64-musllinux_1_2")
+    assert "--python-platform aarch64-unknown-linux-musl" in cmd
+    assert "aarch64-musllinux_1_2" not in cmd
+
+
+def test_compile_command_translates_musllinux_tag_for_uv():
+    from python_deps.depgraph.resolve import _compile_command
+
+    cmd = _compile_command(
+        ["requests"],
+        "3.11",
+        target_platform="x86_64-musllinux_1_2",
+    )
+    assert "--python-platform x86_64-unknown-linux-musl" in cmd
+    assert "x86_64-musllinux_1_2" not in cmd
+
+
 def test_write_pyproject_rejects_bad_python_version(tmp_path):
     from python_deps.depgraph.resolve import _write_pyproject
 

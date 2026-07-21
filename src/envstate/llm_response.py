@@ -138,13 +138,17 @@ def _sleep_backoff(attempt: int, base: float, cap: float) -> None:
     time.sleep(delay * (0.5 + random.random() * 0.5))
 
 
-def _create_with_backoff(client, model, messages, kwargs, *, attempts, base, cap):
+def _create_with_backoff(
+    client, model, messages, kwargs, *, attempts, base, cap, on_attempt=None
+):
     """Call ``chat.completions.create``, retrying transient transport failures with
     exponential backoff + jitter. Returns the response, or ``None`` when all
     transport attempts are exhausted. Re-raises non-retryable (fatal) errors
     immediately so real bugs (bad key, malformed request) surface."""
     attempts = max(1, attempts)
     for n in range(attempts):
+        if on_attempt is not None:
+            on_attempt()
         try:
             return client.chat.completions.create(model=model, messages=messages, **kwargs)
         except Exception as exc:  # noqa: BLE001 - classify, then retry or re-raise
@@ -195,12 +199,21 @@ def complete_with_retry(
     :param kwargs: Additional keyword arguments forwarded verbatim to every
         ``create`` call (e.g. ``temperature=0``).
     :return: ``(text, usage, response)`` where *usage* has keys
-        ``input_tokens``, ``output_tokens``, ``total_tokens`` accumulated
-        across all attempts, and *response* is the final raw completion object
+        ``input_tokens``, ``output_tokens``, ``total_tokens`` and ``api_calls``
+        accumulated across all response and transport attempts, and *response* is
+        the final raw completion object
         (suitable for passing to :func:`log_llm_exchange`).
     """
     nudge = retry_nudge if retry_nudge is not None else _DEFAULT_RETRY_NUDGE
-    accumulated = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+    accumulated = {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0,
+        "api_calls": 0,
+    }
+
+    def count_api_call() -> None:
+        accumulated["api_calls"] += 1
 
     # Working copy of messages; grows with nudge entries on retries.
     current_messages = list(messages)
@@ -214,6 +227,7 @@ def complete_with_retry(
         response = _create_with_backoff(
             client, model, current_messages, kwargs,
             attempts=t_attempts, base=_TRANSPORT_BASE_DELAY, cap=_TRANSPORT_MAX_DELAY,
+            on_attempt=count_api_call,
         )
         if response is None:
             # Transport failed after all retries → return an empty result so the

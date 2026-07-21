@@ -27,7 +27,7 @@ class NodeSpec:
 @dataclass(frozen=True)
 class ProviderSpec:
     id: str              # e.g. "apt:libplacebo-dev"
-    kind: str            # action class, e.g. "apt" | "pip" | "npm" | "shell"
+    kind: str            # action class, e.g. "apt" | "apk" | "pip" | "npm" | "shell"
     command: str
     provides: tuple[str, ...] = ()
     override: bool = False   # True => replace an existing chosen_fix (repair correction)

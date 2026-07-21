@@ -34,6 +34,12 @@ def test_adapter_threads_execution_mode_and_turn_budget_to_v3_cli(monkeypatch, t
         seen["timeout"] = timeout
         output.mkdir(parents=True, exist_ok=True)
         (output / "setup.sh").write_text("#!/bin/bash\ntrue\n", encoding="utf-8")
+        (output / "token_usage.json").write_text(json.dumps({
+            "input_tokens": 120,
+            "output_tokens": 30,
+            "total_tokens": 150,
+            "api_calls": 3,
+        }))
         return subprocess.CompletedProcess(
             cmd, 0, stdout=(
                 "[v3] base-image: python:3.11-slim (py 3.11)\n"
@@ -69,11 +75,22 @@ def test_adapter_threads_execution_mode_and_turn_budget_to_v3_cli(monkeypatch, t
     assert 'checkout --detach "$SOURCE_SHA"' in result["dockerfile"]
     assert 'test "$(git -C /testbed rev-parse HEAD)" = "$SOURCE_SHA"' in result["dockerfile"]
     assert "docker/dockerfile" not in result["dockerfile"]
+    assert (
+        "apk add --no-cache git ca-certificates bash coreutils python3 py3-pip"
+        in result["dockerfile"]
+    )
     assert seen["timeout"] == 123
     command = seen["cmd"]
     assert command[command.index("--max-cycles") + 1] == "17"
     assert command[command.index("--execution-mode") + 1] == "incremental"
     assert command[command.index("--language-hint") + 1] == "python"
+    assert command[command.index("--usage-out") + 1].endswith("token_usage.json")
+    assert result["token_usage"] == {
+        "input_tokens": 120,
+        "output_tokens": 30,
+        "total_tokens": 150,
+        "api_calls": 3,
+    }
     assert result["runtime_commands"] == []
 
 
@@ -184,6 +201,36 @@ def test_explicit_resume_reuses_setup_without_cloning_or_calling_llm(monkeypatch
     assert result["head_sha"] == _HEAD_SHA
     assert f"ARG SOURCE_SHA={_HEAD_SHA}" in result["dockerfile"]
     assert result["logs"]["reused_existing"] is True
+
+
+def test_explicit_resume_preserves_partial_setup_status(monkeypatch, tmp_path):
+    output = tmp_path / "out"
+    output.mkdir()
+    (output / "setup.sh").write_text("#!/bin/bash\nfalse\n", encoding="utf-8")
+    (output / "v3_run.log").write_text(
+        "[v3] base-image: python:3.12-slim (py 3.12)\n", encoding="utf-8"
+    )
+    (output / "setup_status.json").write_text(json.dumps({
+        "version": 1,
+        "certified_setup": False,
+        "failure_reason": "v3_failed",
+        "v3_returncode": 1,
+    }))
+    adapter = RATV3Adapter(
+        root_path=str(tmp_path / "run"), output_dir=str(output), agent_root=str(tmp_path)
+    )
+    adapter._write_source_revision(output / "source_revision.json", "owner/repo", _HEAD_SHA)
+    monkeypatch.setattr(
+        adapter, "_run_v3",
+        lambda *args: (_ for _ in ()).throw(AssertionError("must not call v3")),
+    )
+
+    result = adapter.process_repo("owner/repo", model="test", reuse_existing=True)
+
+    assert result["status"] == "partial"
+    assert result["certified_setup"] is False
+    assert result["failure_reason"] == "v3_failed"
+    assert "/tmp/v3_setup_exit_code" in result["dockerfile"]
 
 
 def test_explicit_resume_without_source_revision_fails_closed(monkeypatch, tmp_path):
@@ -342,9 +389,36 @@ def test_fresh_run_removes_stale_setup_and_handoff_before_v3(monkeypatch, tmp_pa
 
     monkeypatch.setattr(adapter, "_run_v3", fake_run)
     result = adapter.process_repo("owner/repo", model="test")
-    assert result["status"] == "error"
+    assert result["status"] == "partial"
     assert result["failure_reason"] == "v3_failed"
+    assert result["certified_setup"] is False
     assert result["head_sha"] == _HEAD_SHA
+    assert "echo \"$setup_rc\" > /tmp/v3_setup_exit_code" in result["dockerfile"]
+    assert result["setup_scripts"]["setup.sh"] == "#!/usr/bin/env bash\ntrue\n"
+
+
+def test_v3_timeout_returns_partial_evaluation_artifact(monkeypatch, tmp_path):
+    root = tmp_path / "run"
+    output = root / "output" / "owner" / "repo"
+    repo = root / "input" / "repo" / "owner" / "repo"
+    output.mkdir(parents=True)
+    repo.mkdir(parents=True)
+    adapter = RATV3Adapter(root_path=str(root), output_dir=str(output), agent_root=str(tmp_path))
+    monkeypatch.setattr(adapter, "_ensure_repo", lambda _name: repo)
+    monkeypatch.setattr(adapter, "_repo_head_sha", lambda _path: _HEAD_SHA)
+
+    def timeout_run(_cmd, log_path, _timeout):
+        log_path.write_text("[v3] base-image: python:3.12-slim (py 3.12)\n")
+        raise subprocess.TimeoutExpired(_cmd, 10)
+
+    monkeypatch.setattr(adapter, "_run_v3", timeout_run)
+    result = adapter.process_repo("owner/repo", model="test", timeout=10)
+
+    assert result["status"] == "partial"
+    assert result["failure_reason"] == "v3_timeout"
+    assert result["certified_setup"] is False
+    assert result["dockerfile"].startswith("FROM python:3.12-slim")
+    assert (output / "source_revision.json").exists()
 
 
 def test_fresh_run_without_a_git_head_fails_before_v3(monkeypatch, tmp_path):

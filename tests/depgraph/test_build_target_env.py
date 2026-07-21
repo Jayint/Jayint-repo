@@ -50,7 +50,7 @@ def test_build_lock_command_reflects_detected_arm_musl_target(tmp_path):
     lock_calls = _lock_calls(ex)
     assert lock_calls
     assert "--python 3.12" in lock_calls[0]
-    assert "--python-platform aarch64-musllinux_1_2" in lock_calls[0]
+    assert "--python-platform aarch64-unknown-linux-musl" in lock_calls[0]
 
 
 def test_build_target_python_override_wins_over_detected_probe(tmp_path):

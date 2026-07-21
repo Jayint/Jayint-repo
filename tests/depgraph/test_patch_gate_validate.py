@@ -192,6 +192,55 @@ def test_existing_provider_accepts_explicit_override(_graph_with_missing_syslib)
     assert not any("set override=true" in error for error in errs)
 
 
+def _unresolved_pytest_graph() -> DepGraph:
+    return _graph_with_test_node().with_node(Node(
+        id="pkg:pytest", type=NodeType.PACKAGE, name="pytest",
+        layer=Layer.PIP, discovered_by=DiscoveredBy.RUNTIME,
+        state=State.MISSING, version=None,
+        check_command="python3 -m pip show pytest",
+        chosen_fix="pip:pytest",
+    ))
+
+
+def test_unresolved_package_accepts_one_matching_exact_pip_pin():
+    proposal = PatchProposal(add_providers=(ProviderSpec(
+        id="pip:pytest", kind="pip",
+        command="python3 -m pip install --break-system-packages pytest==8.3.3",
+        provides=("pkg:pytest",), override=True,
+    ),))
+
+    assert validate_proposal(
+        _unresolved_pytest_graph(), proposal, known_evidence_ids=frozenset()
+    ) == []
+
+
+def test_unresolved_package_rejects_unpinned_pip_provider():
+    proposal = PatchProposal(add_providers=(ProviderSpec(
+        id="pip:pytest", kind="pip", command="python3 -m pip install pytest",
+        provides=("pkg:pytest",), override=True,
+    ),))
+
+    errors = validate_proposal(
+        _unresolved_pytest_graph(), proposal, known_evidence_ids=frozenset()
+    )
+    assert any("exactly one matching pinned requirement" in error for error in errors)
+
+
+def test_unresolved_package_rejects_wrong_or_multiple_pip_targets():
+    for command in (
+        "python3 -m pip install requests==2.32.4",
+        "python3 -m pip install pytest==8.3.3 requests==2.32.4",
+    ):
+        proposal = PatchProposal(add_providers=(ProviderSpec(
+            id="pip:pytest", kind="pip", command=command,
+            provides=("pkg:pytest",), override=True,
+        ),))
+        errors = validate_proposal(
+            _unresolved_pytest_graph(), proposal, known_evidence_ids=frozenset()
+        )
+        assert any("exactly one matching pinned requirement" in error for error in errors)
+
+
 # --- script-patch hardening: empty/blank commands, illegal wave, unknown provides ---
 
 def _graph_with(nid: str) -> DepGraph:

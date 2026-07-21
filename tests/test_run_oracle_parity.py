@@ -153,3 +153,15 @@ def test_analyze_go_test_pass_obs():
     obs = "ok  \tgithub.com/user/repo\t0.123s"
     r = _cmp_analyze("go test ./...", obs)
     assert r["is_effective_test_run"] is True
+
+
+def test_analyze_grunt_validation_pass_obs():
+    obs = (
+        'Running "stylelint:all" (stylelint) task\n'
+        ">> Linted 19 files without errors\n"
+        'Running "banana:UploadWizard" (banana) task\n'
+        ">> 2 message directories checked.\n"
+        "Done.\n"
+    )
+    r = _cmp_analyze("npm test", obs)
+    assert r["is_effective_test_run"] is True

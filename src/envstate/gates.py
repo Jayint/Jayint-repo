@@ -4,7 +4,8 @@ installability (= ebsr) — BINDING when a raw-base full-script replay result is
     available. Incremental search supplies it only at terminal certification;
     the fresh ablation supplies one every cycle. Falls back to the provisional
     graph-frontier heuristic when no replay is available yet.
-testability   (= pass_rate) — binding, wraps the existing host-verified test run.
+testability   (= tests executed) — binding, wraps the existing host-verified
+    test run.  The outer evaluator, not this gate, owns the pass-rate score.
 
 Pure / read-only: nothing is written back to the graph. Gate state is DERIVED,
 never persisted, so this module cannot perturb certification (anti-hollow holds
@@ -40,7 +41,7 @@ def evaluate_testability_gate(
     *,
     command: str = VERIFY_TEST_CMD,
 ) -> GateResult:
-    """Wrap the host-verified test run (= pass_rate gate). Binding, not provisional.
+    """Wrap the host-verified test execution gate. Binding, not provisional.
 
     run_tests_verified is the orchestrator's `_run_tests_verified` closure: a real
     `python -m pytest -q` gated by the anti-hollow `_verified_test_run_passed`
@@ -53,9 +54,9 @@ def evaluate_testability_gate(
         command=command,
         provisional=False,
         evidence=(
-            "pass_rate>=0.8 (anti-hollow verified)"
+            "genuine tests executed (anti-hollow verified)"
             if passed
-            else "verified test gate not passed"
+            else "genuine test execution not verified"
         ),
     )
 

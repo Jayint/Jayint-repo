@@ -12,6 +12,18 @@ SKIP_DIRS = frozenset({
     "dist", "build", "__pycache__", ".gradle",
 })
 
+_TEST_DIRS = frozenset({"test", "tests", "__tests__", "testdata"})
+_FIXTURE_DIRS = frozenset({"fixture", "fixtures", "__fixtures__"})
+
+
+def is_test_fixture_path(relative_path: str) -> bool:
+    """Return whether a repository-relative path belongs to a test fixture tree."""
+    parts = {
+        part.lower()
+        for part in relative_path.replace("\\", "/").split("/")[:-1]
+    }
+    return bool(parts & _TEST_DIRS) and bool(parts & _FIXTURE_DIRS)
+
 
 def find_files(repo_path: str, names: set[str]) -> tuple[str, ...]:
     found: list[str] = []

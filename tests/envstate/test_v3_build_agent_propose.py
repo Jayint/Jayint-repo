@@ -53,7 +53,9 @@ def test_propose_returns_typed_proposal():
     a = V3BuildAgent(client, "fake")
     p = a.propose(_scope(), exec_readonly=lambda c: (0, ""))
     assert p is not None and p.add_providers[0].override is True
-    assert client.calls[0]["max_tokens"] == 2200
+    # Keep the regression aligned with the expanded response budget used to
+    # avoid truncating structured patches from reasoning-heavy models.
+    assert client.calls[0]["max_tokens"] == 8192
 
 
 def test_propose_parsefail_retries_once_then_rejects():

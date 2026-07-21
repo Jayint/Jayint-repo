@@ -7,8 +7,10 @@ resolve.py, which imports from here.
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
+import sys
 
 try:  # tomllib is stdlib on 3.11+; fall back to the tomli backport on 3.10.
     import tomllib
@@ -27,10 +29,22 @@ from python_deps.depgraph.schema import (
 from python_deps.depgraph.target_env import TargetEnv
 
 # Locked decision 1: the 'uv' binary, invoked (never imported) via the Executor.
-# Resolution happens HOST-side (cross-platform resolve needs no container
-# interpreter), so resolve from the host PATH; fall back to the bare name so the
-# executor's PATH resolves it at run time.
-UV_BIN = shutil.which("uv") or "uv"
+def _find_uv_bin() -> str:
+    """Prefer uv installed beside the active virtualenv Python.
+
+    Workers may be launched with an absolute virtualenv Python while the shell
+    itself is not activated. In that case PATH does not contain the matching uv.
+    """
+    configured = os.environ.get("DEPGRAPH_UV_BIN")
+    if configured:
+        return configured
+    sibling = os.path.join(os.path.dirname(sys.executable), "uv")
+    if os.path.isfile(sibling) and os.access(sibling, os.X_OK):
+        return sibling
+    return shutil.which("uv") or "uv"
+
+
+UV_BIN = _find_uv_bin()
 
 # Default container target when the caller does not detect/inject one. NEVER
 # manylinux2014 (silently downgrades e.g. numpy) — use the modern 2_28 baseline.

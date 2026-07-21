@@ -33,6 +33,12 @@ DEFAULT_MINOR = "3.11"
 _VERSION_TOKEN = re.compile(r"^\d+(?:\.\d+)*$")
 
 
+def _split_image_digest(image: str) -> tuple[str, str | None]:
+    """Return ``(name_and_tag, digest)`` for a Docker image reference."""
+    reference, sep, digest = image.partition("@")
+    return reference, digest if sep and digest else None
+
+
 def _normalize_constraint(raw: str) -> str:
     """Normalize poetry ``^``/``~`` shorthand to a PEP 440 specifier string.
 
@@ -56,7 +62,8 @@ def _normalize_constraint(raw: str) -> str:
 def _base_image_minor(base_image: str) -> str | None:
     """The python minor already in a ``python:X.Y...`` tag (the ImageSelector's chosen
     base), or None when the base is not a recognizable supported ``python:X.Y`` tag."""
-    name, sep, tag = base_image.rpartition(":")
+    reference, _digest = _split_image_digest(base_image)
+    name, sep, tag = reference.rpartition(":")
     if not sep or "/" in tag or name.split("/")[-1] != "python":
         return None
     m = re.match(r"^(\d+\.\d+)", tag.split("-")[0])
@@ -184,7 +191,8 @@ def pin_base_python(base_image: str, minor: str) -> str:
     (``python:latest``) are returned unchanged — conservative: never make a base
     worse than the Synthesizer's choice.
     """
-    name, sep, tag = base_image.rpartition(":")
+    reference, _digest = _split_image_digest(base_image)
+    name, sep, tag = reference.rpartition(":")
     if not sep or "/" in tag:
         # no tag (bare name, or the ":" belonged to a registry:port)
         return base_image
@@ -193,8 +201,15 @@ def pin_base_python(base_image: str, minor: str) -> str:
     tokens = tag.split("-")
     if not _VERSION_TOKEN.match(tokens[0]):
         return base_image
+    existing_minor = ".".join(tokens[0].split(".")[:2])
+    if existing_minor == minor:
+        return base_image
     tokens[0] = minor
-    return f"{name}:{'-'.join(tokens)}"
+    rewritten = f"{name}:{'-'.join(tokens)}"
+    # A digest identifies the original image bytes. Keeping it after changing
+    # the tag would still boot the old interpreter while claiming the new one.
+    # Drop the now-incompatible digest and let Docker resolve the compatible tag.
+    return rewritten
 
 
 @dataclass(frozen=True)

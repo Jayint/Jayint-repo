@@ -74,7 +74,7 @@ def check_pytest_installed() -> bool:
     """
     try:
         result = subprocess.run(
-            ["python", "-m", "pytest", "--version"],
+            [sys.executable, "-m", "pytest", "--version"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -94,7 +94,8 @@ def install_pytest() -> bool:
     print("⚠️  pytest is not installed; attempting to install...")
     try:
         result = subprocess.run(
-            ["pip", "install", "pytest"], capture_output=True, text=True, timeout=120
+            [sys.executable, "-m", "pip", "install", "pytest"],
+            capture_output=True, text=True, timeout=120
         )
         if result.returncode == 0:
             print("✅ pytest installed")
@@ -448,7 +449,7 @@ def run_pytest(
         repo_path = os.getcwd()
 
     # Build pytest command
-    cmd = ["python", "-m", "pytest"]
+    cmd = [sys.executable, "-m", "pytest"]
 
     # JUnit XML output path
     junit_xml_path = os.path.join(repo_path, "logs/junit_report.xml")
@@ -676,8 +677,10 @@ def main():
     # Ensure pytest installed
     if not check_pytest_installed():
         if not install_pytest():
-            print("❌ Error: failed to install pytest; install it manually")
-            return 1
+            # Still launch ``sys.executable -m pytest`` below. run_pytest() converts
+            # the missing-module failure into a persisted result artifact, so
+            # partial setup runs are measured instead of disappearing.
+            print("⚠️  Failed to install pytest; recording the execution attempt")
 
     # Discover test files
     test_files = discover_test_files(repo_path)

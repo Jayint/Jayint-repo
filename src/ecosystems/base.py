@@ -42,6 +42,12 @@ class Workspace:
     role: str
     package_manager_version: str | None = None
     command_runner: str | None = None
+    # Source language and runtime are not always the same: TypeScript executes
+    # on Node.js. Keep both identities so a Node engine constraint never creates
+    # a fictitious `runtime:typescript:*` obligation.
+    runtime_language: str | None = None
+    runtime_version_constraint: str | None = None
+    resolved_runtime_version: str | None = None
 
 
 @dataclass(frozen=True)
@@ -276,8 +282,12 @@ def graph_from_resolution(
 ) -> DepGraphFragment:
     """Normalize one provider result into the shared four-level graph."""
     graph = DepGraph()
-    runtime_version = workspace.version_constraint or "default"
-    runtime_node_id = ecosystem_runtime_id(workspace.language, runtime_version)
+    runtime_language = workspace.runtime_language or workspace.language
+    runtime_constraint = (
+        workspace.runtime_version_constraint or workspace.version_constraint
+    )
+    runtime_version = workspace.resolved_runtime_version or runtime_constraint or "default"
+    runtime_node_id = ecosystem_runtime_id(runtime_language, runtime_version)
     tool_node_id = ecosystem_tool_id(workspace.ecosystem, tool_name)
     deps_node_id = dependency_set_id(workspace.ecosystem, workspace.root)
     project_node_id = ecosystem_project_id(workspace.ecosystem, workspace.root)
@@ -293,15 +303,19 @@ def graph_from_resolution(
     graph = graph.with_node(Node(
         id=runtime_node_id,
         type=NodeType.RUNTIME,
-        name=f"{workspace.language} runtime",
+        name=f"{runtime_language} runtime",
         layer=Layer.RUNTIME,
         discovered_by=DiscoveredBy.STATIC_SCAN,
         state=_node_state(bool(runtime_setup)),
-        version=workspace.version_constraint,
+        version=workspace.resolved_runtime_version or runtime_constraint,
         check_command=runtime_check,
         setup_commands=runtime_setup,
         strength=Strength.HARD if runtime_setup else Strength.SOFT,
-        **common,
+        **{
+            **common,
+            "language": runtime_language,
+            "version_constraint": runtime_constraint,
+        },
     ))
     graph = graph.with_node(Node(
         id=tool_node_id,

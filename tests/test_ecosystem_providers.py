@@ -101,6 +101,11 @@ def test_node_provider_builds_workspace_transaction_and_import_mapping(tmp_path)
     for node in fragment.graph.nodes:
         by_type.setdefault(node.type, []).append(node)
     assert len(by_type[NodeType.DEPENDENCY_SET]) == 1
+    runtime = by_type[NodeType.RUNTIME][0]
+    assert runtime.id == "runtime:node:20.0.0"
+    assert runtime.language == "node"
+    assert workspace.language == "typescript"
+    assert workspace.runtime_language == "node"
     assert by_type[NodeType.DEPENDENCY_SET][0].setup_commands == (
         "cd frontend && npm ci",
     )
@@ -111,6 +116,93 @@ def test_node_provider_builds_workspace_transaction_and_import_mapping(tmp_path)
     native = by_type[NodeType.DEPENDENCY_SET][0].data["native_resolver"]
     assert native["status"] == "resolved"
     assert len(resolver_sandbox.closed) == 1
+
+
+def test_node_provider_uses_direct_dependency_engine_floor_for_typescript(tmp_path):
+    _write(
+        tmp_path,
+        "package.json",
+        '{"engines":{"node":">=18.18"},"scripts":{"test":"vitest"},'
+        '"devDependencies":{"vite":"^7.0.0"}}',
+    )
+    _write(
+        tmp_path,
+        "package-lock.json",
+        '{"lockfileVersion":3,"packages":{"":{"name":"addons-server"},'
+        '"node_modules/vite":{"version":"7.0.0",'
+        '"engines":{"node":"^20.19.0 || >=22.12.0"}}}}',
+    )
+    _write(tmp_path, "tsconfig.json", '{"compilerOptions":{}}')
+    _write(tmp_path, "src/index.ts", "export const ok = true\n")
+
+    provider = NodeProvider()
+    workspace = provider.detect_workspaces(
+        str(tmp_path), detect_languages(str(tmp_path))
+    )[0]
+    fragment = provider.build_fragment(
+        str(tmp_path), workspace, ProviderTarget("python:3.11-slim"),
+        sandbox=_ResolverSandbox(result=(1, "offline")),
+    )
+    runtime = next(node for node in fragment.graph.nodes if node.type is NodeType.RUNTIME)
+
+    assert workspace.language == "typescript"
+    assert workspace.runtime_language == "node"
+    assert workspace.resolved_runtime_version == "20.19.0"
+    assert runtime.id == "runtime:node:20.19.0"
+    assert any("node-v20.19.0" in command for command in runtime.setup_commands)
+    assert "a[0]>b[0]" in runtime.check_command
+
+
+def test_node_major_base_image_reuses_new_enough_runtime(tmp_path):
+    _write(
+        tmp_path,
+        "package.json",
+        '{"engines":{"node":">=20.19.0"},"scripts":{"test":"vitest"}}',
+    )
+    _write(tmp_path, "package-lock.json", '{"lockfileVersion":3,"packages":{}}')
+    _write(tmp_path, "src/index.js", "module.exports = true\n")
+    provider = NodeProvider()
+    workspace = provider.detect_workspaces(
+        str(tmp_path), detect_languages(str(tmp_path))
+    )[0]
+    fragment = provider.build_fragment(
+        str(tmp_path), workspace, ProviderTarget("node:20-bookworm"),
+        sandbox=_ResolverSandbox(result=(1, "offline")),
+    )
+    runtime = next(node for node in fragment.graph.nodes if node.type is NodeType.RUNTIME)
+
+    assert runtime.setup_commands == ()
+    assert "process.versions.node" in runtime.check_command
+
+
+def test_node_provider_accepts_typescript_declaration_build_output(
+    tmp_path, monkeypatch
+):
+    _write(
+        tmp_path,
+        "package.json",
+        '{"scripts":{"build":"dts-buddy"},"types":"./types/index.d.ts"}',
+    )
+    languages = detect_languages(str(tmp_path))
+    provider = NodeProvider()
+    workspace = provider.detect_workspaces(str(tmp_path), languages)[0]
+
+    monkeypatch.chdir(tmp_path)
+    commands, check = provider.project_commands(workspace)
+    fragment = provider.build_fragment(
+        str(tmp_path),
+        workspace,
+        ProviderTarget("node:24"),
+        sandbox=_ResolverSandbox(result=(1, "offline")),
+    )
+    project = next(
+        node for node in fragment.graph.nodes if node.type is NodeType.PROJECT
+    )
+
+    assert commands == ("npm run build",)
+    assert check is not None and "test -d types" in check
+    assert project.check_command is not None
+    assert "test -d types" in project.check_command
 
 
 def test_node_ast_scanner_handles_reexports_aliases_and_dynamic_imports(tmp_path):
@@ -331,6 +423,21 @@ def test_go_provider_maps_source_import_to_module(tmp_path):
                 if node.type is NodeType.DEPENDENCY_SET)
     assert deps.setup_commands == ("go mod download",)
     assert fragment.test_commands == ("go test ./...",)
+
+
+def test_go_provider_ignores_test_fixture_modules(tmp_path):
+    _write(tmp_path, "package.json", '{"scripts":{"test":"jest"}}')
+    _write(tmp_path, "src/index.ts", "export const value = 1\n")
+    _write(
+        tmp_path,
+        "__tests__/fixtures/repo-map/go/go.mod",
+        "module example.com/fixture\n\ngo 1.21\n",
+    )
+    languages = detect_languages(str(tmp_path))
+
+    workspaces = GoProvider().detect_workspaces(str(tmp_path), languages)
+
+    assert workspaces == ()
 
 
 def test_go_scanner_honors_target_build_tags_and_go_work_modules(tmp_path):

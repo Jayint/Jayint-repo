@@ -7,8 +7,11 @@ manual blocks. Pure: no Docker/network/LLM."""
 from __future__ import annotations
 
 import re
+import shlex
 from dataclasses import dataclass, replace
 
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion, Version
 
 from python_deps.depgraph.action_class import matches_action_class
@@ -37,6 +40,19 @@ _MUTATING = re.compile(
     r"|\bcurl\b|\bwget\b|>>|>)")
 _COMMAND_V_ONLY = re.compile(r"^\s*command\s+-v\s+[A-Za-z0-9_.+-]+\s*$")
 
+# pip install options whose following token is an option value, not a package
+# requirement.  Keeping this list conservative means an unfamiliar/ambiguous
+# command is rejected for unresolved Package promotion instead of guessed at.
+_PIP_OPTIONS_WITH_VALUE = frozenset({
+    "-c", "--constraint", "-r", "--requirement", "-e", "--editable",
+    "-t", "--target", "--platform", "--python-version", "--implementation",
+    "--abi", "--root", "--prefix", "--src", "-i", "--index-url",
+    "--extra-index-url", "-f", "--find-links",
+    "--trusted-host", "--proxy", "--retries", "--timeout", "--cache-dir",
+    "--config-settings", "--hash", "--report", "--progress-bar",
+    "--root-user-action",
+})
+
 
 def is_read_only(cmd: str) -> bool:
     """True when *cmd* performs no env mutation. Benign /dev/null and fd-dup (2>&1)
@@ -52,6 +68,77 @@ def _node_type(value: str) -> NodeType | None:
         return NodeType(value)
     except ValueError:
         return None
+
+
+def exact_pypi_provider_version(
+    provider: ProviderSpec, package_name: str
+) -> str | None:
+    """Return the exact matching PyPI version installed by *provider*.
+
+    This deliberately recognizes only one unambiguous positional requirement,
+    e.g. ``python3 -m pip install --no-deps pytest==8.3.3``.  Requirements
+    files, URLs, ranges, wildcards, multiple packages, shell compounds, and a
+    package name different from the target node all return ``None``.
+    """
+    if provider.kind != "pip":
+        return None
+    try:
+        tokens = shlex.split(provider.command)
+        install_index = tokens.index("install")
+    except (ValueError, TypeError):
+        return None
+
+    requirements: list[Requirement] = []
+    skip_value = False
+    positional_only = False
+    for token in tokens[install_index + 1:]:
+        if skip_value:
+            skip_value = False
+            continue
+        if not positional_only and token == "--":
+            positional_only = True
+            continue
+        if not positional_only and token.startswith("-"):
+            option = token.split("=", 1)[0]
+            if "=" not in token and option in _PIP_OPTIONS_WITH_VALUE:
+                skip_value = True
+            continue
+        if token in {"&&", "||", ";", "|"}:
+            return None
+        try:
+            requirements.append(Requirement(token))
+        except InvalidRequirement:
+            return None
+
+    if skip_value or len(requirements) != 1:
+        return None
+    requirement = requirements[0]
+    if (
+        requirement.url is not None
+        or requirement.marker is not None
+        or canonicalize_name(requirement.name) != canonicalize_name(package_name)
+    ):
+        return None
+    specifiers = tuple(requirement.specifier)
+    if len(specifiers) != 1 or specifiers[0].operator != "==":
+        return None
+    version = specifiers[0].version
+    if "*" in version:
+        return None
+    try:
+        Version(version)
+    except InvalidVersion:
+        return None
+    return version
+
+
+def _exact_pypi_pin(provider: ProviderSpec, node: Node) -> str | None:
+    if (
+        node.type is not NodeType.PACKAGE
+        or node.ecosystem not in (None, Ecosystem.PYPI)
+    ):
+        return None
+    return exact_pypi_provider_version(provider, node.name)
 
 
 def validate_proposal(graph: DepGraph, proposal: PatchProposal, *,
@@ -141,6 +228,18 @@ def validate_proposal(graph: DepGraph, proposal: PatchProposal, *,
                 errs.append(f"provider {p.id} provides unknown node {nid!r}")
                 continue
             current = graph.get(nid)
+            if (
+                current is not None
+                and current.type is NodeType.PACKAGE
+                and current.ecosystem in (None, Ecosystem.PYPI)
+                and not current.version
+                and _exact_pypi_pin(p, current) is None
+            ):
+                errs.append(
+                    f"provider {p.id} for unresolved package {nid} must install "
+                    f"exactly one matching pinned requirement "
+                    f"({current.name}==<PEP-440-version>)"
+                )
             if current is not None and current.chosen_fix is not None and not p.override:
                 # Applying this proposal would be a silent no-op because the
                 # reducer is first-writer-wins.  Reject it with the exact
@@ -278,6 +377,11 @@ def apply_proposal(graph: DepGraph, proposal: PatchProposal) -> ApplyResult:
         for nid in p.provides:
             node = g.get(nid)
             if node is not None and (node.chosen_fix is None or p.override):
+                resolved_version = (
+                    _exact_pypi_pin(p, node)
+                    if node.type is NodeType.PACKAGE and not node.version
+                    else None
+                )
                 # ``chosen_fix`` keeps the stable provider identity (notably
                 # ``apt:NAME``), while setup_commands is the canonical, gated
                 # action.  Preserve the exact Agent-supplied command for both
@@ -286,6 +390,7 @@ def apply_proposal(graph: DepGraph, proposal: PatchProposal) -> ApplyResult:
                 # approved retry flags, mirror handling, or other semantics.
                 g = g.with_node(replace(
                     node,
+                    version=resolved_version or node.version,
                     chosen_fix=fix,
                     setup_commands=(p.command,),
                 ))

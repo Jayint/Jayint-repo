@@ -153,3 +153,55 @@ def test_trusted_ci_container_image_precedes_llm_selection(monkeypatch):
 
     assert choice.image == "python:3.11-bookworm"
     assert ".github/workflows/test.yml" in choice.reason
+
+
+def test_trusted_floating_python_image_is_pinned_from_requires_python(monkeypatch):
+    repo = _repo(">=3.12")
+    with open(os.path.join(repo, "dockerfile"), "w") as fh:
+        fh.write("FROM docker.io/python:3-slim\n")
+    monkeypatch.setattr(
+        bis,
+        "ImageSelector",
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError("LLM used")),
+    )
+
+    choice = choose_base_image(repo, client=object(), model="m")
+
+    assert choice.image == "docker.io/python:3.12-slim"
+    assert choice.minor == "3.12"
+    assert "dockerfile" in choice.reason.lower()
+    assert "pinned" in choice.reason
+
+
+def test_trusted_python_image_is_clamped_when_constraint_excludes_it(monkeypatch):
+    repo = _repo(">=3.12")
+    with open(os.path.join(repo, "Dockerfile"), "w") as fh:
+        fh.write("FROM python:3.11-bookworm\n")
+    monkeypatch.setattr(
+        bis,
+        "ImageSelector",
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError("LLM used")),
+    )
+
+    choice = choose_base_image(repo, client=object(), model="m")
+
+    assert choice.image == "python:3.12-bookworm"
+    assert choice.minor == "3.12"
+
+
+def test_trusted_digest_python_image_keeps_matching_minor(monkeypatch):
+    repo = _repo(None)
+    digest = "sha256:" + "a" * 64
+    image = f"python:3.13-slim-bookworm@{digest}"
+    with open(os.path.join(repo, "Dockerfile"), "w") as fh:
+        fh.write(f"FROM {image}\n")
+    monkeypatch.setattr(
+        bis,
+        "ImageSelector",
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError("LLM used")),
+    )
+
+    choice = choose_base_image(repo, client=object(), model="m")
+
+    assert choice.image == image
+    assert choice.minor == "3.13"

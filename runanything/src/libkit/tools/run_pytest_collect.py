@@ -29,7 +29,7 @@ def check_pytest_installed() -> bool:
     """
     try:
         result = subprocess.run(
-            ["python", "-m", "pytest", "--version"],
+            [sys.executable, "-m", "pytest", "--version"],
             capture_output=True,
             text=True,
             timeout=100,
@@ -49,7 +49,8 @@ def install_pytest() -> bool:
     print("⚠️  pytest is not installed; attempting to install...")
     try:
         result = subprocess.run(
-            ["pip", "install", "pytest"], capture_output=True, text=True, timeout=120
+            [sys.executable, "-m", "pip", "install", "pytest"],
+            capture_output=True, text=True, timeout=120
         )
         if result.returncode == 0:
             print("✅ pytest installed")
@@ -106,7 +107,7 @@ def run_pytest_collect(
     # Default to CWD
     if repo_path is None:
         repo_path = os.getcwd()
-    cmd = ["python", "-m", "pytest", "--co", "-q", repo_path]
+    cmd = [sys.executable, "-m", "pytest", "--co", "-q", repo_path]
 
     print(f"🔧 Command: {' '.join(cmd)}")
     print(f"📁 Working directory: {repo_path}")
@@ -208,8 +209,10 @@ def main():
     # Ensure pytest installed
     if not check_pytest_installed():
         if not install_pytest():
-            print("❌ Error: failed to install pytest; install it manually")
-            return 1
+            # Continue into the collector so its failure is serialized to the
+            # normal result file rather than being indistinguishable from an
+            # evaluator that was never launched.
+            print("⚠️  Failed to install pytest; recording the collection attempt")
 
     # Run pytest collect
     print(f"\n🚀 Collecting tests...\n")

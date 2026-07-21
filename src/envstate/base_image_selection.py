@@ -42,6 +42,13 @@ _DEFAULT_IMAGE = f"python:{DEFAULT_MINOR}-slim"
 _BARE_PYTHON_TAG = re.compile(r"^python:\d+\.\d+(?:\.\d+)?$")
 
 
+def _is_python_image(image: str) -> bool:
+    """Whether *image* is a tagged official Python image, registry-qualified or not."""
+    reference = image.split("@", 1)[0]
+    name, sep, tag = reference.rpartition(":")
+    return bool(sep and tag and "/" not in tag and name.split("/")[-1] == "python")
+
+
 def _ensure_slim(image: str) -> str:
     """Append ``-slim`` to a BARE ``python:X.Y[.Z]`` tag; unchanged otherwise.
 
@@ -252,14 +259,32 @@ def choose_base_image(
         declared = _trusted_declared_image(repo_path)
         if declared is not None:
             declared_image, declared_source = declared
-            minor = _base_image_minor(declared_image) or DEFAULT_MINOR
+            if _is_python_image(declared_image):
+                # A repository-owned Dockerfile/CI image is stronger evidence than
+                # an LLM choice, but a floating or incompatible Python tag still
+                # needs the same requires-python guard as every other auto-selected
+                # Python image.  In particular, ``python:3-slim`` must not float to
+                # whichever newest Python Docker Hub serves on the day of the run.
+                decision = resolve_runtime_base(repo_path, declared_image)
+                image = _ensure_slim(decision.base_image)
+                minor = decision.minor
+                detail = f" -> pinned {decision.base_image!r} ({decision.reason})"
+                normalized_note = (
+                    "" if image == decision.base_image
+                    else f" -> normalized to {image!r}"
+                )
+            else:
+                image = declared_image
+                minor = _base_image_minor(declared_image) or DEFAULT_MINOR
+                detail = ""
+                normalized_note = ""
             return BaseImageChoice(
-                image=declared_image,
+                image=image,
                 minor=minor,
                 platform_override=None,
                 reason=(
                     f"auto: trusted {declared_source} declares "
-                    f"{declared_image!r}"
+                    f"{declared_image!r}{detail}{normalized_note}"
                 ),
                 languages=languages,
                 primary_language=primary,
@@ -290,7 +315,7 @@ def choose_base_image(
             language_hint=primary,
             language_requirements=languages,
         )
-        if selected.startswith("python:"):
+        if _is_python_image(selected):
             decision = resolve_runtime_base(repo_path, selected)
             image = _ensure_slim(decision.base_image)
             minor = decision.minor

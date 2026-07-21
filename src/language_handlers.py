@@ -78,17 +78,31 @@ class PythonHandler(LanguageHandler):
     def detect_language(self, repo_structure: str, files_content: Dict[str, str]) -> bool:
         """Detect Python project by file extensions and config files."""
         # Strong indicators - Python-specific configuration files
-        python_config_files = [
+        python_config_files = {
             'requirements.txt', 'setup.py', 'setup.cfg', 'pyproject.toml',
-            'Pipfile', 'poetry.lock', 'environment.yml', 'conda.yml',
+            'pipfile', 'poetry.lock', 'environment.yml', 'conda.yml',
             '.python-version', 'tox.ini', 'pytest.ini', 'pipfile.lock',
             'pdm.lock', 'uv.lock'
-        ]
+        }
         
         structure_lower = repo_structure.lower()
-        for indicator in python_config_files:
-            if indicator in structure_lower:
-                return True
+        paths = tuple(
+            line.strip().replace("\\", "/").lower()
+            for line in repo_structure.splitlines()
+            if line.strip() and not line.rstrip().endswith("/")
+        )
+        has_python_source = any(path.endswith(".py") for path in paths)
+        test_dirs = {"test", "tests", "__tests__", "testdata"}
+        for path in paths:
+            parts = path.split("/")
+            if parts[-1] not in python_config_files:
+                continue
+            # A test-only requirements file can describe an external API test
+            # harness without making the repository a Python project.  Require
+            # actual Python source before promoting that evidence to a runtime.
+            if set(parts[:-1]) & test_dirs and not has_python_source:
+                continue
+            return True
         
         # Only .py files is WEAK evidence - many projects have helper scripts.
         # Require both .py files AND typical Python project structure.

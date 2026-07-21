@@ -89,7 +89,12 @@ def _node_block(graph: DepGraph, node: Node, apt_done: list[bool]) -> list[str]:
         out += ["export DEBIAN_FRONTEND=noninteractive", "apt-get update"]
         apt_done[0] = True
     out += _annotation(graph, node)
-    out += list(node.setup_commands)
+    if node.setup_commands:
+        # Fresh replay executes the complete artifact in one shell.  Isolate
+        # each graph block so a workspace ``cd`` cannot leak into later nodes.
+        out += ["("]
+        out += list(node.setup_commands)
+        out += [")"]
     return out
 
 
@@ -133,7 +138,10 @@ def _block_block(block: Block) -> list[str]:
     out = [head]
     for chk in block.check_commands:
         out.append(_check_annotation(chk))
-    out.extend(block.commands)
+    if block.commands:
+        out.append("(")
+        out.extend(block.commands)
+        out.append(")")
     return out
 
 
@@ -210,7 +218,15 @@ def render_build_script(graph: DepGraph | None, manual_blocks: tuple[Block, ...]
     if graph is None:
         graph = DepGraph()
     graph = populate_setup_commands(graph)  # single call site: derive commands, then emit
-    parts: list[str] = _manifest(graph, manual_blocks) + ["set -Eeuo pipefail"]
+    parts: list[str] = _manifest(graph, manual_blocks) + [
+        "set -Eeuo pipefail",
+        # Make the replay artifact itself resilient to short-lived index/network
+        # failures.  These are pip's native bounded retries; real dependency or
+        # build failures still return non-zero and remain binding.
+        "export PIP_RETRIES=${PIP_RETRIES:-10}",
+        "export PIP_TIMEOUT=${PIP_TIMEOUT:-120}",
+        "export PIP_DISABLE_PIP_VERSION_CHECK=${PIP_DISABLE_PIP_VERSION_CHECK:-1}",
+    ]
     covered = {nid for b in manual_blocks for nid in b.target_node_ids}
     blocks_by_wave: dict[str, list] = {}
     for b in manual_blocks:

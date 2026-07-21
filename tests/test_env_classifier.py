@@ -86,6 +86,30 @@ def test_one_illegal_promotion_does_not_void_valid_siblings():
     assert out.get("service:redis") is None               # illegal-promotion req dropped
 
 
+def test_malformed_value_types_do_not_void_valid_siblings():
+    g = _graph_with_pkg()
+    llm_json = json.dumps({
+        "requirements": [
+            {"id": "service:postgres", "type": "Service", "name": "postgres",
+             "layer": "services", "state": "candidate", "evidence_refs": ["pkg.00"]},
+            {"id": "service:redis", "type": "Service", "name": "redis",
+             "layer": "services", "promotion": ["candidate"],
+             "evidence_refs": ["pkg.00"]},
+            {"id": "config:BAD", "type": ["Config"], "name": "BAD",
+             "layer": "config", "state": "hint", "evidence_refs": [["pkg.00"]]},
+        ],
+        "add_edges": [
+            {"source": package_id("psycopg2", "2.9.9"),
+             "target": "service:postgres", "relation": ["requires"]},
+        ],
+    })
+    out = make_construction_classifier(lambda m: llm_json)(g, "/nonexistent-repo")
+    assert out.get("service:postgres") is not None
+    assert out.get("service:redis") is None
+    assert out.get("config:BAD") is None
+    assert not out.edges
+
+
 def test_non_read_only_check_command_req_is_dropped_not_voiding():
     # A grounded req with a mutating check_command would be gate-rejected; _sanitize drops
     # it so a valid sibling still admits.

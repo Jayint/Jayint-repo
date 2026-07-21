@@ -12,7 +12,10 @@ from pathlib import Path
 import fnmatch
 import re
 import shlex
-import tomllib
+try:  # tomllib is stdlib on 3.11+; fall back to the tomli backport on 3.10.
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10
+    import tomli as tomllib
 
 from python_deps.depgraph.schema import DepGraph, NodeType, Strength
 

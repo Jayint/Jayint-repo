@@ -1,3 +1,6 @@
+import os
+import subprocess
+
 import python_deps.depgraph.build_script as bs
 from python_deps.depgraph.build_script import render_build_script
 from python_deps.depgraph.populate import populate_setup_commands
@@ -51,3 +54,44 @@ def test_graph_hash_changes_when_canonical_command_changes():
         return next(line for line in script.splitlines() if "graph-hash:" in line)
 
     assert graph_hash(render_build_script(first)) != graph_hash(render_build_script(second))
+
+
+def test_renderer_isolates_working_directory_between_graph_nodes(tmp_path):
+    (tmp_path / "nested").mkdir()
+    deps = Node(
+        id="deps:npm:nested",
+        type=NodeType.DEPENDENCY_SET,
+        name="nested dependencies",
+        layer=Layer.DEPENDENCIES,
+        discovered_by=DiscoveredBy.RESOLVER,
+        state=State.MISSING,
+        check_command="test -f nested/dependency-ran",
+        setup_commands=("cd nested && touch dependency-ran",),
+    )
+    project = Node(
+        id="project:npm:.",
+        type=NodeType.PROJECT,
+        name="root project",
+        layer=Layer.BUILD,
+        discovered_by=DiscoveredBy.STATIC_SCAN,
+        state=State.MISSING,
+        check_command="test -f root-ran",
+        setup_commands=(
+            'test "$PWD" = "$EXPECTED_ROOT" && touch root-ran',
+        ),
+    )
+    script = render_build_script(DepGraph(nodes=(deps, project)))
+
+    completed = subprocess.run(
+        ["bash"],
+        input=script,
+        cwd=tmp_path,
+        env={**os.environ, "EXPECTED_ROOT": str(tmp_path)},
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert (tmp_path / "nested" / "dependency-ran").is_file()
+    assert (tmp_path / "root-ran").is_file()

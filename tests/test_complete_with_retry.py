@@ -4,6 +4,7 @@ All fakes use SimpleNamespace and call-counter patterns (no pytest fixtures/mark
 """
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 
 def _make_response(content, prompt_tokens=10, completion_tokens=5, total_tokens=15):
@@ -70,6 +71,7 @@ class TestCompleteWithRetryEmptyThenValid(unittest.TestCase):
         self.assertEqual(usage["input_tokens"], 30)
         self.assertEqual(usage["output_tokens"], 13)
         self.assertEqual(usage["total_tokens"], 43)
+        self.assertEqual(usage["api_calls"], 2)
 
 
 class TestCompleteWithRetryAcceptPredicate(unittest.TestCase):
@@ -110,6 +112,33 @@ class TestCompleteWithRetryUsageAccumulation(unittest.TestCase):
         self.assertEqual(usage["input_tokens"], 18)
         self.assertEqual(usage["output_tokens"], 9)
         self.assertEqual(usage["total_tokens"], 27)
+        self.assertEqual(usage["api_calls"], 3)
+
+    def test_transport_retry_is_included_in_api_call_count(self):
+        from src.envstate.llm_response import complete_with_retry
+
+        calls = {"n": 0}
+
+        def _create(*, model, messages, **kwargs):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise RuntimeError("temporary connection drop")
+            return _make_response("valid")
+
+        client = SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=_create))
+        )
+        with patch(
+            "src.envstate.llm_response._is_retryable_transport_error",
+            return_value=True,
+        ), patch("src.envstate.llm_response._sleep_backoff"):
+            text, usage, _ = complete_with_retry(
+                client, "m", [{"role": "user", "content": "go"}],
+                max_transport_attempts=2,
+            )
+
+        self.assertEqual(text, "valid")
+        self.assertEqual(usage["api_calls"], 2)
 
 
 class TestCompleteWithRetryMaxAttemptsCap(unittest.TestCase):
@@ -153,6 +182,7 @@ class TestCompleteWithRetryFirstResponseGood(unittest.TestCase):
         self.assertEqual(usage["input_tokens"], 10)
         self.assertEqual(usage["output_tokens"], 5)
         self.assertEqual(usage["total_tokens"], 15)
+        self.assertEqual(usage["api_calls"], 1)
         self.assertIsNotNone(response)
 
     def test_single_call_when_accept_passes_first(self):

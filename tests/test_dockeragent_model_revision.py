@@ -104,8 +104,24 @@ def _install_fakes(
 
     def fake_run(cmd, *args, **kwargs):
         calls.append(cmd)
-        if isinstance(cmd, list) and cmd[:2] == ["docker", "build"] and fail_build:
+        if (
+            isinstance(cmd, list)
+            and len(cmd) >= 2
+            and Path(cmd[0]).name == "docker"
+            and cmd[1] == "build"
+            and fail_build
+        ):
             raise subprocess.CalledProcessError(1, cmd)
+        if (
+            isinstance(cmd, list)
+            and len(cmd) >= 3
+            and Path(cmd[0]).name == "docker"
+            and cmd[1:3] == ["image", "inspect"]
+            and "{{.Size}}" in cmd
+        ):
+            return subprocess.CompletedProcess(
+                cmd, 0, stdout=str(512 * 1024 * 1024) + "\n", stderr=""
+            )
         if isinstance(cmd, list) and cmd[-4:] == ["-C", "/testbed", "rev-parse", "HEAD"]:
             return subprocess.CompletedProcess(cmd, 0, stdout=actual_sha + "\n", stderr="")
         return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
@@ -126,6 +142,12 @@ def _success_adapter_result():
         "dockerfile": "FROM python:3.12-slim\nRUN true # pytest\n",
         "setup_scripts": {},
         "runtime_services": [],
+        "token_usage": {
+            "input_tokens": 120,
+            "output_tokens": 30,
+            "total_tokens": 150,
+            "api_calls": 3,
+        },
     }
 
 
@@ -174,7 +196,7 @@ def test_evaluator_revision_mismatch_fails_before_pytest(monkeypatch, tmp_path):
 
 
 def test_matching_evaluator_revision_is_reported_independently(monkeypatch, tmp_path):
-    _install_fakes(
+    calls = _install_fakes(
         monkeypatch,
         adapter_result=_success_adapter_result(),
         actual_sha=_EXPECTED_SHA.upper(),
@@ -186,6 +208,55 @@ def test_matching_evaluator_revision_is_reported_independently(monkeypatch, tmp_
     assert result["head_sha"] == _EXPECTED_SHA
     assert result["evaluated_head_sha"] == _EXPECTED_SHA
     assert result["revision_match"] is True
+    assert result["docker_image_size_bytes"] == 512 * 1024 * 1024
+    assert result["docker_image_size_mib"] == 512.0
+    assert result["token_usage"]["total_tokens"] == 150
+    assert result["token_usage"]["api_calls"] == 3
+    tool_exec = next(
+        index for index, cmd in enumerate(calls)
+        if isinstance(cmd, list) and "/run_pytest_collect.py" in cmd
+    )
+    result_copy = next(
+        index for index, cmd in enumerate(calls)
+        if isinstance(cmd, list)
+        and len(cmd) > 1
+        and cmd[1] == "cp"
+        and "run_pytest_collect_results.json" in " ".join(cmd)
+    )
+    result_cleanup = next(
+        index for index, cmd in enumerate(calls)
+        if isinstance(cmd, list)
+        and "rm" in cmd
+        and "run_pytest_collect_results.json" in " ".join(cmd)
+    )
+    next_tool_exec = next(
+        index for index, cmd in enumerate(calls)
+        if isinstance(cmd, list) and "/run_pytest.py" in cmd
+    )
+    assert tool_exec < result_copy < result_cleanup < next_tool_exec
+
+
+def test_partial_setup_still_runs_pytest_and_remains_failed_setup(monkeypatch, tmp_path):
+    adapter_result = _success_adapter_result()
+    adapter_result.update({
+        "status": "partial",
+        "failure_reason": "v3_failed",
+        "certified_setup": False,
+    })
+    calls = _install_fakes(
+        monkeypatch,
+        adapter_result=adapter_result,
+        actual_sha=_EXPECTED_SHA,
+    )
+
+    result = _model(tmp_path).predict("owner/repo")
+
+    assert result["status"] == "partial"
+    assert result["failure_reason"] == "v3_failed"
+    assert result["setup_certified"] is False
+    assert result["evaluation_mode"] == "partial_environment"
+    assert result["test_execution_attempted"] is True
+    assert any(isinstance(cmd, list) and "/run_pytest.py" in cmd for cmd in calls)
 
 
 def test_adapter_source_revision_failure_is_not_rewritten(monkeypatch, tmp_path):

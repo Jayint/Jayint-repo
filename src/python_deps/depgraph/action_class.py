@@ -7,6 +7,7 @@ import re
 # kind -> regex the provider command must match (searched against the stripped command).
 ACTION_CLASSES: dict[str, str] = {
     "apt":   r"^(?:apt-get|apt)(?:\s+update\s*&&\s*(?:apt-get|apt))?\s+install\b",
+    "apk":   r"^apk\s+add\b",
     "pip":   r"^(python3?\s+-m\s+)?pip\d?\s+install\b",
     "npm":   r"^npm\s+(install|ci)\b",
     "pnpm":  r"^pnpm\s+install\b",

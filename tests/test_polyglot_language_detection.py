@@ -74,6 +74,29 @@ def test_typescript_does_not_create_a_second_javascript_runtime(tmp_path):
     assert [item.language for item in requirements] == ["typescript"]
 
 
+def test_test_only_requirements_without_python_source_is_not_a_runtime(tmp_path):
+    _write(tmp_path, "package.json", '{"scripts":{"test":"grunt test"}}')
+    _write(tmp_path, "src/index.js", "module.exports = 1\n")
+    _write(
+        tmp_path,
+        "tests/api/requirements.txt",
+        "wikitools>=1.1\nposter>=0.8\n",
+    )
+
+    requirements = detect_languages(str(tmp_path))
+
+    assert [item.language for item in requirements] == ["javascript"]
+
+
+def test_test_requirements_with_python_source_remains_detectable(tmp_path):
+    _write(tmp_path, "tests/requirements.txt", "pytest>=8\n")
+    _write(tmp_path, "tests/test_api.py", "def test_api():\n    assert True\n")
+
+    requirements = detect_languages(str(tmp_path))
+
+    assert [item.language for item in requirements] == ["python"]
+
+
 def test_rust_workspace_version_is_detected(tmp_path):
     _write(
         tmp_path,

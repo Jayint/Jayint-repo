@@ -56,6 +56,29 @@ def _normalize_head_sha(value: Any) -> str:
     return value.strip().lower()
 
 
+def _token_usage_from_file(path: Path) -> dict[str, int]:
+    """Read one repository's eagerly persisted LLM accounting."""
+    empty = {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0,
+        "api_calls": 0,
+    }
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return empty
+    if not isinstance(payload, dict):
+        return empty
+    normalized = {}
+    for key in empty:
+        try:
+            normalized[key] = max(0, int(payload.get(key, 0) or 0))
+        except (TypeError, ValueError):
+            normalized[key] = 0
+    return normalized
+
+
 def _runtime_services_from_handoff(path: Path) -> list[dict[str, str]]:
     """Read only exact host-curated service recipes from the v3 handoff."""
     try:
@@ -178,8 +201,10 @@ class RATV3Adapter:
         setup_path = self.output_dir / "setup.sh"
         trace_path = self.output_dir / "v3_trace.json"
         runtime_path = self.output_dir / "runtime_handoff.json"
+        token_usage_path = self.output_dir / "token_usage.json"
         log_path = self.output_dir / "v3_run.log"
         source_revision_path = self.output_dir / "source_revision.json"
+        setup_status_path = self.output_dir / "setup_status.json"
 
         if reuse_existing and setup_path.exists():
             output = (
@@ -198,14 +223,25 @@ class RATV3Adapter:
                     source_revision_path=source_revision_path,
                 )
             setup_text = setup_path.read_text(encoding="utf-8", errors="replace")
+            setup_certified = True
+            setup_failure_reason = None
+            if setup_status_path.is_file():
+                try:
+                    setup_status = json.loads(setup_status_path.read_text(encoding="utf-8"))
+                    setup_certified = bool(setup_status.get("certified_setup"))
+                    setup_failure_reason = setup_status.get("failure_reason")
+                except (OSError, json.JSONDecodeError, AttributeError):
+                    setup_certified = False
+                    setup_failure_reason = "invalid_setup_status"
             runtime_services = _runtime_services_from_handoff(runtime_path)
             runtime_environment = _runtime_environment_from_handoff(runtime_path)
             owner, repo = full_name.split("/", 1)
             repo_path = self.root_path / "input" / "repo" / owner / repo
             profile = _repository_profile(repo_path)
             return {
-                "status": "success",
-                "failure_reason": None,
+                "status": "success" if setup_certified else "partial",
+                "failure_reason": setup_failure_reason,
+                "certified_setup": setup_certified,
                 "base_image": resolved_base,
                 "base_image_ref": resolved_ref,
                 "head_sha": head_sha,
@@ -217,6 +253,7 @@ class RATV3Adapter:
                     platform=resolved_platform,
                     runtime_environment=runtime_environment,
                     primary_language=profile["primary_language"],
+                    tolerate_setup_failure=not setup_certified,
                 ),
                 "platform": resolved_platform,
                 **profile,
@@ -224,20 +261,26 @@ class RATV3Adapter:
                 "runtime_services": runtime_services,
                 "runtime_commands": [item["start"] for item in runtime_services],
                 "runtime_environment": runtime_environment,
+                "token_usage": _token_usage_from_file(token_usage_path),
                 "logs": {
                     "adapter": "rat_v3_adapter",
                     "reused_existing": True,
                     "setup_sh": str(setup_path),
                     "trace": str(trace_path) if trace_path.exists() else "",
                     "runtime_handoff": str(runtime_path) if runtime_path.exists() else "",
+                    "token_usage": str(token_usage_path) if token_usage_path.exists() else "",
                     "source_revision": str(source_revision_path),
+                    "setup_status": str(setup_status_path) if setup_status_path.exists() else "",
                     "v3_log": str(log_path) if log_path.exists() else "",
                 },
             }
 
         # A failed fresh v3 subprocess must never be mistaken for success merely
         # because the same output directory contains a prior setup/handoff.
-        for stale_path in (setup_path, trace_path, runtime_path, source_revision_path):
+        for stale_path in (
+            setup_path, trace_path, runtime_path, token_usage_path,
+            source_revision_path, setup_status_path,
+        ):
             try:
                 stale_path.unlink()
             except FileNotFoundError:
@@ -275,48 +318,55 @@ class RATV3Adapter:
             str(trace_path),
             "--runtime-out",
             str(runtime_path),
+            "--usage-out",
+            str(token_usage_path),
             "--max-cycles",
             str(max_cycles),
             "--execution-mode",
             execution_mode,
         ]
-        completed = self._run_v3(cmd, log_path, timeout)
+        v3_timed_out = False
+        try:
+            completed = self._run_v3(cmd, log_path, timeout)
+        except subprocess.TimeoutExpired:
+            # Preserve evaluation coverage even when graph search exhausts its
+            # budget.  The RAT harness can still build a best-effort image from
+            # the selected base and whatever setup artifact was emitted so far.
+            v3_timed_out = True
+            try:
+                output = log_path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                output = ""
+            completed = subprocess.CompletedProcess(
+                args=cmd,
+                returncode=124,
+                stdout=output,
+                stderr=None,
+            )
         output = completed.stdout or ""
+        token_usage = _token_usage_from_file(token_usage_path)
         resolved_base = self._resolved_base_image(output, base_image)
         resolved_ref = self._resolved_base_image_ref(output, resolved_base)
         resolved_platform = self._resolved_platform(output)
 
-        if completed.returncode != 0:
-            return {
-                "status": "error",
-                "failure_reason": "v3_failed",
-                "base_image": resolved_base,
-                "head_sha": head_sha,
-                **profile,
-                "logs": {
-                    "error": "v3 did not certify the generated setup",
-                    "v3_returncode": completed.returncode,
-                    "v3_log": str(log_path),
-                    "v3_tail": output[-8000:],
-                },
-            }
+        certified_setup = completed.returncode == 0 and setup_path.exists()
+        if setup_path.exists():
+            setup_text = setup_path.read_text(encoding="utf-8", errors="replace")
+        else:
+            # A timeout can happen before run_v3_e2e reaches artifact emission.
+            # An empty setup still lets the evaluator clone the exact revision,
+            # attempt the deterministic editable-install bootstrap, and run tests.
+            setup_text = "#!/usr/bin/env bash\ntrue\n"
+            setup_path.write_text(setup_text, encoding="utf-8")
 
-        if not setup_path.exists():
-            return {
-                "status": "error",
-                "failure_reason": "no_setup_sh",
-                "base_image": resolved_base,
-                "head_sha": head_sha,
-                **profile,
-                "logs": {
-                    "error": "v3 did not produce setup.sh",
-                    "v3_returncode": completed.returncode,
-                    "v3_log": str(log_path),
-                    "v3_tail": output[-8000:],
-                },
-            }
-
-        setup_text = setup_path.read_text(encoding="utf-8", errors="replace")
+        if v3_timed_out:
+            setup_failure_reason = "v3_timeout"
+        elif completed.returncode != 0:
+            setup_failure_reason = "v3_failed"
+        elif not certified_setup:
+            setup_failure_reason = "no_setup_sh"
+        else:
+            setup_failure_reason = None
         runtime_services = _runtime_services_from_handoff(runtime_path)
         runtime_environment = _runtime_environment_from_handoff(runtime_path)
         try:
@@ -327,7 +377,17 @@ class RATV3Adapter:
                 base_image=resolved_base,
                 source_revision_path=source_revision_path,
                 head_sha=head_sha,
+                token_usage=token_usage,
             )
+        setup_status_path.write_text(
+            json.dumps({
+                "version": 1,
+                "certified_setup": certified_setup,
+                "failure_reason": setup_failure_reason,
+                "v3_returncode": completed.returncode,
+            }, indent=2) + "\n",
+            encoding="utf-8",
+        )
         dockerfile = self._render_dockerfile(
             full_name=full_name,
             base_image=resolved_ref,
@@ -336,10 +396,12 @@ class RATV3Adapter:
             platform=resolved_platform,
             runtime_environment=runtime_environment,
             primary_language=profile["primary_language"],
+            tolerate_setup_failure=not certified_setup,
         )
         return {
-            "status": "success",
-            "failure_reason": None,
+            "status": "success" if certified_setup else "partial",
+            "failure_reason": setup_failure_reason,
+            "certified_setup": certified_setup,
             "base_image": resolved_base,
             "base_image_ref": resolved_ref,
             "head_sha": head_sha,
@@ -350,16 +412,20 @@ class RATV3Adapter:
             "runtime_services": runtime_services,
             "runtime_commands": [item["start"] for item in runtime_services],
             "runtime_environment": runtime_environment,
+            "token_usage": token_usage,
             "logs": {
                 "adapter": "rat_v3_adapter",
                 "repo_path": str(repo_path),
                 "setup_sh": str(setup_path),
                 "trace": str(trace_path) if trace_path.exists() else "",
                 "runtime_handoff": str(runtime_path) if runtime_path.exists() else "",
+                "token_usage": str(token_usage_path),
                 "source_revision": str(source_revision_path),
+                "setup_status": str(setup_status_path),
                 "llm_trace": str(log_path.with_name("v3_llm.jsonl")),
                 "v3_returncode": completed.returncode,
                 "v3_log": str(log_path),
+                "v3_tail": output[-8000:] if not certified_setup else "",
             },
         }
 
@@ -460,12 +526,16 @@ class RATV3Adapter:
         base_image: str,
         source_revision_path: Path,
         head_sha: str = "",
+        token_usage: dict[str, int] | None = None,
     ) -> dict[str, Any]:
         return {
             "status": "error",
             "failure_reason": exc.reason,
             "base_image": base_image,
             "head_sha": head_sha,
+            "token_usage": token_usage or _token_usage_from_file(
+                self.output_dir / "token_usage.json"
+            ),
             "logs": {
                 "error": str(exc),
                 "source_revision": str(source_revision_path),
@@ -536,6 +606,7 @@ class RATV3Adapter:
         platform: str = "",
         runtime_environment: dict[str, str] | None = None,
         primary_language: str = "python",
+        tolerate_setup_failure: bool = False,
     ) -> str:
         repo_url = shlex.quote(f"https://github.com/{full_name}.git")
         setup_name = shlex.quote(setup_script_name)
@@ -547,6 +618,15 @@ class RATV3Adapter:
         pytest_env = ""
         if (runtime_environment or {}).get("PYTEST_ADDOPTS") == "--import-mode=importlib":
             pytest_env = " \\\n    PYTEST_ADDOPTS=--import-mode=importlib"
+        setup_run = "RUN chmod +x /tmp/setup.sh && cd /app && bash /tmp/setup.sh"
+        if tolerate_setup_failure:
+            setup_run = """RUN chmod +x /tmp/setup.sh && \\
+    cd /app && \\
+    set +e; \\
+    bash /tmp/setup.sh; \\
+    setup_rc=$?; \\
+    echo \"$setup_rc\" > /tmp/v3_setup_exit_code; \\
+    exit 0"""
         python_bootstrap = ""
         if primary_language == "python":
             python_bootstrap = """
@@ -570,6 +650,15 @@ RUN if command -v apt-get >/dev/null 2>&1; then \\
       apt-get update && \\
       apt-get install -y --no-install-recommends git ca-certificates bash python3 && \\
       rm -rf /var/lib/apt/lists/*; \\
+    elif command -v apk >/dev/null 2>&1; then \\
+      apk add --no-cache git ca-certificates bash coreutils python3 py3-pip; \\
+    elif command -v dnf >/dev/null 2>&1; then \\
+      dnf install -y git ca-certificates bash coreutils python3 && dnf clean all; \\
+    elif command -v yum >/dev/null 2>&1; then \\
+      yum install -y git ca-certificates bash coreutils python3 && yum clean all; \\
+    else \\
+      echo 'unsupported base image: cannot install git/bash/coreutils/python3' >&2; \\
+      exit 127; \\
     fi
 
 RUN command -v git >/dev/null 2>&1
@@ -582,7 +671,7 @@ RUN git init /testbed && \\
 RUN ln -sfn /testbed /app && ln -sfn /testbed /repo
 
 COPY {setup_name} /tmp/setup.sh
-RUN chmod +x /tmp/setup.sh && cd /app && bash /tmp/setup.sh
+{setup_run}
 {python_bootstrap}
 
 WORKDIR /testbed

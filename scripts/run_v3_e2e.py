@@ -43,6 +43,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 
 # repo root + src/ both on path (mirrors the test bootstrap): `src.sandbox`
@@ -67,9 +68,11 @@ from src.envstate.manifest import parse_manifests
 from src.envstate.llm_response import complete_with_retry
 from src.envstate.env_classifier import make_construction_classifier
 from src.envstate.base_image_selection import choose_base_image
+from src.envstate.runtime_base import _base_image_minor
 from src.envstate.run_trace import RunTracer
 from src.envstate.proof import finalize_trace
 from python_deps.depgraph.advise import build_advisory_for_repo
+from python_deps.depgraph.resolve_lock import UV_BIN
 from python_deps.depgraph.build_script import render_build_script
 from python_deps.depgraph.schema import NodeType, State
 from python_deps.depgraph.test_intent import discover_test_dependency_intent
@@ -79,6 +82,129 @@ from src.ecosystems.registry import discover_polyglot_test_commands
 _DONE_STOPS = frozenset({"done", "done_flag", "planner_done"})
 
 
+class _TokenUsageMeter:
+    """Per-process LLM accounting persisted after every transport call.
+
+    Each benchmark repository runs this entrypoint in its own subprocess, so the
+    meter cannot mix usage between concurrent repositories.  Persisting eagerly
+    also preserves completed-call accounting if the parent later times the process
+    out and terminates it.
+    """
+
+    def __init__(self, output_path: str | None = None) -> None:
+        self.output_path = output_path
+        self.input_tokens = 0
+        self.output_tokens = 0
+        self.total_tokens = 0
+        self.api_calls = 0
+        self.persist()
+
+    @staticmethod
+    def _usage_value(usage, name: str) -> int:
+        try:
+            value = (
+                usage.get(name, 0)
+                if isinstance(usage, dict)
+                else getattr(usage, name, 0)
+            )
+            return max(0, int(value or 0))
+        except (TypeError, ValueError):
+            return 0
+
+    def begin_call(self) -> None:
+        self.api_calls += 1
+        self.persist()
+
+    def record_response(self, response) -> None:
+        usage = getattr(response, "usage", None)
+        if usage is not None:
+            prompt = self._usage_value(usage, "prompt_tokens")
+            completion = self._usage_value(usage, "completion_tokens")
+            total = self._usage_value(usage, "total_tokens")
+            self.input_tokens += prompt
+            self.output_tokens += completion
+            self.total_tokens += total or (prompt + completion)
+        self.persist()
+
+    def to_dict(self) -> dict[str, int]:
+        return {
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "total_tokens": self.total_tokens,
+            "api_calls": self.api_calls,
+        }
+
+    def persist(self) -> None:
+        if not self.output_path:
+            return
+        try:
+            path = os.path.abspath(self.output_path)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            temporary = f"{path}.tmp.{os.getpid()}"
+            with open(temporary, "w", encoding="utf-8") as fh:
+                json.dump(self.to_dict(), fh, indent=2)
+            os.replace(temporary, path)
+        except Exception:
+            # Metrics must never make an experiment fail.
+            pass
+
+
+class _MeteredCompletions:
+    def __init__(self, delegate, meter: _TokenUsageMeter) -> None:
+        self._delegate = delegate
+        self._meter = meter
+
+    def create(self, *args, **kwargs):
+        self._meter.begin_call()
+        response = self._delegate.create(*args, **kwargs)
+        self._meter.record_response(response)
+        return response
+
+    def __getattr__(self, name):
+        return getattr(self._delegate, name)
+
+
+class _MeteredChat:
+    def __init__(self, delegate, meter: _TokenUsageMeter) -> None:
+        self._delegate = delegate
+        self.completions = _MeteredCompletions(delegate.completions, meter)
+
+    def __getattr__(self, name):
+        return getattr(self._delegate, name)
+
+
+class _MeteredClient:
+    def __init__(self, delegate, meter: _TokenUsageMeter) -> None:
+        self._delegate = delegate
+        self.chat = _MeteredChat(delegate.chat, meter)
+
+    def __getattr__(self, name):
+        return getattr(self._delegate, name)
+
+
+def _require_host_uv() -> None:
+    """Fail before LLM/Docker work when the host resolver is unavailable."""
+    try:
+        completed = subprocess.run(
+            [UV_BIN, "--version"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RuntimeError(
+            "host uv is required for v3 dependency resolution; "
+            "install project requirements with: python -m pip install -r requirements.txt"
+        ) from exc
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout).strip()
+        raise RuntimeError(
+            "host uv preflight failed" + (f": {detail}" if detail else "")
+        )
+    print(f"[v3] host-uv: {completed.stdout.strip() or UV_BIN}")
+
+
 def _positive_env_seconds(name: str, default: int) -> int:
     """Read a positive command budget without making configuration fatal."""
     try:
@@ -86,6 +212,26 @@ def _positive_env_seconds(name: str, default: int) -> int:
     except (TypeError, ValueError):
         return default
     return value if value > 0 else default
+
+
+def _verify_selected_python_runtime(sandbox, base_image: str, expected_minor: str) -> None:
+    """Bind a tagged Python image decision to the interpreter actually booted."""
+    if _base_image_minor(base_image) is None:
+        return
+    rc, output = sandbox.exec_readonly(
+        'python3 -c "import sys; print(f\'{sys.version_info[0]}.{sys.version_info[1]}\')"'
+    )
+    actual = (output or "").strip().splitlines()[-1] if output else ""
+    if rc != 0 or not actual:
+        raise RuntimeError(
+            f"selected Python base {base_image!r} does not provide a usable python3"
+        )
+    if actual != expected_minor:
+        raise RuntimeError(
+            "selected Python runtime mismatch: "
+            f"image={base_image!r}, selected={expected_minor}, container={actual}"
+        )
+    print(f"[v3] python-runtime: {actual} (selected image and container agree)")
 
 
 def _e2e_succeeded(stop: str, unresolved: list[str], gates_seen: list) -> bool:
@@ -190,10 +336,18 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "--runtime-out", default=None, dest="runtime_out",
         help="Optional JSON handoff for certified runtime preparation commands.",
     )
+    ap.add_argument(
+        "--usage-out", default=None, dest="usage_out",
+        help="Optional per-run JSON file for cumulative LLM token/API-call usage.",
+    )
     return ap
 
 
 def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
+    # Dependency resolution is required v3 construction, not an optional fast
+    # path. Stop before spending LLM/Docker budget if deployment is incomplete.
+    _require_host_uv()
+
     # ── 1. LLM client (OAI-compatible; OpenRouter -> MiniMax -> OpenAI) ───────
     api_key = (os.getenv("OPENROUTER_API_KEY") or os.getenv("MINIMAX_API_KEY")
                or os.getenv("OPENAI_API_KEY"))
@@ -203,11 +357,15 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
         print("ERROR: set OPENROUTER_API_KEY / MINIMAX_API_KEY / OPENAI_API_KEY.",
               file=sys.stderr)
         return 2
-    client = OpenAI(
+    raw_client = OpenAI(
         api_key=api_key, base_url=base_url or None, max_retries=0,
         timeout=Timeout(connect=10.0, read=float(os.getenv("LLM_READ_TIMEOUT", "120")),
                         write=30.0, pool=10.0),
     )
+    meter = getattr(args, "_token_usage_meter", None)
+    if meter is None:
+        meter = _TokenUsageMeter()
+    client = _MeteredClient(raw_client, meter)
     model = args.model or os.getenv("LLM_MODEL", "gpt-4o")
 
     def _complete(messages) -> str:
@@ -256,6 +414,7 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
         ensure_native_platform=choice.platform_override is None,
         environment=pytest_environment,
     )
+    _verify_selected_python_runtime(sandbox, base_image, choice.minor)
 
     # ── 2. BELIEF: build the dep-graph; the LLM classifier proposes typed nodes
     classify = make_construction_classifier(_complete)
@@ -425,7 +584,12 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
 
 def main_with_args(argv) -> int:
     args = _build_arg_parser().parse_args(argv)
-    return _run(args)
+    meter = _TokenUsageMeter(args.usage_out)
+    args._token_usage_meter = meter
+    try:
+        return _run(args)
+    finally:
+        meter.persist()
 
 
 def main() -> int:

@@ -28,6 +28,9 @@ Respond with EXACTLY ONE fenced JSON object and nothing after it:
 ```
 Rules: canonical ids (syslib:/pkg:/tool:/service:/config:). check_command MUST be read-only.
 Cite an evidence_ref present in the evidence below. Set "override": true to replace a known-bad provider.
+For system packages, use kind="apt" with apt-get install on Debian/Ubuntu or
+kind="apk" with apk add on Alpine, according to host evidence. Never invent
+kind="system", kind="script", or kind="command".
 If the failed block is graph-derived, repair its node with add_providers and override=true;
 do not append a parallel script block for the same obligation. If the failed block is a
 previous script patch, emit op="replace_block" with EXACTLY the same block_id so the bad
@@ -133,6 +136,10 @@ class RepairScope:
     workspace: str | None = None
     ecosystem: str | None = None
     base_image: str | None = None
+    target_node_type: str | None = None
+    target_node_name: str | None = None
+    target_node_version: str | None = None
+    target_node_provider: str | None = None
 
 
 def _manifest_context(graph, node):
@@ -257,7 +264,33 @@ def build_repair_scope(graph, *, target_node_id, failed_block, bundle,
             if node is not None else None
         ),
         base_image=dict(cons).get("base_image"),
+        target_node_type=(node.type.value if node is not None else None),
+        target_node_name=(node.name if node is not None else None),
+        target_node_version=(node.version if node is not None else None),
+        target_node_provider=(node.chosen_fix if node is not None else None),
     )
+
+
+def target_patch_constraints(scope: RepairScope) -> str:
+    """Return the strongest target-specific patch contract, when one applies."""
+    if (
+        scope.target_node_type == NodeType.PACKAGE.value
+        and not scope.target_node_version
+        and scope.target_node_id
+        and scope.target_node_name
+    ):
+        target = scope.target_node_id
+        name = scope.target_node_name
+        return (
+            "TARGET-SPECIFIC REQUIRED PATCH SHAPE:\n"
+            f"{target} is an EXISTING unresolved Package node. Do not repeat it in "
+            "add_requirements. Return a provider-only correction: add_requirements=[], "
+            "add_edges=[], script_patches=[], and exactly one add_providers entry with "
+            f'kind="pip", provides=["{target}"], override=true, and command '
+            f'"python3 -m pip install --break-system-packages {name}==<exact-version>". '
+            "Do not invent an import:* node or edge."
+        )
+    return ""
 
 
 def render_repair_scope(scope: RepairScope, *, structured_actions: bool = False) -> str:
@@ -327,4 +360,9 @@ def render_repair_scope(scope: RepairScope, *, structured_actions: bool = False)
     parts.append("Cite evidence by id (available: "
                  + ", ".join(sorted(scope.known_evidence_ids)) + ").")
     parts.append(STRUCTURED_ACTION_SCHEMA_HINT if structured_actions else PATCH_SCHEMA_HINT)
+    target_constraints = target_patch_constraints(scope)
+    if target_constraints:
+        # Keep the target-specific rule LAST so it overrides irrelevant generic
+        # missing-import examples in the schema immediately above it.
+        parts.append(target_constraints)
     return "\n\n".join(parts)

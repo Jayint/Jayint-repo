@@ -52,7 +52,7 @@ def test_done_gate_accepts_high_pytest_partial_pass_rate():
     assert _verified_test_run_passed(report)
 
 
-def test_done_gate_rejects_low_pytest_partial_pass_rate():
+def test_done_gate_accepts_low_pytest_partial_pass_rate_for_external_scoring():
     report = TaskReport(
         task_goal="verify",
         status="blocked",
@@ -66,7 +66,24 @@ def test_done_gate_rejects_low_pytest_partial_pass_rate():
         learning="many tests failed",
     )
 
-    assert not _verified_test_run_passed(report)
+    assert _verified_test_run_passed(report)
+
+
+def test_done_gate_accepts_zero_pass_with_real_failed_tests_for_external_scoring():
+    report = TaskReport(
+        task_goal="verify",
+        status="blocked",
+        commands=(
+            CommandRecord(
+                cmd="python -m pytest -q",
+                rc=1,
+                output="30 failed in 5.00s",
+            ),
+        ),
+        learning="tests executed and every assertion failed",
+    )
+
+    assert _verified_test_run_passed(report)
 
 
 def test_done_gate_accepts_completed_pytest_when_summary_tail_is_missing():
@@ -115,6 +132,28 @@ def test_done_gate_rejects_module_import_collection_failure():
             ),
         ),
         learning="missing dependency during collection",
+    )
+
+    assert not _verified_test_run_passed(report)
+
+
+def test_done_gate_rejects_import_path_mismatch_collection_failure():
+    report = TaskReport(
+        task_goal="verify",
+        status="blocked",
+        commands=(
+            CommandRecord(
+                cmd="python -m pytest -q",
+                rc=1,
+                output=(
+                    "ERROR collecting lib/ramble/ramble/test/version.py\n"
+                    "import file mismatch: imported module came from site-packages\n"
+                    "ERROR lib/ramble/ramble/test/version.py\n"
+                    "Interrupted: 49 errors during collection"
+                ),
+            ),
+        ),
+        learning="pytest never completed collection",
     )
 
     assert not _verified_test_run_passed(report)

@@ -125,9 +125,18 @@ def parse_agent_action(data: dict) -> AgentAction:
 
 _SHELL_MUTATION_WORDS = frozenset({
     "apt", "apt-get", "apk", "brew", "chgrp", "chmod", "chown", "cp", "curl",
-    "dd", "git", "install", "kill", "ln", "mkdir", "mount", "mv",
+    "dd", "docker", "env", "git", "install", "kill", "ln", "make", "mkdir",
+    "mount", "mv",
     "pkill", "rm", "rmdir", "service", "systemctl", "tee", "touch", "truncate",
-    "umount", "wget",
+    "umount", "wget", "xargs",
+})
+
+# These programs execute general-purpose code.  Unknown ordinary diagnostics are
+# allowed by default, but an interpreter is never allowed to become a blacklist
+# escape hatch. Python and Node have narrow, argument-aware handlers below.
+_SHELL_INTERPRETERS = frozenset({
+    "awk", "bash", "dash", "fish", "lua", "perl", "php", "pwsh", "r",
+    "rscript", "ruby", "sh", "zsh",
 })
 
 _SIMPLE_READ_COMMANDS = frozenset({
@@ -210,18 +219,40 @@ def _tokenize_shell(command: str) -> tuple[list[str], tuple[str, ...]]:
 def _split_segments(tokens: list[str]) -> tuple[list[list[str]], tuple[str, ...]]:
     segments: list[list[str]] = []
     current: list[str] = []
-    for token in tokens:
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
         if token in {"|", "&&", "||"}:
             if not current:
                 return [], ("empty command in diagnostic pipeline",)
             segments.append(current)
             current = []
+            index += 1
+            continue
+        # Suppressing output is observational and cannot persist data.  Accept
+        # only these exact redirections; every ordinary file target remains
+        # forbidden. shlex tokenizes `2>/dev/null` as `2`, `>`, `/dev/null`.
+        if token == ">" and index + 1 < len(tokens) and tokens[index + 1] == "/dev/null":
+            if current and current[-1] in {"1", "2"}:
+                current.pop()
+            index += 2
+            continue
+        if (
+            token == ">&"
+            and index + 1 < len(tokens)
+            and tokens[index + 1] == "1"
+            and current
+            and current[-1] == "2"
+        ):
+            current.pop()
+            index += 2
             continue
         if token in {";", "&", ">", ">>", "<", "<<", "<>", ">&", "&>"} or any(
             char in token for char in (">", "<")
         ):
             return [], (f"shell redirection/control operator is not allowed: {token!r}",)
         current.append(token)
+        index += 1
     if not current:
         return [], ("diagnostic command ends with a shell operator",)
     segments.append(current)
@@ -235,6 +266,8 @@ def _validate_segment(tokens: list[str]) -> tuple[str, ...]:
     args = tokens[1:]
     if executable in _SHELL_MUTATION_WORDS:
         return (f"mutation-capable command is not allowed: {executable}",)
+    if executable.lower() in _SHELL_INTERPRETERS:
+        return (f"general-purpose interpreter is not allowed in probes: {executable}",)
 
     if executable in _SIMPLE_READ_COMMANDS:
         if executable == "sort" and any(
@@ -272,6 +305,24 @@ def _validate_segment(tokens: list[str]) -> tuple[str, ...]:
     if executable == "command":
         return () if args and args[0] in {"-v", "-V"} else (
             "command is allowed only with -v or -V",
+        )
+
+    if executable == "node":
+        return () if args in (["--version"], ["-v"]) else (
+            "node probes are allowed only with --version or -v",
+        )
+
+    if executable == "sed":
+        # Support the common read-only file excerpt form without admitting
+        # sed's `-i`, `w`, or `e` mutation/execution features.
+        safe_script = (
+            len(args) >= 3
+            and args[0] == "-n"
+            and bool(re.fullmatch(r"\d+(?:,\d+)?p", args[1]))
+            and all(not arg.startswith("-") for arg in args[2:])
+        )
+        return () if safe_script else (
+            "sed probes require the read-only form: sed -n '<line>[,<line>]p' <file>",
         )
 
     if executable in {"pip", "pip3"}:
@@ -359,7 +410,11 @@ def _validate_segment(tokens: list[str]) -> tuple[str, ...]:
             f"{executable} requires an offline read-only model query",
         )
 
-    return (f"diagnostic executable is not in the read-only allowlist: {executable}",)
+    # Executable names are open-ended across ecosystems.  Mutation-capable
+    # commands and general-purpose interpreters are denied above; ordinary
+    # unknown diagnostics are allowed instead of requiring an impossible
+    # exhaustive read-command allowlist.
+    return ()
 
 
 def validate_probe_command(command: str) -> ProbeValidation:

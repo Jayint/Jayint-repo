@@ -67,23 +67,32 @@ def _sanitize(proposal, bundle_ids, graph):
     _valid_relations = {e.value for e in EdgeType}
 
     def _ok(r):
-        if r.evidence_ref not in bundle_ids:
+        # The parser is deliberately tolerant and therefore may preserve malformed
+        # JSON value types from the model.  Treat those values as a bad entry instead
+        # of letting an unhashable list/dict abort the whole classifier batch.
+        if not isinstance(r.evidence_ref, str) or r.evidence_ref not in bundle_ids:
             return False
         try:
             nt = NodeType(r.type)
-        except ValueError:
+        except (TypeError, ValueError):
             return False
         prefix = _KIND_PREFIX.get(nt)
         if not (bool(prefix) and isinstance(r.id, str) and r.id.startswith(prefix)):
             return False
         if nt is NodeType.SERVICE:
+            if r.name and not isinstance(r.name, str):
+                return False
             service_name = (r.name or r.id.split(":", 1)[-1]).strip().lower()
             if service_name not in KNOWN_SERVICE_KINDS:
                 return False
         # Drop (don't void the batch on) entries the gate would reject all-or-nothing:
         # an illegal promotion or a non-read-only check_command. One bad LLM field then
         # only loses that requirement, not every valid sibling in the proposal.
-        if r.promotion is not None and r.promotion not in _ALLOWED_PROMOTION:
+        if (r.promotion is not None
+                and (not isinstance(r.promotion, str)
+                     or r.promotion not in _ALLOWED_PROMOTION)):
+            return False
+        if r.check_command is not None and not isinstance(r.check_command, str):
             return False
         if r.check_command and not is_read_only(r.check_command):
             return False
@@ -94,7 +103,9 @@ def _sanitize(proposal, bundle_ids, graph):
     good_reqs = tuple(r for r in proposal.add_requirements if _ok(r))
     known = {r.id for r in good_reqs} | {n.id for n in graph.nodes}
     good_edges = tuple(replace(e, hard=False) for e in proposal.add_edges
-                       if e.source in known and e.target in known
+                       if isinstance(e.source, str) and isinstance(e.target, str)
+                       and isinstance(e.relation, str)
+                       and e.source in known and e.target in known
                        and e.relation in _valid_relations)
     return PatchProposal(add_requirements=good_reqs, add_edges=good_edges)
 

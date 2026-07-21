@@ -7,6 +7,7 @@ the RAT-side build/run/scoring wrapper.
 """
 # eval/models/dockeragent_model.py   (lives in the RAT repo tree)
 import os
+import json
 import re
 import shutil
 import subprocess
@@ -97,6 +98,48 @@ def _local_image_platform(image: str) -> str:
         return ""
 
 
+def _local_image_size_bytes(image: str):
+    """Return Docker's virtual image size after build, without registry access."""
+    try:
+        proc = subprocess.run(
+            [DOCKER_BIN, "image", "inspect", image, "--format", "{{.Size}}"],
+            check=True, capture_output=True, text=True, timeout=60,
+        )
+        size = int(proc.stdout.strip())
+        return size if size >= 0 else None
+    except Exception:
+        return None
+
+
+def _normalized_token_usage(value):
+    keys = ("input_tokens", "output_tokens", "total_tokens", "api_calls")
+    if not isinstance(value, dict):
+        value = {}
+    result = {}
+    for key in keys:
+        try:
+            result[key] = max(0, int(value.get(key, 0) or 0))
+        except (TypeError, ValueError):
+            result[key] = 0
+    return result
+
+
+def _persist_resource_usage(path, meta):
+    """Best-effort checkpoint for parent-side recovery after a hard timeout."""
+    payload = {
+        "docker_image_name": meta.get("docker_image_name"),
+        "docker_image_size_bytes": meta.get("docker_image_size_bytes"),
+        "docker_image_size_mib": meta.get("docker_image_size_mib"),
+    }
+    try:
+        temporary = f"{path}.tmp.{os.getpid()}"
+        with open(temporary, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2)
+        os.replace(temporary, path)
+    except Exception:
+        pass
+
+
 def _best_effort_docker_remove(kind: str, name: str) -> None:
     try:
         subprocess.run(
@@ -107,6 +150,46 @@ def _best_effort_docker_remove(kind: str, name: str) -> None:
             check=False,
         )
     except OSError:
+        pass
+
+
+def _write_missing_evaluation_artifact(path: str, tool_name: str, reason: str) -> None:
+    """Persist an honest zero-result when a launched evaluator cannot save JSON.
+
+    The artifact records an attempted harness execution, not a successful test
+    collection.  This keeps setup failure distinct from a missing measurement
+    while allowing the existing scorers to return a deterministic zero.
+    """
+    if os.path.exists(path):
+        return
+    payload = {
+        "success": False,
+        "execution_attempted": True,
+        "tool": tool_name,
+        "returncode": -1,
+        "summary": {
+            "total_tests": 0,
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "errors": 0,
+        },
+        "error_breakdown": {"HarnessExecutionError": 1},
+        "errors": [reason],
+        "failed_tests": [],
+        "error_tests": [{
+            "test_id": "N/A",
+            "error_type": "HarnessExecutionError",
+            "error_message": reason,
+        }],
+    }
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        temporary = f"{path}.tmp.{os.getpid()}"
+        with open(temporary, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2)
+        os.replace(temporary, path)
+    except Exception:
         pass
 
 class DockerAgentModel(BaseEvalModel):
@@ -121,6 +204,11 @@ class DockerAgentModel(BaseEvalModel):
         image, container = f"dockeragent-eval-{slug}", f"dockeragent-{slug}"
         out_dir = f"{self.root_path}/output/{full_name}"
         ctx     = f"{out_dir}/eval_build"                  # CLEAN build context (avoid the agent's huge workplace/)
+        resource_usage_path = f"{out_dir}/resource_usage.json"
+        try:
+            os.unlink(resource_usage_path)
+        except FileNotFoundError:
+            pass
         ok = {"root_path": self.root_path, "full_name": full_name}
         # Best-effort metadata — populated incrementally; never let collection break the run.
         meta = {
@@ -134,9 +222,25 @@ class DockerAgentModel(BaseEvalModel):
             "language": "",
             "build_system": "",
             "evaluation_tools": [],
+            "docker_image_name": image,
+            "docker_image_size_bytes": None,
+            "docker_image_size_mib": None,
+            "token_usage": _normalized_token_usage(None),
+            "setup_certified": False,
+            "setup_failure_reason": None,
+            "evaluation_mode": "strict",
+            "test_execution_attempted": False,
         }
         pytest_timeout = _positive_env_seconds("RAT_PYTEST_TIMEOUT", 1800)
         collect_timeout = _positive_env_seconds("RAT_PYTEST_COLLECT_TIMEOUT", 300)
+        build_timeout = _positive_env_seconds("RAT_DOCKER_BUILD_TIMEOUT", 900)
+        default_search_timeout = max(
+            60,
+            self.timeout - (pytest_timeout + collect_timeout + build_timeout + 300),
+        )
+        search_timeout = _positive_env_seconds(
+            "RAT_V3_SEARCH_TIMEOUT", default_search_timeout
+        )
         try:
             try:
                 # RATV3Adapter already resets an existing checkout before use.
@@ -151,7 +255,7 @@ class DockerAgentModel(BaseEvalModel):
                     full_name,
                     base_image=self.base_image,
                     model=self.llm,
-                    timeout=self.timeout,
+                    timeout=search_timeout,
                     max_cycles=self.num_turn,
                     execution_mode="incremental",
                     reuse_existing=(os.environ.get("RAT_V3_REUSE_SETUP") == "1"),
@@ -162,6 +266,17 @@ class DockerAgentModel(BaseEvalModel):
                         meta["base_image"] = res["base_image"]
                 except Exception:
                     pass
+                meta["token_usage"] = _normalized_token_usage(res.get("token_usage"))
+                meta["setup_certified"] = bool(
+                    res.get("certified_setup", res.get("status") == "success")
+                )
+                meta["setup_failure_reason"] = (
+                    None if meta["setup_certified"]
+                    else str(res.get("failure_reason") or "v3_partial_setup")
+                )
+                meta["evaluation_mode"] = (
+                    "strict" if meta["setup_certified"] else "partial_environment"
+                )
                 meta["language"] = _LANGUAGE_ALIASES.get(
                     str(res.get("language") or "python").lower(),
                     str(res.get("language") or "python").lower(),
@@ -224,7 +339,12 @@ class DockerAgentModel(BaseEvalModel):
                     if platform:
                         build_cmd.extend(["--platform", platform])
                     build_cmd.extend(["-t", image, ctx])
-                    subprocess.run(build_cmd, check=True, timeout=3600)
+                    subprocess.run(build_cmd, check=True, timeout=build_timeout)
+                    image_size = _local_image_size_bytes(image)
+                    if image_size is not None:
+                        meta["docker_image_size_bytes"] = image_size
+                        meta["docker_image_size_mib"] = round(image_size / (1024 ** 2), 2)
+                        _persist_resource_usage(resource_usage_path, meta)
                 except subprocess.CalledProcessError as e:
                     return {"status": "error", "failure_reason": "build_failed",
                             "error": str(e), **ok, **meta}
@@ -316,14 +436,25 @@ class DockerAgentModel(BaseEvalModel):
                         meta["runtime_service_failures"].append(kind)
 
                 for tool in tools:
-                    subprocess.run(
-                        [
-                            DOCKER_BIN, "exec", "-w", W, container,
-                            "python3", tool["container_path"],
-                        ],
-                        check=False,
-                        timeout=pytest_timeout + 120,
-                    )
+                    meta["test_execution_attempted"] = True
+                    tool_error = ""
+                    try:
+                        subprocess.run(
+                            [
+                                DOCKER_BIN, "exec", "-w", W, container,
+                                "python3", tool["container_path"],
+                            ],
+                            check=False,
+                            timeout=pytest_timeout + 120,
+                        )
+                    except subprocess.TimeoutExpired as exc:
+                        tool_error = f"{tool['name']} exceeded the harness timeout: {exc}"
+                    except OSError as exc:
+                        tool_error = f"{tool['name']} could not be launched: {exc}"
+                    # Export and remove each evaluator artifact before launching
+                    # the next tool.  Project-wide linters such as ``eslint .``
+                    # otherwise inspect the install tool's JSON report under
+                    # /testbed/logs and fail on evaluator-generated formatting.
                     subprocess.run(
                         [
                             DOCKER_BIN, "cp",
@@ -333,7 +464,27 @@ class DockerAgentModel(BaseEvalModel):
                         check=False,
                         timeout=600,
                     )
-                return {"status": "success", "failure_reason": None, **ok, **meta}
+                    subprocess.run(
+                        [
+                            DOCKER_BIN, "exec", container,
+                            "rm", "-f", f"{W}/logs/{tool['result']}",
+                        ],
+                        check=False,
+                        timeout=60,
+                    )
+                    result_path = f"{out_dir}/{tool['result']}"
+                    if not os.path.exists(result_path):
+                        _write_missing_evaluation_artifact(
+                            result_path,
+                            tool["name"],
+                            tool_error or f"{tool['name']} produced no result artifact",
+                        )
+                return {
+                    "status": "success" if meta["setup_certified"] else "partial",
+                    "failure_reason": meta["setup_failure_reason"],
+                    **ok,
+                    **meta,
+                }
             except TimeoutException:
                 return {"status": "timeout", "failure_reason": "agent_timeout", **ok, **meta}
             except subprocess.TimeoutExpired as e:

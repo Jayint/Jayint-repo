@@ -70,15 +70,24 @@ _RE_N_TESTS_PASSED = re.compile(
 _RE_RAN_N_TESTS = re.compile(r"\bran\s+([1-9]\d*)\s+tests?\b", re.IGNORECASE)
 _RE_N_FAILED = re.compile(r"\b([1-9]\d*)\s+failed\b", re.IGNORECASE)
 _RE_N_ERRORS = re.compile(r"\b([1-9]\d*)\s+errors?\b", re.IGNORECASE)
-_MIN_PARTIAL_PASS_RATE = 0.8
 
 # ANSI escape sequence regex — strip before matching so that pytest's color
 # output (\x1b[1m5 passed\x1b[0m) does not break the \b word-boundary check.
 _RE_ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
+_RE_PYTEST_COLLECTION_FAILURE = re.compile(
+    r"ImportError while loading conftest|^\s*ERROR collecting\b|"
+    r"\berrors? during collection\b|"
+    r"\bimport file mismatch\b|\bImportPathMismatchError\b|"
+    r"\bfound no collectors\b",
+    re.IGNORECASE | re.MULTILINE,
+)
 _RE_NON_EVALUABLE_TEST_FAILURE = re.compile(
     r"ModuleNotFoundError|No module named|ImportError while loading conftest|"
-    r"SyntaxError|docker\.errors\.DockerException|collected\s+0\s+items",
-    re.IGNORECASE,
+    r"SyntaxError|docker\.errors\.DockerException|collected\s+0\s+items|"
+    r"^\s*ERROR collecting\b|\berrors? during collection\b|"
+    r"\bimport file mismatch\b|\bImportPathMismatchError\b|"
+    r"\bfound no collectors\b",
+    re.IGNORECASE | re.MULTILINE,
 )
 _RE_ASSERTION_TEST_FAILURE = re.compile(
     r"^\s*(?:FAILED|ERROR)\s+\S+|\bAssertionError\b",
@@ -115,6 +124,18 @@ def _looks_like_non_evaluable_failure(output: str) -> bool:
     return bool(_RE_NON_EVALUABLE_TEST_FAILURE.search(_RE_ANSI.sub("", output)))
 
 
+def pytest_collection_failed(output: str) -> bool:
+    """Return whether pytest output proves collection/import setup failed.
+
+    This is shared with the graph-free ablation controller so the environment
+    readiness gate and the full-v3 done gate cannot disagree about whether an
+    output is eligible for RAT's pass-rate scorer.
+    """
+    if not output:
+        return False
+    return bool(_RE_PYTEST_COLLECTION_FAILURE.search(_RE_ANSI.sub("", output)))
+
+
 def _looks_like_assertion_test_failure(output: str) -> bool:
     """True for concrete test failures when counts/progress were truncated."""
     if not output:
@@ -143,11 +164,13 @@ def _shows_pytest_completion(output: str) -> bool:
 def _pytest_summary_pass_rate(output: str) -> float | None:
     """Return pytest summary pass rate when enough summary counts survived.
 
-    The benchmark metric is partial pass rate, and the gate evidence string is
-    explicitly ``pass_rate>=0.8``.  A pytest run with one or a few test failures
-    therefore remains useful evidence that the environment is testable.  Keep
-    this narrow: require at least one real pass and at least one failure/error
-    count, so collect-only output and non-test crashes cannot look green.
+    This value is execution evidence, not an eligibility threshold.  ESSR owns
+    the continuous score, so a genuinely executed 20% run must reach the
+    evaluator as 0.2 instead of being converted to an unexecuted 0.0 here.
+    Keep parsing narrow: require at least one pass/fail result and at least one
+    failure/error count.  A zero-pass run with real failed tests is still an
+    executed run whose honest ESSR contribution is 0; an error-only summary is
+    too ambiguous and remains rejected unless other execution evidence exists.
     """
     if not output:
         return None
@@ -160,7 +183,7 @@ def _pytest_summary_pass_rate(output: str) -> float | None:
     failed = _count(_RE_N_FAILED)
     errors = _count(_RE_N_ERRORS)
     total = passed + failed + errors
-    if passed <= 0 or total <= passed:
+    if total <= passed or (passed <= 0 and failed <= 0):
         return None
     return passed / total
 
@@ -228,10 +251,10 @@ def _verified_test_run_passed(
     report: TaskReport,
     detector=None,
 ) -> bool:
-    """Return True iff any command in *report* is a verified passing test execution.
+    """Return True iff any command is a verified, genuinely executed test run.
 
-    Gate (all six conditions must hold):
-      1. rec.rc == 0, or pytest summary pass_rate >= 0.8
+    Gate requirements:
+      1. rec.rc == 0, or rc!=0 with genuine assertion-level test execution
       2. detector.is_test_command(rec.cmd)
       3. NOT _is_venv_wrapped(rec.cmd)
       4. NOT _uses_test_exclusion(rec.cmd)  — Phase 4 anti-gaming guard:
@@ -240,8 +263,11 @@ def _verified_test_run_passed(
          used ``--ignore=examples`` to hide a real SyntaxError in examples/;
          accepting that as a pass would produce a false success.  Deliberate
          strictness: the only trustworthy verification is a full, unfiltered run.
-      5. detector.analyze_test_run(rec.cmd, rec.output)["is_effective_test_run"]
-      6. _shows_execution(rec.output)
+      5. Output proves execution through a pytest/unittest summary, completion
+         marker, detector evidence, or concrete assertion-failure signal.
+
+    Passing assertions are deliberately not required; pass rate belongs to the
+    external ESSR scorer.
     """
     if detector is None:
         detector = _get_detector()
@@ -263,7 +289,9 @@ def verified_test_command_passed(
     This is the command-level equivalent of ``_verified_test_run_passed``.  The
     incremental graph executor sees a failed ``InstallResult`` before it has a
     ``TaskReport``; using the same helper there keeps the search executor and
-    terminal done-gate aligned on partial pytest pass-rate semantics.
+    terminal done-gate aligned on test-execution semantics.  The gate answers
+    "did real tests execute?"; it deliberately does not impose a pass-rate
+    floor, because the outer evaluator records that continuous score.
     """
     if detector is None:
         detector = _get_detector()
@@ -291,12 +319,11 @@ def verified_test_command_passed(
             # environment is evaluable instead of an install/config failure.
             if not shows_completion and not assertion_failure:
                 return False
-        elif partial_pass_rate < _MIN_PARTIAL_PASS_RATE:
-            return False
     # For rc==0, a surviving pytest "[100%]" completion marker is itself
     # proof of an effective execution that reached the end with no failures.
     # For rc!=0 partial-pass acceptance, we require an explicit parsed
-    # pass-rate summary above and still require execution evidence below.
+    # pass-rate summary or concrete assertion-failure evidence and still
+    # require execution evidence below.
     # The completion marker therefore satisfies BOTH the effective-run check
     # (cond 5) and the execution-evidence check (cond 6) only under these
     # guards.
@@ -314,6 +341,7 @@ def verified_test_command_passed(
         return False
     return bool(
         shows_completion
+        or has_partial_summary
         or has_test_failure_signal
         or _shows_execution(output)
         or analysis.get("is_effective_test_run", False)

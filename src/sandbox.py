@@ -266,12 +266,16 @@ class Sandbox:
             detach=True,
             tty=True,
             working_dir=self.workdir,
-            command="/bin/bash",
+            # Alpine and other minimal images do not ship bash.  Boot through
+            # the POSIX shell first, then install/verify bash below because the
+            # execution engine deliberately relies on bash semantics.
+            command="/bin/sh",
             volumes=self.volumes,
             platform=self.platform,
             **self._container_environment_kwargs(),
             **({} if _extra_hosts is None else {"extra_hosts": _extra_hosts})
         )
+        self._ensure_bash_available()
         # Ensure workdir exists
         self.container.exec_run(f"mkdir -p {self.workdir}")
         self._bootstrap_apt_if_supported()
@@ -286,6 +290,52 @@ class Sandbox:
             self.named_checkpoints = {}
         self.named_checkpoints["base"] = baseline_image.id
         print(f"[Baseline Snapshot] {self.last_success_image[:12]}")
+
+    def _ensure_bash_available(self) -> None:
+        """Install bash and GNU timeout before the v3 engine uses them.
+
+        The sandbox's command runner, install gate, and generated setup scripts
+        intentionally use bash features such as ``pipefail``.  Starting a raw
+        Alpine image with ``/bin/bash`` therefore fails before any graph work can
+        begin.  Use the universally available ``/bin/sh`` for this one bootstrap
+        step and support the common Linux package managers.
+        """
+        if not self.container:
+            return
+
+        command = (
+            "set -e\n"
+            "has_bash=0\n"
+            "has_gnu_timeout=0\n"
+            "command -v bash >/dev/null 2>&1 && has_bash=1\n"
+            "timeout --version 2>&1 | grep -q 'GNU coreutils' && has_gnu_timeout=1 || true\n"
+            "if [ \"$has_bash\" = 1 ] && [ \"$has_gnu_timeout\" = 1 ]; then exit 0; fi\n"
+            "if command -v apk >/dev/null 2>&1; then\n"
+            "  apk add --no-cache bash coreutils\n"
+            "elif command -v apt-get >/dev/null 2>&1; then\n"
+            "  apt-get update\n"
+            "  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends bash coreutils\n"
+            "elif command -v dnf >/dev/null 2>&1; then\n"
+            "  dnf install -y bash coreutils\n"
+            "elif command -v yum >/dev/null 2>&1; then\n"
+            "  yum install -y bash coreutils\n"
+            "else\n"
+            "  echo 'no supported package manager available to install bash/coreutils' >&2\n"
+            "  exit 127\n"
+            "fi\n"
+            "command -v bash >/dev/null 2>&1\n"
+            "timeout --version 2>&1 | grep -q 'GNU coreutils'\n"
+        )
+        result = self.container.exec_run(["/bin/sh", "-lc", command])
+        output = result.output
+        if isinstance(output, (bytes, bytearray)):
+            output = output.decode("utf-8", errors="replace")
+        if result.exit_code != 0:
+            detail = (output or "").strip()
+            raise RuntimeError(
+                "base image does not provide bash/GNU timeout and automatic installation failed"
+                + (f": {detail}" if detail else "")
+            )
 
     def _resolve_apt_mirror_url(self, apt_mirror_url):
         configured = (
@@ -583,10 +633,11 @@ class Sandbox:
         base_image_ref = getattr(self, "base_image_ref", self.base_image)
         self.container = self.client.containers.run(
             base_image_ref, detach=True, tty=True, working_dir=self.workdir,
-            command="/bin/bash", volumes=self.volumes, platform=self.platform,
+            command="/bin/sh", volumes=self.volumes, platform=self.platform,
             **self._container_environment_kwargs(),
             **({} if _extra_hosts is None else {"extra_hosts": _extra_hosts}),
         )
+        self._ensure_bash_available()
         self.container.exec_run(f"mkdir -p {self.workdir}")
         self._bootstrap_apt_if_supported()
         if self.seed_dir:
@@ -605,14 +656,37 @@ class Sandbox:
 
     def _run_install_script_in_container(self, container, script: str) -> InstallResult:
         wrapped = _wrap_with_err_trap(script)
-        result = container.exec_run(["/bin/bash", "-c", wrapped], workdir=self.workdir)
-        output = result.output
-        if isinstance(output, (bytes, bytearray)):
-            output = output.decode("utf-8", errors="replace")
-        rc = result.exit_code if result.exit_code is not None else -1
-        failing_command, lineno = _parse_install_failure(output or "")
-        return InstallResult(rc=rc, failing_command=failing_command, lineno=lineno,
-                             stderr=output or "")
+        command = ["/bin/bash", "-c", wrapped]
+        retry_outputs: list[str] = []
+        attempt_index = 1
+        while True:
+            result = container.exec_run(command, workdir=self.workdir)
+            output = result.output
+            if isinstance(output, (bytes, bytearray)):
+                output = output.decode("utf-8", errors="replace")
+            output = output or ""
+            rc = result.exit_code if result.exit_code is not None else -1
+            failing_command, lineno = _parse_install_failure(output)
+            if not self._should_retry_transient_pip_failure(
+                failing_command or "", rc, output, attempt_index
+            ):
+                break
+            retry_outputs.append(
+                f"[SYSTEM] Transient pip failure during setup replay on attempt "
+                f"{attempt_index}; retrying the complete idempotent setup script.\n{output}"
+            )
+            attempt_index += 1
+            print(
+                f"[Sandbox Retry] Transient pip failure during setup replay; "
+                f"retrying attempt {attempt_index}/{PIP_TRANSIENT_RETRY_ATTEMPTS}."
+            )
+        combined = "\n\n".join([*retry_outputs, output]) if retry_outputs else output
+        return InstallResult(
+            rc=rc,
+            failing_command=failing_command,
+            lineno=lineno,
+            stderr=combined,
+        )
 
     def create_candidate_container(
         self,
@@ -924,7 +998,7 @@ class Sandbox:
 
         timeout_seconds = int(self.command_timeout_seconds)
         return (
-            "if command -v timeout >/dev/null 2>&1; then "
+            "if timeout --version 2>&1 | grep -q 'GNU coreutils'; then "
             f"timeout --foreground --kill-after=30s {timeout_seconds}s {pipefail_command}; "
             "else "
             f"{pipefail_command}; "

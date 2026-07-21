@@ -45,6 +45,105 @@ _NODE_LOCK_MARKER = "__JAYINT_NODE_LOCK__"
 _TYPESCRIPT_IMPORT_MARKER = "__JAYINT_TYPESCRIPT_IMPORTS__"
 
 
+def _version_tuple(value: str) -> tuple[int, int, int]:
+    parts = [int(item) for item in value.split(".")[:3]]
+    return tuple((parts + [0, 0, 0])[:3])
+
+
+def _node_constraint_floor(constraint: str | None) -> tuple[int, int, int] | None:
+    """Conservatively extract the lowest viable Node version from npm semver."""
+    if not constraint:
+        return None
+    alternatives = []
+    for branch in str(constraint).split("||"):
+        versions = re.findall(r"(?<![A-Za-z0-9])v?(\d+(?:\.\d+){0,2})", branch)
+        if versions:
+            # Conjunctions such as `>=18.18 <19` are governed by their highest
+            # lower-looking version only when it is not an explicit upper bound.
+            lower = []
+            for match in re.finditer(
+                r"(?:\^|~|>=?|=)?\s*v?(\d+(?:\.\d+){0,2})", branch
+            ):
+                prefix = branch[max(0, match.start() - 2):match.start()].strip()
+                token = match.group(0).lstrip()
+                if token.startswith("<") or prefix.endswith("<"):
+                    continue
+                lower.append(_version_tuple(match.group(1)))
+            alternatives.append(max(lower) if lower else _version_tuple(versions[0]))
+    return min(alternatives) if alternatives else None
+
+
+def _node_runtime_constraints(directory: str, package_data: dict) -> tuple[str, ...]:
+    constraints: list[str] = []
+    root_constraint = (package_data.get("engines") or {}).get("node")
+    if isinstance(root_constraint, str) and root_constraint.strip():
+        constraints.append(root_constraint.strip())
+
+    direct_names = {
+        str(name)
+        for key in ("dependencies", "devDependencies", "optionalDependencies")
+        for name in (package_data.get(key) or {})
+    }
+    lock_path = os.path.join(directory, "package-lock.json")
+    try:
+        lock_data = json.loads(read_text(lock_path))
+    except Exception:
+        lock_data = {}
+    for path, item in (lock_data.get("packages") or {}).items():
+        if not isinstance(item, dict):
+            continue
+        name = _package_name_from_lock_path(str(path), item)
+        if name not in direct_names:
+            continue
+        constraint = (item.get("engines") or {}).get("node")
+        if isinstance(constraint, str) and constraint.strip():
+            constraints.append(constraint.strip())
+    return tuple(dict.fromkeys(constraints))
+
+
+def _resolved_node_version(directory: str, package_data: dict) -> tuple[str | None, str | None]:
+    constraints = _node_runtime_constraints(directory, package_data)
+    floors = [floor for value in constraints if (floor := _node_constraint_floor(value))]
+    if not floors:
+        return (constraints[0] if constraints else None), None
+    selected = max(floors)
+    return (", ".join(constraints), ".".join(str(item) for item in selected))
+
+
+def _node_base_version(base_image: str) -> tuple[int, int, int] | None:
+    match = re.search(r"(?:^|/)node:(\d+)(?:\.(\d+))?(?:\.(\d+))?", base_image)
+    if not match:
+        return None
+    return tuple(int(item or 0) for item in match.groups())
+
+
+def _node_runtime_setup(workspace: Workspace, target: ProviderTarget) -> tuple[str, ...]:
+    version = workspace.resolved_runtime_version
+    base_version = _node_base_version(target.base_image)
+    if base_version is not None:
+        # A major-only official tag tracks the current release in that line.  A
+        # lower major cannot satisfy a newer direct-dependency engine constraint.
+        major_only = re.search(r"(?:^|/)node:\d+(?:[-@]|$)", target.base_image)
+        required = _version_tuple(version) if version else None
+        if required is None or base_version >= required or (
+            major_only and base_version[0] >= required[0]
+        ):
+            return ()
+    if not version:
+        return (
+            "apt-get update && apt-get install -y --no-install-recommends nodejs npm ca-certificates",
+        )
+    archive = f"node-v{version}-linux-$node_arch.tar.xz"
+    return (
+        "apt-get update && apt-get install -y --no-install-recommends ca-certificates curl xz-utils",
+        "node_arch=$(uname -m); case \"$node_arch\" in "
+        "x86_64|amd64) node_arch=x64 ;; aarch64|arm64) node_arch=arm64 ;; "
+        "*) echo \"unsupported Node architecture: $node_arch\" >&2; exit 1 ;; esac; "
+        f"curl -fsSLO https://nodejs.org/dist/v{version}/{archive} && "
+        f"tar -xJf {archive} -C /usr/local --strip-components=1 && rm -f {archive}",
+    )
+
+
 def _package_name_from_lock_path(path: str, item: dict) -> str | None:
     declared = item.get("name")
     if isinstance(declared, str) and declared:
@@ -478,6 +577,9 @@ class NodeProvider:
                 (package_data.get("engines") or {}).get("node")
                 if isinstance(package_data, dict) else None
             )
+            runtime_constraint, resolved_runtime = _resolved_node_version(
+                directory, package_data
+            )
             workspaces.append(Workspace(
                 language=language,
                 ecosystem=Ecosystem.NPM,
@@ -487,6 +589,9 @@ class NodeProvider:
                 version_constraint=str(version or req.version_constraint or "") or None,
                 role=req.role,
                 package_manager_version=manager_version or None,
+                runtime_language="node",
+                runtime_version_constraint=runtime_constraint or str(version or "") or None,
+                resolved_runtime_version=resolved_runtime,
             ))
         return tuple(workspaces)
 
@@ -536,11 +641,7 @@ class NodeProvider:
                     lock_digest=file_digest(lock_path),
                 )
         static_packages = _packages_from_lock(manager, lock_text) if lock_text else ()
-        base_has_node = target.base_image.startswith("node:")
-        prepare = () if base_has_node else (
-            "apt-get update",
-            "apt-get install -y --no-install-recommends nodejs npm ca-certificates",
-        )
+        prepare = _node_runtime_setup(workspace, target)
         if manager == "pnpm":
             prepare += ("command -v pnpm >/dev/null || npm install -g pnpm",)
             install = (
@@ -729,7 +830,7 @@ class NodeProvider:
         command = in_workspace(workspace, f"{workspace.package_manager} run build")
         check = in_workspace(
             workspace,
-            "test -d dist || test -d build || test -d .next || test -d out",
+            "test -d dist || test -d build || test -d .next || test -d out || test -d types",
         )
         return (command,), check
 
@@ -751,10 +852,16 @@ class NodeProvider:
             resolution.scanner_imports
             or self.scan_imports(repo_path, workspace, target)
         )
-        base_has_node = target.base_image.startswith("node:")
-        runtime_setup = () if base_has_node else (
-            "apt-get update && apt-get install -y --no-install-recommends nodejs npm",
-        )
+        runtime_setup = _node_runtime_setup(workspace, target)
+        runtime_check = "node --version"
+        if workspace.resolved_runtime_version:
+            version = workspace.resolved_runtime_version
+            runtime_check = (
+                "node -e \"const a=process.versions.node.split('.').map(Number),"
+                f"b='{version}'.split('.').map(Number);"
+                "process.exit(a[0]>b[0]||a[0]===b[0]&&(a[1]>b[1]||"
+                "a[1]===b[1]&&a[2]>=b[2])?0:1)\""
+            )
         manager = workspace.package_manager
         tool_setup = ()
         if manager in {"pnpm", "yarn"}:
@@ -777,7 +884,7 @@ class NodeProvider:
             )
             project_check = in_workspace(
                 workspace,
-                "test -d dist || test -d build || test -d .next || test -d out",
+                "test -d dist || test -d build || test -d .next || test -d out || test -d types",
             )
         else:
             project_commands, project_check = (), None
@@ -795,7 +902,7 @@ class NodeProvider:
             resolution=resolution,
             imports=imports,
             runtime_setup=runtime_setup,
-            runtime_check="node --version",
+            runtime_check=runtime_check,
             tool_name=manager,
             tool_setup=tool_setup,
             tool_check=f"{manager} --version",

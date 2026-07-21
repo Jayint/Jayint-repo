@@ -33,3 +33,26 @@ def test_polyglot_gate_rejects_empty_go_test_run():
         0,
         "?  example.com/demo  [no test files]\n",
     )
+
+
+def test_grunt_validation_suite_satisfies_polyglot_gate():
+    output = (
+        'Running "eslint:all" (eslint) task\n'
+        "✖ 89 problems (0 errors, 89 warnings)\n\n"
+        'Running "stylelint:all" (stylelint) task\n'
+        ">> Linted 19 files without errors\n\n"
+        'Running "banana:UploadWizard" (banana) task\n'
+        ">> 2 message directories checked.\n\n"
+        "Done.\n"
+    )
+
+    assert verified_test_command_passed("npm test", 0, output)
+
+
+def test_grunt_gate_requires_task_and_terminal_success_markers():
+    assert not verified_test_command_passed("npm test", 0, "Done.\n")
+    assert not verified_test_command_passed(
+        "npm test",
+        0,
+        'Running "eslint:all" (eslint) task\n',
+    )

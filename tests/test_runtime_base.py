@@ -153,6 +153,12 @@ def test_base_image_minor_full_patch():
     assert _base_image_minor("python:3.11.4") == "3.11"
 
 
+def test_base_image_minor_digest_reference():
+    assert _base_image_minor(
+        "python:3.13-slim-bookworm@sha256:" + "a" * 64
+    ) == "3.13"
+
+
 def test_base_image_minor_non_python():
     assert _base_image_minor("golang:1.21") is None
 

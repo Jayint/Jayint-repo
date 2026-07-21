@@ -3965,6 +3965,24 @@ class Synthesizer:
             return False
 
         normalized_observation = self._normalize_observation_text(observation)
+        # Some repositories expose their complete validation suite as
+        # ``npm test -> grunt test``.  Grunt does not print a numeric
+        # "N passed" summary: its binding success evidence is at least one
+        # executed task followed by the terminal ``Done.`` marker.  Require
+        # both markers so arbitrary npm output (or a bare "Done.") cannot
+        # manufacture an effective test run.
+        grunt_task_ran = re.search(
+            r'^\s*Running\s+"[^"\n]+"\s+\([^)]+\)\s+task\s*$',
+            normalized_observation,
+            re.IGNORECASE | re.MULTILINE,
+        )
+        grunt_completed = re.search(
+            r"^\s*Done\.\s*$",
+            normalized_observation,
+            re.IGNORECASE | re.MULTILINE,
+        )
+        if grunt_task_ran and grunt_completed:
+            return True
         positive_patterns = [
             r"collected\s+[1-9]\d*\s+items",
             r"\b[1-9]\d*\s+tests?\s+collected\b",

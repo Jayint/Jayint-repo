@@ -210,8 +210,8 @@ Final Patch: <一个 fenced JSON PatchProposal>
 允许的诊断包括 `pip show`、`apt-cache`、`pkg-config`、`ldconfig`、`ls`、`cat` 等。
 Agent 不允许安装、修改、删除、认证节点或用自然语言宣布完成。
 
-当前单次 proposal 最多处理 5 个 Agent 回合，协议期望最多 4 次只读诊断后输出最终
-PatchProposal。默认 LLM 输出上限为 2200 tokens，可通过
+当前单次 proposal 最多处理 10 个 Agent 回合，协议期望最多 9 次只读诊断后输出最终
+PatchProposal。默认 LLM 输出上限为 8192 tokens，可通过
 `GRAPH_AGENT_MAX_OUTPUT_TOKENS` 调整。
 
 ### 8.1 PatchProposal
@@ -404,6 +404,15 @@ run_rat_benchmark.py
 - 根据本地基础镜像架构设置 Docker build platform；
 - 复用本地已匹配平台的基础镜像，避免每个 worker 重复 registry pull。
 
+如果完整 v3 搜索未认证成功或达到搜索超时，Adapter 会进入
+`partial_environment` 评测模式：保留已生成的 `setup.sh`（若尚未生成则使用空
+setup），在 Docker build 中记录但不传播 setup 的非零退出码，然后仍启动 RAT
+测试工具。结果同时保留 `setup_certified=false`、原始 setup failure reason 和实际
+测试结果，不会把部分环境伪装成完整构建成功。默认时间预算为 v3 搜索使用总超时
+扣除 pytest、collect、Docker build 和 300 秒收尾预留后的部分；也可分别通过
+`RAT_V3_SEARCH_TIMEOUT`、`RAT_PYTEST_TIMEOUT`、
+`RAT_PYTEST_COLLECT_TIMEOUT` 和 `RAT_DOCKER_BUILD_TIMEOUT` 调整。
+
 ## 15. 输出与可审计指标
 
 每个 RAT 仓库的主要产物包括：
@@ -415,7 +424,8 @@ run_rat_benchmark.py
 | `v3_llm.jsonl` | Execute Agent 的原始 LLM 交互 |
 | `v3_run.log` | v3 驱动与 Docker 搜索日志 |
 | `_result_row.json` | RAT 单仓库最终评分 |
-| `run_pytest_results.json` | pytest 详细结果，成功执行时生成 |
+| `setup_status.json` | setup 是否完整认证、失败原因和 v3 退出码 |
+| `run_pytest_results.json` | pytest 详细结果；partial 环境也会尝试生成 |
 
 `v3_trace.json` 中的增量记录包含：
 

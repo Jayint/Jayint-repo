@@ -202,6 +202,18 @@ def _write_pyproject(
         fh.write(content)
 
 
+def _uv_python_platform(platform_tag: str) -> str:
+    """Translate musllinux wheel tags to platform triples accepted by uv.
+
+    TargetEnv retains the wheel tag for compatibility checks; only the uv CLI
+    spelling changes at this boundary.
+    """
+    match = re.fullmatch(r"(aarch64|x86_64)-musllinux(?:_\d+_\d+)?", platform_tag)
+    if match:
+        return f"{match.group(1)}-unknown-linux-musl"
+    return platform_tag
+
+
 def _lock_command(
     workdir: str,
     target_python: str,
@@ -218,7 +230,10 @@ def _lock_command(
     parts = [shlex.quote(UV_BIN), "lock", "--python", shlex.quote(target_python)]
     if exclude_newer:
         parts += ["--exclude-newer", shlex.quote(exclude_newer)]
-    parts += ["--python-platform", shlex.quote(python_platform_tag)]
+    parts += [
+        "--python-platform",
+        shlex.quote(_uv_python_platform(python_platform_tag)),
+    ]
     return f"cd {shlex.quote(workdir)} && {' '.join(parts)}"
 
 
@@ -556,7 +571,10 @@ def _compile_command(
         shlex.quote(target_python),
     ]
     if target_platform:
-        parts += ["--python-platform", shlex.quote(target_platform)]
+        parts += [
+            "--python-platform",
+            shlex.quote(_uv_python_platform(target_platform)),
+        ]
     if exclude_newer:
         parts += ["--exclude-newer", shlex.quote(exclude_newer)]
     if constraint_file:

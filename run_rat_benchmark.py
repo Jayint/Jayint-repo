@@ -327,7 +327,7 @@ def _score_output(output: dict) -> dict:
 
 def _completed_result_row(row: dict) -> bool:
     return bool(
-        row.get("status") == "success"
+        row.get("status") in {"success", "partial"}
         and (row.get("test_executed") or row.get("pytest_executed"))
     )
 
@@ -339,6 +339,54 @@ def _free_disk_gb() -> float:
         return round(usage.free / (1024 ** 3), 2)
     except Exception:
         return 999.0  # unknown → don't gate
+
+
+def _read_json_dict(path: str) -> dict:
+    try:
+        value = json.load(open(path, encoding="utf-8"))
+        return value if isinstance(value, dict) else {}
+    except (OSError, json.JSONDecodeError, TypeError):
+        return {}
+
+
+def _nonnegative_int(value, default=0):
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return default
+
+
+def _resource_metrics(out: dict, out_dir: str) -> dict:
+    """Normalize per-repository token and final evaluation-image accounting.
+
+    The sidecar files are written eagerly by the v3 subprocess/model, so the
+    scheduler can still recover completed-call tokens and an already-built image
+    size when a child is hard-killed before it writes its result row.
+    """
+    token_usage = out.get("token_usage")
+    if not isinstance(token_usage, dict):
+        token_usage = _read_json_dict(os.path.join(out_dir, "token_usage.json"))
+    token_usage = {
+        key: _nonnegative_int(token_usage.get(key, 0))
+        for key in ("input_tokens", "output_tokens", "total_tokens", "api_calls")
+    }
+
+    persisted = _read_json_dict(os.path.join(out_dir, "resource_usage.json"))
+    image_name = out.get("docker_image_name") or persisted.get("docker_image_name")
+    image_bytes = out.get("docker_image_size_bytes")
+    if image_bytes is None:
+        image_bytes = persisted.get("docker_image_size_bytes")
+    image_bytes = _nonnegative_int(image_bytes, default=None)
+    image_mib = (
+        round(image_bytes / (1024 ** 2), 2)
+        if image_bytes is not None else None
+    )
+    return {
+        "token_usage": token_usage,
+        "docker_image_name": image_name,
+        "docker_image_size_bytes": image_bytes,
+        "docker_image_size_mib": image_mib,
+    }
 
 
 def _collect_meta(
@@ -359,6 +407,10 @@ def _collect_meta(
         "head_sha": out.get("head_sha", ""),
         "language": out.get("language", ""),
         "build_system": out.get("build_system", ""),
+        "setup_certified": bool(out.get("setup_certified")),
+        "setup_failure_reason": out.get("setup_failure_reason"),
+        "evaluation_mode": out.get("evaluation_mode", "strict"),
+        "test_execution_attempted": bool(out.get("test_execution_attempted")),
         "free_disk_gb": _free_disk_gb(),
     }
 
@@ -443,8 +495,10 @@ def _run_one(
     end_ts = time.time()
 
     # ── Build merged row ─────────────────────────────────────────────────────
+    resource_metrics = _resource_metrics(out, out_dir)
     row = {
         **out,
+        **resource_metrics,
         "_category": category,
         **_score_output(out),
     }
@@ -457,7 +511,7 @@ def _run_one(
 
     # ── Write _meta.json (best-effort) ────────────────────────────────────────
     try:
-        meta = _collect_meta(out, start_ts, end_ts)
+        meta = _collect_meta({**out, **resource_metrics}, start_ts, end_ts)
         json.dump(meta, open(meta_path, "w"), indent=2)
     except Exception as exc:
         print(f"[warn  ] {full_name} — could not write _meta.json: {exc}", flush=True)
@@ -642,6 +696,7 @@ def _synthesize_timeout_row(full_name: str, root_path: str, category: str) -> di
     }
     row = {
         **stub,
+        **_resource_metrics(stub, out_dir),
         **_score_output(stub),
     }
     try:
@@ -665,6 +720,7 @@ def _synthesize_error_row(full_name: str, root_path: str, category: str) -> dict
     }
     row = {
         **stub,
+        **_resource_metrics(stub, out_dir),
         **_score_output(stub),
     }
     try:

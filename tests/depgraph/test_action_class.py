@@ -9,6 +9,12 @@ def test_apt_class():
     assert not matches_action_class("apt", "pip install psycopg2")
 
 
+def test_apk_class():
+    assert matches_action_class("apk", "apk add --no-cache coreutils")
+    assert matches_action_class("apk", "apk add bash git")
+    assert not matches_action_class("apk", "apt-get install -y coreutils")
+
+
 def test_pip_class():
     assert matches_action_class("pip", "pip install psycopg2==2.9.9")
     assert matches_action_class("pip", "python3 -m pip install --break-system-packages psycopg2")

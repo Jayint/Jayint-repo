@@ -160,6 +160,11 @@ def parse_test_output(output: str, pkg_manager: str, verbose: bool) -> Dict:
         "error_breakdown": {},
     }
 
+    # Test runners commonly colorize summaries even under CI.  Strip ANSI
+    # control sequences before matching while preserving the original output
+    # in run_npm_test() for diagnostics.
+    output = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", output)
+
     # Jest format
     # Example: "Tests: 5 failed, 10 passed, 15 total"
     jest_match = re.search(
@@ -180,6 +185,36 @@ def parse_test_output(output: str, pkg_manager: str, verbose: bool) -> Dict:
 
         if verbose:
             print("\n🎯 Detected Jest test framework")
+
+    # uvu format
+    # Example:
+    #   Total:     744
+    #   Passed:    744
+    #   Skipped:   0
+    elif re.search(r"(?m)^\s*Total:\s*\d+\s*$", output):
+        total_match = re.search(r"(?m)^\s*Total:\s*(\d+)\s*$", output)
+        passed_match = re.search(r"(?m)^\s*Passed:\s*(\d+)\s*$", output)
+        skipped_match = re.search(r"(?m)^\s*Skipped:\s*(\d+)\s*$", output)
+        failed_match = re.search(r"(?m)^\s*Failed:\s*(\d+)\s*$", output)
+
+        total = int(total_match.group(1)) if total_match else 0
+        passed = int(passed_match.group(1)) if passed_match else 0
+        skipped = int(skipped_match.group(1)) if skipped_match else 0
+        failed = (
+            int(failed_match.group(1))
+            if failed_match
+            else max(total - passed - skipped, 0)
+        )
+
+        result["summary"]["total_tests"] = total
+        result["summary"]["passed"] = passed
+        result["summary"]["failed"] = failed
+        result["summary"]["skipped"] = skipped
+        result["success"] = failed == 0 and total > 0
+        result["summary"]["status"] = "SUCCESS" if result["success"] else "FAILURE"
+
+        if verbose:
+            print("\n🎯 Detected uvu test framework")
 
     # Mocha format
     # Example: "15 passing (2s)" or "5 failing"
@@ -230,6 +265,41 @@ def parse_test_output(output: str, pkg_manager: str, verbose: bool) -> Dict:
 
         if verbose:
             print("\n🎯 Detected AVA test framework")
+
+    # Grunt validation-suite format.  Many Node repositories intentionally use
+    # ``npm test`` for lint/schema/localisation checks instead of a unit-test
+    # runner.  Count each executed Grunt task as one check, but only mark the
+    # suite green when Grunt reaches its terminal ``Done.`` marker without an
+    # aborted/failed-task signal.
+    elif re.search(
+        r'(?m)^\s*Running\s+"[^"\n]+"\s+\([^)]+\)\s+task\s*$',
+        output,
+        re.IGNORECASE,
+    ):
+        tasks = re.findall(
+            r'(?m)^\s*Running\s+"[^"\n]+"\s+\([^)]+\)\s+task\s*$',
+            output,
+            re.IGNORECASE,
+        )
+        total = len(tasks)
+        completed = bool(re.search(r"(?m)^\s*Done\.\s*$", output, re.IGNORECASE))
+        failed_suite = bool(re.search(
+            r'Warning:\s+Task\s+"[^"]+"\s+failed|Aborted due to warnings',
+            output,
+            re.IGNORECASE,
+        ))
+        success = completed and not failed_suite
+        failed = 0 if success else min(total, 1)
+        passed = total - failed
+
+        result["summary"]["total_tests"] = total
+        result["summary"]["passed"] = passed
+        result["summary"]["failed"] = failed
+        result["success"] = success
+        result["summary"]["status"] = "SUCCESS" if success else "FAILURE"
+
+        if verbose:
+            print("\n🎯 Detected Grunt validation suite")
 
     # Generic failure detection
     else:

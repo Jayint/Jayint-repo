@@ -5,6 +5,7 @@ from python_deps.depgraph.patch import (
     PatchProposal, NodeSpec, ProviderSpec, EdgeSpec, ScriptPatch,
 )
 from python_deps.depgraph.patch_gate import apply_proposal, ApplyResult
+from python_deps.depgraph.execution_plan import compile_execution_plan
 from python_deps.depgraph.schema import (
     DepGraph, Node, NodeType, Layer, State, DiscoveredBy, EdgeType,
 )
@@ -122,3 +123,26 @@ def test_package_requirement_keeps_pinned_version_for_plan_compilation():
     node = apply_proposal(_base(), proposal).graph.get("pkg:requests")
     assert node.version == "2.32.4"
     assert node.state is State.MISSING
+
+
+def test_exact_pip_provider_promotes_unresolved_package_into_execution_plan():
+    package = Node(
+        id="pkg:pytest", type=NodeType.PACKAGE, name="pytest",
+        layer=Layer.PIP, discovered_by=DiscoveredBy.RUNTIME,
+        state=State.MISSING, version=None,
+        check_command="python3 -m pip show pytest",
+        chosen_fix="pip:pytest",
+    )
+    graph = _base().with_node(package)
+    command = "python3 -m pip install --break-system-packages pytest==8.3.3"
+    proposal = PatchProposal(add_providers=(ProviderSpec(
+        id="pip:pytest", kind="pip", command=command,
+        provides=("pkg:pytest",), override=True,
+    ),))
+
+    node = apply_proposal(graph, proposal).graph.get("pkg:pytest")
+    assert node.version == "8.3.3"
+    assert node.setup_commands == (command,)
+    blocks = compile_execution_plan(apply_proposal(graph, proposal).graph)
+    pytest_block = next(block for block in blocks if block.block_id == "pip.pytest")
+    assert pytest_block.commands == (command,)

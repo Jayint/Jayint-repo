@@ -22,7 +22,13 @@ from src.ecosystems.base import (
     run_native_resolver_probe,
     workspace_path,
 )
-from src.ecosystems.common import find_files, find_source_files, language_requirement, numeric_version
+from src.ecosystems.common import (
+    find_files,
+    find_source_files,
+    is_test_fixture_path,
+    language_requirement,
+    numeric_version,
+)
 from src.ecosystems.common import (
     parse_syntax_tree,
     quoted_string_value,
@@ -374,6 +380,8 @@ class GoProvider:
             return ()
         workspaces = []
         for manifest in find_files(repo_path, {"go.mod"}):
+            if is_test_fixture_path(manifest):
+                continue
             root = os.path.dirname(manifest) or "."
             text = read_text(os.path.join(repo_path, manifest))
             match = re.search(r"(?m)^\s*go\s+([0-9.]+)", text)

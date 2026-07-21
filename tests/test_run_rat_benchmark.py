@@ -246,6 +246,62 @@ def test_run_one_writes_per_repo_files_not_shared(root_path, monkeypatch):
     assert not (Path(root_path) / "rat_results.json").exists(), (
         "_run_one must NOT write rat_results.json"
     )
+    stored = json.loads((out_dir / "_result_row.json").read_text())
+    assert stored["token_usage"] == {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0,
+        "api_calls": 0,
+    }
+    assert "docker_image_size_bytes" in stored
+    assert "docker_image_size_mib" in stored
+
+
+def test_run_one_writes_model_resource_metrics_to_result(root_path):
+    full_name = "org/metrics"
+
+    class MetricsModel:
+        def predict(self, name):
+            out = _fake_predict(name, root_path, success=True)
+            return {
+                **out,
+                "token_usage": {
+                    "input_tokens": 100,
+                    "output_tokens": 25,
+                    "total_tokens": 125,
+                    "api_calls": 4,
+                },
+                "docker_image_name": "dockeragent-eval-org-metrics",
+                "docker_image_size_bytes": 256 * 1024 * 1024,
+            }
+
+    row = rrb._run_one(full_name, MetricsModel(), root_path, "cat_a")
+
+    assert row["token_usage"]["total_tokens"] == 125
+    assert row["token_usage"]["api_calls"] == 4
+    assert row["docker_image_size_bytes"] == 256 * 1024 * 1024
+    assert row["docker_image_size_mib"] == 256.0
+
+
+def test_synthetic_timeout_recovers_eager_resource_sidecars(root_path):
+    full_name = "org/timed"
+    out_dir = Path(root_path) / "output" / full_name
+    out_dir.mkdir(parents=True)
+    (out_dir / "token_usage.json").write_text(json.dumps({
+        "input_tokens": 90,
+        "output_tokens": 10,
+        "total_tokens": 100,
+        "api_calls": 2,
+    }))
+    (out_dir / "resource_usage.json").write_text(json.dumps({
+        "docker_image_name": "dockeragent-eval-org-timed",
+        "docker_image_size_bytes": 128 * 1024 * 1024,
+    }))
+
+    row = rrb._synthesize_timeout_row(full_name, root_path, "cat_a")
+
+    assert row["token_usage"]["total_tokens"] == 100
+    assert row["docker_image_size_mib"] == 128.0
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -291,6 +347,35 @@ def test_run_one_resume_skip(root_path):
 
     rrb._run_one(full_name, CountingModel(), root_path, "cat_a")
     assert call_count == 0, "predict() must NOT be called when run_pytest_results.json exists"
+
+
+def test_run_one_resume_skips_completed_partial_evaluation(root_path):
+    full_name = "org/partial"
+    out_dir = Path(root_path) / "output" / full_name
+    out_dir.mkdir(parents=True, exist_ok=True)
+    row_data = {
+        "status": "partial",
+        "failure_reason": "v3_failed",
+        "root_path": root_path,
+        "full_name": full_name,
+        "success": False,
+        "pytest_executed": True,
+        "pytest_pass_rate": 0.4,
+        "_category": "cat_a",
+    }
+    (out_dir / "_result_row.json").write_text(json.dumps(row_data))
+    call_count = 0
+
+    class CountingModel:
+        def predict(self, _full_name: str) -> dict:
+            nonlocal call_count
+            call_count += 1
+            return {}
+
+    result = rrb._run_one(full_name, CountingModel(), root_path, "cat_a")
+
+    assert call_count == 0
+    assert result["pytest_pass_rate"] == 0.4
 
 
 @pytest.mark.parametrize(

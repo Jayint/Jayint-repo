@@ -188,6 +188,55 @@ class SandboxRuntimeReplayTests(unittest.TestCase):
         self.assertIn("Successfully installed robustbench", output)
         self.assertEqual(len(sandbox.container.calls), 2)
 
+    def test_setup_replay_retries_transient_pip_failure(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[
+                SimpleNamespace(
+                    exit_code=1,
+                    output=(
+                        b"ReadTimeoutError: timed out\n"
+                        b"__INSTALL_FAIL__:python3 -m pip install demo==1.0:7\n"
+                    ),
+                ),
+                SimpleNamespace(exit_code=0, output=b"Successfully installed demo"),
+            ],
+            status="running",
+        )
+
+        result = sandbox.run_install_script(
+            "set -Eeuo pipefail\npython3 -m pip install demo==1.0\n"
+        )
+
+        self.assertEqual(result.rc, 0)
+        self.assertIsNone(result.failing_command)
+        self.assertIn("Transient pip failure during setup replay", result.stderr)
+        self.assertIn("Successfully installed demo", result.stderr)
+        self.assertEqual(len(sandbox.container.calls), 2)
+
+    def test_setup_replay_does_not_retry_semantic_pip_failure(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[
+                SimpleNamespace(
+                    exit_code=1,
+                    output=(
+                        b"No matching distribution found for demo==99\n"
+                        b"__INSTALL_FAIL__:python3 -m pip install demo==99:7\n"
+                    ),
+                ),
+            ],
+            status="running",
+        )
+
+        result = sandbox.run_install_script(
+            "set -Eeuo pipefail\npython3 -m pip install demo==99\n"
+        )
+
+        self.assertEqual(result.rc, 1)
+        self.assertEqual(result.failing_command, "python3 -m pip install demo==99")
+        self.assertEqual(len(sandbox.container.calls), 1)
+
     def test_failed_readonly_command_does_not_add_mutation_guidance(self):
         sandbox = self._make_sandbox()
         sandbox.container = FakeContainer(
@@ -448,6 +497,8 @@ class SandboxRuntimeReplayTests(unittest.TestCase):
 
         wrapped = sandbox._wrap_command_with_timeout("pip3 install missing-package | tail -20")
 
+        self.assertIn("timeout --version", wrapped)
+        self.assertIn("grep -q 'GNU coreutils'", wrapped)
         self.assertIn("timeout --foreground --kill-after=30s 42s /bin/bash -o pipefail -lc", wrapped)
 
 
@@ -491,6 +542,29 @@ class SandboxAptBootstrapTests(unittest.TestCase):
         self.assertEqual(sandbox.container.calls[0]["command"][0:2], ["/bin/bash", "-lc"])
         self.assertIn("99jayint-retries", sandbox.container.calls[0]["command"][2])
 
+    def test_ensure_bash_bootstraps_through_posix_shell(self):
+        sandbox = self._make_sandbox()
+
+        sandbox._ensure_bash_available()
+
+        command = sandbox.container.calls[0]["command"]
+        self.assertEqual(command[0:2], ["/bin/sh", "-lc"])
+        self.assertIn("apk add --no-cache bash coreutils", command[2])
+        self.assertIn(
+            "apt-get install -y --no-install-recommends bash coreutils",
+            command[2],
+        )
+        self.assertIn("timeout --version", command[2])
+
+    def test_ensure_bash_fails_clearly_when_bootstrap_fails(self):
+        sandbox = self._make_sandbox()
+        sandbox.container = FakeContainer(
+            results=[SimpleNamespace(exit_code=127, output=b"no package manager")]
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "automatic installation failed"):
+            sandbox._ensure_bash_available()
+
     def test_resolve_apt_mirror_url_prefers_explicit_value(self):
         sandbox = Sandbox.__new__(Sandbox)
 
@@ -512,6 +586,7 @@ class SandboxAptBootstrapTests(unittest.TestCase):
 
         self.assertIs(sandbox.client, fake_client)
         mock_from_env.assert_called_once_with(timeout=600)
+        self.assertEqual(fake_client.containers.run_calls[0]["kwargs"]["command"], "/bin/sh")
 
     def test_extra_hosts_added_when_arm_on(self):
         import os

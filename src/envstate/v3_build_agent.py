@@ -156,6 +156,19 @@ You may request open-ended READ-ONLY diagnostics. The Host validates every probe
 before execution. You may NOT choose checkpoints, create/commit/abort containers,
 execute Build Blocks, certify nodes, or claim completion.
 
+Probe command contract (the Host enforces this exactly):
+- Use one single-line diagnostic command.
+- Do not use `;`, background `&`, heredocs, input redirection, command substitution,
+  or output redirection to a file.
+- `2>/dev/null`, `>/dev/null`, and `2>&1` are allowed for output suppression only.
+- `&&`, `||`, and read-only pipelines are allowed when every command is read-only.
+- Never install, download, delete, copy, move, chmod/chown, start/stop services, or
+  execute arbitrary interpreter code.
+- Safe examples: `command -v nvm 2>/dev/null`, `node --version`,
+  `sed -n '1,120p' package.json`, `npm ls --depth=0`, `python3 --version`.
+- Do not use `node -e`, `sed -i`, `python` file writes, curl/wget, package installs,
+  or redirection such as `> /tmp/file`.
+
 Return exactly ONE JSON object per turn and no prose. Its type must be one of:
   probe         - request one read-only diagnostic command;
   propose_patch - submit the complete typed PatchProposal patch object;
@@ -227,7 +240,7 @@ class V3BuildAgent:
                 messages,
                 temperature=0,
                 stop=["Observation:"],
-                max_tokens=int(os.getenv("GRAPH_AGENT_MAX_OUTPUT_TOKENS", "2200")),
+                max_tokens=int(os.getenv("GRAPH_AGENT_MAX_OUTPUT_TOKENS", "8192")),
             )
             if self.on_usage:
                 self.on_usage(usage)
@@ -270,12 +283,53 @@ class GraphExecuteAgent(V3BuildAgent):
 
     system_prompt = GRAPH_EXECUTE_SYSTEM_PROMPT
 
+    @staticmethod
+    def _target_patch_errors(scope, proposal) -> tuple[str, ...]:
+        """Reject target-incompatible patches before spending an outer Gate retry."""
+        from python_deps.depgraph.patch_gate import exact_pypi_provider_version
+        from python_deps.depgraph.schema import NodeType
+
+        if not (
+            getattr(scope, "target_node_type", None) == NodeType.PACKAGE.value
+            and not getattr(scope, "target_node_version", None)
+            and getattr(scope, "target_node_id", None)
+            and getattr(scope, "target_node_name", None)
+        ):
+            return ()
+        target = scope.target_node_id
+        name = scope.target_node_name
+        errors: list[str] = []
+        if proposal.add_requirements:
+            errors.append(
+                f"{target} already exists; add_requirements must be empty"
+            )
+        if proposal.add_edges:
+            errors.append(
+                "add_edges must be empty; do not invent an import node for an existing Package"
+            )
+        if proposal.script_patches:
+            errors.append("script_patches must be empty; repair the existing Package provider")
+        providers = proposal.add_providers
+        if len(providers) != 1:
+            errors.append("add_providers must contain exactly one provider-only correction")
+        else:
+            provider = providers[0]
+            if provider.provides != (target,):
+                errors.append(f"provider must provide exactly {target}")
+            if not provider.override:
+                errors.append("provider override must be true")
+            if exact_pypi_provider_version(provider, name) is None:
+                errors.append(
+                    f"provider must install exactly {name}==<PEP-440-version>"
+                )
+        return tuple(errors)
+
     def propose(
         self,
         scope,
         exec_readonly,
         *,
-        max_diag_turns: int = 4,
+        max_diag_turns: int = 9,
         rejection_errors=(),
         action_observer=None,
     ):
@@ -289,7 +343,7 @@ class GraphExecuteAgent(V3BuildAgent):
             validate_probe_command,
         )
         from src.envstate.jsonutil import extract_json_object
-        from src.envstate.repair_scope import render_repair_scope
+        from src.envstate.repair_scope import render_repair_scope, target_patch_constraints
 
         user = render_repair_scope(scope, structured_actions=True)
         if rejection_errors:
@@ -298,6 +352,9 @@ class GraphExecuteAgent(V3BuildAgent):
                 + "\n".join(f"- {error}" for error in rejection_errors)
                 + "\nReturn one corrected JSON action."
             )
+            target_constraints = target_patch_constraints(scope)
+            if target_constraints:
+                user += "\n\n" + target_constraints
         messages = [
             {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": user},
@@ -321,7 +378,7 @@ class GraphExecuteAgent(V3BuildAgent):
                 self.model,
                 messages,
                 temperature=0,
-                max_tokens=int(os.getenv("GRAPH_AGENT_MAX_OUTPUT_TOKENS", "2200")),
+                max_tokens=int(os.getenv("GRAPH_AGENT_MAX_OUTPUT_TOKENS", "8192")),
             )
             if self.on_usage:
                 self.on_usage(usage)
@@ -429,6 +486,34 @@ class GraphExecuteAgent(V3BuildAgent):
                 continue
 
             if isinstance(action, ProposePatchAction):
+                target_errors = self._target_patch_errors(scope, action.proposal)
+                if target_errors:
+                    rejection = "; ".join(target_errors)
+                    observe(
+                        action_type="propose_patch",
+                        target_node=action.target_node,
+                        validated=False,
+                        rejection=rejection,
+                    )
+                    log_llm_exchange(
+                        "graph_execute_agent_action", raw,
+                        parsed={
+                            "turn": turn,
+                            "type": "propose_patch",
+                            "validated": False,
+                            "errors": target_errors,
+                        },
+                    )
+                    messages.extend([
+                        {"role": "assistant", "content": text},
+                        {"role": "user", "content": json.dumps({
+                            "type": "action_rejected",
+                            "errors": list(target_errors),
+                            "required_shape": target_patch_constraints(scope),
+                            "retry": True,
+                        })},
+                    ])
+                    continue
                 observe(
                     action_type="propose_patch",
                     target_node=action.target_node,
