@@ -21,7 +21,7 @@ from graph.compile.emit import (
     populate_setup_commands,
     topo_order,
 )
-from graph.model import DepGraph, Layer, Node, NodeType
+from graph.model import DepGraph, Layer, Node, NodeType, project_resolved_python
 from graph.patch.block import Block  # runtime (script's render/parse folded in here, 3c-1)
 
 _BANNER = (
@@ -436,6 +436,27 @@ def _manifest(graph: DepGraph, manual_blocks, *, include_services: bool = False)
     return lines
 
 
+def _interpreter_assertion_lines(graph: DepGraph) -> list[str]:
+    """The first graph-derived preamble line(s): a hard interpreter-minor check
+    derived from the PROJECT node's stamped ``resolved_python`` (re-homed from
+    the retired RUNTIME node). Empty when nothing is stamped (old graphs render
+    no assertion — no invented default). POSIX-sh-safe: the whole check is a
+    single ``python3 -c`` with single-quoted Python internals, so it survives
+    ``set -Eeuo pipefail`` and aborts the build loudly on a wrong-minor base
+    image (``sys.exit(str)`` prints to stderr and exits non-zero)."""
+    minor = project_resolved_python(graph)  # PROJECT-only; no RUNTIME fallback
+    if not minor:
+        return []
+    maj, min_ = minor.split(".")[:2]
+    return [
+        f"# Assert the interpreter minor matches the graph's resolved python "
+        f"{minor} (wrong base image fails loudly and early).",
+        f"python3 -c \"import sys; sys.exit(0 if sys.version_info[:2]==({maj},{min_}) "
+        f"else 'setup.sh: graph resolved for python {minor}, but interpreter is "
+        f"%d.%d' % sys.version_info[:2])\"",
+    ]
+
+
 def render_build_script(
     graph: DepGraph | None,
     manual_blocks: tuple[Block, ...] = (),
@@ -468,9 +489,14 @@ def render_build_script(
     # preamble-death). No-op on v3-base (pytest present). pytest still installs from
     # its PIP node when declared (floor-not-pin). `set -Eeuo pipefail` is shell
     # safety, not instrument.
+    # The interpreter-minor assertion is the FIRST graph-derived preamble line
+    # (after `set -Eeuo pipefail`, before the interpreter-agnostic instrument
+    # floor): a wrong-minor base image must fail before any install runs.
+    assertion = _interpreter_assertion_lines(graph)
     parts: list[str] = _manifest(graph, manual_blocks, include_services=include_services) + [
         "set -Eeuo pipefail",
         "",
+    ] + (assertion + [""] if assertion else []) + [
         "# Normalize `python` -> python3 so bare-`python` checks (pip show / pytest) resolve.",
         'command -v python >/dev/null 2>&1 || ln -sf "$(command -v python3)" /usr/local/bin/python',
         "",

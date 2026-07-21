@@ -790,24 +790,10 @@ def _python_package_obligations(
         exclude_newer = compute_exclude_newer(roots)
 
     # Runtime-tier obligation: the container must run the targeted python minor.
-    # Certified later by a host check (rc 0 iff sys.version_info matches); discovery
-    # here never implies SATISFIED.
-    from graph.model import runtime_id as _runtime_id
-    _maj, _min = target_python.split(".")[:2]
-    _rt_check = f'python3 -c "import sys; sys.exit(0 if sys.version_info[:2]==({_maj},{_min}) else 1)"'
-    graph = graph.with_node(
-        Node(
-            id=_runtime_id(target_python),
-            type=NodeType.RUNTIME,
-            name=f"python {target_python}",
-            layer=Layer.RUNTIME,
-            discovered_by=DiscoveredBy.STATIC_SCAN,
-            state=State.UNKNOWN,
-            version=target_python,
-            check_command=_rt_check,
-            resolved_python=target_python,
-        )
-    )
+    # No longer a standalone RUNTIME node — the minor is stamped onto the PROJECT
+    # node's data below (after `_add_project_node`) and rendered as setup.sh's
+    # first graph-derived preamble assertion (build_script.py), which fails the
+    # script loudly if the container's interpreter minor doesn't match.
     # RECORD-union coverage oracle (Correction 3). Injected in tests (fake, no
     # network). The production DEFAULT (P1.5) is the composite: the cheap
     # post-install container reader for already-installed closure members, falling
@@ -931,6 +917,14 @@ def _python_package_obligations(
     # restamped back, and AUDIT provenance is set on discovered_by, not touched by
     # the cycle restamp).
     graph = _add_project_node(graph, repo_path)
+    # Re-home the runtime-tier obligation: stamp the resolved target python minor
+    # onto the PROJECT node so the renderer can assert the interpreter minor
+    # (replaces the retired construction-time RUNTIME node). Guarded — an empty
+    # repo may yield no PROJECT node, in which case nothing is stamped and the
+    # renderer emits no assertion (no invented default).
+    _project = next((n for n in graph.nodes if n.type is NodeType.PROJECT), None)
+    if _project is not None:
+        graph = graph.with_node(_project.with_data(resolved_python=target_python))
     graph = add_subprocess_tool_nodes(graph, repo_path)
     # Stage 3a' — curated runtime-executable prior: a binary:<tool> Tool node for
     # each closure package that shells out to an external CLI (git family, pandoc,

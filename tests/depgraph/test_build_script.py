@@ -490,6 +490,36 @@ def test_golden_snapshot_byte_for_byte():
     assert normalized == expected
 
 
+def _project_py(minor, name="myproj"):
+    return Node(id=f"project:{name}", type=NodeType.PROJECT, name=name,
+                layer=Layer.PIP, discovered_by=DiscoveredBy.STATIC_SCAN,
+                state=State.UNKNOWN,
+                data={"installable": False, "resolved_python": minor})
+
+
+def test_interpreter_assertion_is_first_graph_derived_preamble_line():
+    g = DepGraph(nodes=(_pkg("pkg:requests", "requests", "2.31.0"), _project_py("3.12")))
+    out = render_build_script(g)
+    lines = out.splitlines()
+    assertion = next(ln for ln in lines
+                     if ln.startswith("python3 -c") and "(3,12)" in ln.replace(" ", ""))
+    # After `set -Eeuo pipefail`, before the interpreter-agnostic instrument floor.
+    assert lines.index("set -Eeuo pipefail") < lines.index(assertion)
+    normalize = next(ln for ln in lines if "command -v python " in ln)
+    assert lines.index(assertion) < lines.index(normalize)
+    # Loud, minor-naming error message; single `python3 -c`, no double quotes inside.
+    assert "graph resolved for python 3.12" in out
+    assert "sys.version_info" in assertion
+
+
+def test_no_interpreter_assertion_when_resolved_python_absent():
+    # Old graphs (no PROJECT stamp) render NO assertion — no invented default.
+    g = DepGraph(nodes=(_pkg("pkg:requests", "requests", "2.31.0"), _project()))
+    out = render_build_script(g)
+    assert "graph resolved for python" not in out
+    assert "sys.version_info" not in out
+
+
 def test_pipefail_safe_instrument_floor_present():
     # §4.4 post-review: the instrument floor stays in setup.sh as a pipefail-SAFE
     # fallback (also baked into v3-base). It must be present, guarded, and never

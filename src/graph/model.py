@@ -550,3 +550,28 @@ def service_id(name: str) -> str:
 
 def runtime_id(minor: str) -> str:
     return f"runtime:python-{minor}"
+
+
+def project_resolved_python(graph: "DepGraph", *, runtime_fallback: bool = False) -> str | None:
+    """The target python minor the graph was resolved for.
+
+    The PROJECT node carries it on ``data['resolved_python']`` (stamped in the
+    pipeline once the target env is known — construction no longer mints a
+    RUNTIME node for this). Returns ``None`` when it was never stamped; nothing
+    is invented (no host-python default).
+
+    ``runtime_fallback`` (readers of OLD on-disk graphs only): when the PROJECT
+    stamp is absent, fall back to a legacy RUNTIME node's ``version`` — graphs
+    serialized before RUNTIME minting was removed still carry one. The renderer
+    leaves this False so a graph without a fresh stamp renders no assertion.
+    """
+    for n in graph.nodes:
+        if n.type is NodeType.PROJECT:
+            rp = n.data.get("resolved_python")
+            if rp:
+                return rp
+    if runtime_fallback:
+        for n in graph.nodes:
+            if n.type is NodeType.RUNTIME and n.version:
+                return n.version
+    return None
