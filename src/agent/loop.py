@@ -17,6 +17,8 @@ from src.agent.observe import format_breakdown, summarize
 from src.agent.actions.script import strip_graph_framing
 from src.agent.history import agentic
 from src.agent.prompt import build_repair_scope
+from src.agent.env_state import (
+    env_state_enabled, render_env_state, parse_syspkgs, PIP_LIST_CMD, SYSPKG_PROBE_CMD)
 
 # Shown to the agent when a move is rejected (a non-read-only "explore", or an otherwise unusable
 # action). Tool-calling aware — the old text referenced the retired `Action:`/`Script:` free-text
@@ -294,14 +296,22 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
 
     expanded: set[str] = set()   # discoveries already expanded (§7.2) — persists ACROSS turns so a
                                  # re-run of the same failure doesn't re-hit the network every turn
+    base_syspkgs: "frozenset[str] | None" = None   # captured once at base (constant across turns)
 
     def build_and_test():
         """Reset → run the WHOLE current script fresh from base → certify (install-tier) → and,
         if the build is green, run the suite once. Then (G3 only) enrich the graph from this
         turn's observations and certify what enrich appended. Returns
-        (result, graph, test|None, causes, prev_states)."""
-        nonlocal expanded
+        (result, graph, test|None, causes, prev_states, env_state)."""
+        nonlocal expanded, base_syspkgs
         reset()
+        if env_state_enabled() and base_syspkgs is None:
+            # The container is at pristine base right here (post-reset, pre-run_script) — capture
+            # it ONCE so every turn's syspkg delta is measured against the same floor, not a moving
+            # target. `render_syspkg_delta` treats an empty base as "couldn't capture" and safely
+            # omits the delta line rather than reporting the whole base as "added".
+            _rc, _raw = exec_readonly(SYSPKG_PROBE_CMD)
+            base_syspkgs = parse_syspkgs(_raw)
         # The PREVIOUS turn's certified graph is simply `graph` as closed-over here, before this
         # call's `certify()` rebinds the local `g` — capture its states now for the "SINCE YOUR
         # LAST EDIT" delta the renderer computes next turn. `getattr(..., ())` degrades to an
@@ -342,7 +352,15 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
             g = certify_new_fn(g, appended)
             if appended:
                 log.d("ENRICH", f"discovered {len(appended)}: {', '.join(appended[:3])}")
-        return r, g, t, causes, prev_states
+        env_state = ""
+        if env_state_enabled():
+            # Probed AFTER the build, so a build-fail turn's env_state reflects the PARTIAL
+            # install up to the halt line — genuine signal, not a stale prior-turn snapshot.
+            _rc, pip_raw = exec_readonly(PIP_LIST_CMD)
+            _rc2, sys_raw = exec_readonly(SYSPKG_PROBE_CMD)
+            env_state = render_env_state(pip_raw, parse_syspkgs(sys_raw),
+                                         base_syspkgs or frozenset())
+        return r, g, t, causes, prev_states, env_state
 
     best_key: tuple[bool, int, int] = (False, -1, -1)   # (built_ok, passed, executed): green > failed;
     best_script = script                                 # among passed-ties, MORE tests collected wins
@@ -362,7 +380,7 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
         if key > best_key:
             best_key, best_script = key, script         # `script` = the one just built
 
-    result, graph, test, causes, prev_states = build_and_test()
+    result, graph, test, causes, prev_states, env_state = build_and_test()
     register(result, test)                              # fold baseline into best-so-far
     # Seed history with the baseline outcome (v0) so later patches have something to compare
     # against; the verdict rides in the (never-truncated) bracket, the detail in the body.
@@ -387,7 +405,7 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
                                                   fail_lineno=result.lineno, turn=step + 1,
                                                   max_turns=max_steps, rejection=rejection,
                                                   rejected=rejected, result=result, causes=causes,
-                                                  prev_states=prev_states)
+                                                  prev_states=prev_states, env_state=env_state)
             _emit_tokens(usage)
             kind, payload = _classify_action(action, script, project_name)
             if kind != "invalid":
@@ -417,7 +435,7 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
             e = action.edit
             change = _edit_summary(e)             # op-based: verb@span + preview (captures deletes too)
             log.d("EDIT", f"{change}; re-running fresh")
-            result, graph, test, causes, prev_states = build_and_test()
+            result, graph, test, causes, prev_states, env_state = build_and_test()
             register(result, test)
             version += 1
             verdict = _verdict(result, test)
@@ -432,7 +450,7 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
         # kind == "patch"
         old_script, script = script, payload
         log.d("PATCH", "agent replaced setup.sh; re-running fresh")
-        result, graph, test, causes, prev_states = build_and_test()
+        result, graph, test, causes, prev_states, env_state = build_and_test()
         register(result, test)
         version += 1
         # Record the patch's ReAct pair in the (never-truncated) bracket: WHAT it changed

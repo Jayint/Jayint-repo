@@ -866,3 +866,60 @@ def test_finalization_is_noop_when_no_bake_eligible_entries():
     assert outcome == "DONE"
     assert "#@config-env" not in script
     assert script == patched
+
+
+# ── per-turn env_state reaches the planner (Task 7) ────────────────────────────────────────────
+from src.agent.env_state import ENV_STATE_HEADER
+
+
+class _EnvCapturePlanner(_ScriptedPlanner):
+    """Records the env_state kwarg the loop passes to plan()."""
+    def __init__(self, moves):
+        super().__init__(moves)
+        self.env_states = []
+    def plan(self, history, script, observation, graph, **kw):
+        self.env_states.append(kw.get("env_state"))
+        return super().plan(history, script, observation, graph, **kw)
+
+
+def _probe_ro():
+    """exec_readonly that answers the env_state probes with canned package output. The dpkg-query
+    probe returns only `libc6` on its FIRST call (the base capture, right after reset()) and
+    `libc6\\nlibpq5` thereafter (the post-build snapshot), so the syspkg delta is non-empty."""
+    seen = {"dpkg": 0}
+    def ro(cmd):
+        if "pip list" in cmd:
+            return (0, "flask==3.0.0\npsycopg2-binary==2.9.9\n")
+        if "dpkg-query" in cmd:
+            seen["dpkg"] += 1
+            return (0, "libc6\n") if seen["dpkg"] == 1 else (0, "libc6\nlibpq5\n")
+        return (0, "probe-output")
+    return ro
+
+
+def test_loop_passes_env_state_to_planner_when_enabled(monkeypatch):
+    monkeypatch.setenv("REACT_ENV_STATE", "1")
+    box = ["pip install app\n"]
+    reset, run_script, certify, _ro, run_tests = _adapters((), ("pytest",), box)
+    planner = _EnvCapturePlanner([Action("explore", command="ls")])
+    run_react(object(), reset=reset, run_script=run_script, certify=certify,
+              exec_readonly=_probe_ro(), run_tests=run_tests, planner=planner,
+              history=History(), log=ReactLog(silent=True), max_steps=1,
+              _initial_script="pip install app\n")
+    assert planner.env_states, "planner.plan never called"
+    es = planner.env_states[0]
+    assert ENV_STATE_HEADER in es
+    assert "flask 3.0.0" in es
+    assert "system packages added on top of base" in es  # base captured, then libpq5 delta
+
+
+def test_loop_env_state_empty_when_flag_off(monkeypatch):
+    monkeypatch.setenv("REACT_ENV_STATE", "0")
+    box = ["pip install app\n"]
+    reset, run_script, certify, _ro, run_tests = _adapters((), ("pytest",), box)
+    planner = _EnvCapturePlanner([Action("explore", command="ls")])
+    run_react(object(), reset=reset, run_script=run_script, certify=certify,
+              exec_readonly=_probe_ro(), run_tests=run_tests, planner=planner,
+              history=History(), log=ReactLog(silent=True), max_steps=1,
+              _initial_script="pip install app\n")
+    assert planner.env_states[0] == ""
