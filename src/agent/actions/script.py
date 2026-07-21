@@ -8,10 +8,13 @@ self-contradictory (the prompt says "edit it"; the file says "DO NOT EDIT"). We 
 here — only from the react loop's OWN seeded copy — leaving `render_build_script` (and the
 v3 arm) untouched.
 
-Safe to strip: the header and every `#@` line are inert. Execution is `bash`, so they are
-comments; failure attribution comes from an ERR trap the sandbox injects at RUN time
-(`_wrap_with_err_trap` → `_parse_install_failure` reads `$BASH_COMMAND`), never from these
-markers. Executable lines are preserved verbatim.
+Safe to strip: the header and the graph-primary `#@` annotations (`#@node`/`#@check`/
+`#@need`) are inert. Execution is `bash`, so they are comments; failure attribution comes
+from an ERR trap the sandbox injects at RUN time (`_wrap_with_err_trap` →
+`_parse_install_failure` reads `$BASH_COMMAND`), never from these markers. Executable lines
+are preserved verbatim. ONE `#@` exception is KEPT: `#@config-env` markers are a
+cross-artifact hand-off (the eval adapter bakes them into a Dockerfile ENV from the final
+setup.sh), not graph framing, so stripping them would silently drop the config bake.
 """
 from __future__ import annotations
 

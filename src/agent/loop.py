@@ -6,7 +6,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from graph.compile.build_script import render_build_script
+from graph.compile.build_script import render_build_script, _config_env_block
 from graph.patch.gate import admit_proposal, compose_script, is_read_only
 from src.constants import VERIFY_TEST_CMD          # the canonical `python -m pytest -q` (neutral leaf)
 from src.agent.actions import apply_edit
@@ -247,6 +247,38 @@ def _classify_action(action, script: str, project_name: "str | None" = None) -> 
     return "invalid", _FORMAT_REMINDER                  # unusable / unparseable move
 
 
+def _reassert_config_env_block(script: str, runtime_plan) -> str:
+    """FINALIZATION guard (review IMPORTANT 2 residual): re-assert the plan's dedicated
+    ``#@config-env`` marker block on the RETURNED react artifact. The plan is the AUTHORITY
+    for config markers — an accepted LLM edit/patch that drops the marker line must not be
+    able to silently cancel an env bake: the eval adapter reads ENV values ONLY from the
+    final setup.sh text (``multi_docker_eval_adapter._CONFIG_ENV_RE``), and
+    ``runtime_plan.json`` does not compensate.
+
+    Idempotent replace-or-append of the SAME block the renderer emits
+    (``_config_env_block`` — byte-identical to the v3 arm):
+
+      * no bake-eligible entries (or ``runtime_plan is None``) -> byte-no-op;
+      * the block already present verbatim -> byte-no-op (no reorder, no duplication);
+      * the block missing or a marker edited away -> strip any stale config-env lines and
+        append the canonical block (blank-line separated, same discipline as the renderer).
+
+    Applied ONLY at finalization (the returned artifact), NEVER mid-loop — the agent may
+    legitimately restructure the script between cycles; only the shipped script must carry
+    the block."""
+    block = _config_env_block(runtime_plan)          # [] when plan is None / nothing bakes
+    if not block:
+        return script
+    block_text = "\n".join(block)
+    if block_text in script:                         # already present & identical
+        return script
+    kept = [ln for ln in script.splitlines()
+            if not ln.strip().startswith(("#@config-env", "# ---- Config env"))]
+    body = "\n".join(kept).rstrip("\n")
+    prefix = body + "\n\n" if body else ""
+    return prefix + block_text + "\n"
+
+
 def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, planner,
               history, log, max_steps: int = 30, _initial_script: str | None = None,
               project_name: "str | None" = None, runtime_plan=None,
@@ -341,7 +373,7 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
         if result.ok and test is not None and test.ok:
             log.d("DONE", "build green AND tests pass the gate — host-verified")
             log.trace("end", outcome="DONE", steps=step + 1); log.summary()
-            return "DONE", script, graph
+            return "DONE", _reassert_config_env_block(script, runtime_plan), graph
         observation = _observation(result, test)
 
         # Resolve a DISPATCHABLE action. A tool misuse is re-prompted IN PLACE (fail_lineno anchors
@@ -416,7 +448,10 @@ def run_react(graph, *, reset, run_script, certify, exec_readonly, run_tests, pl
 
     log.d("GIVEUP", f"max_steps {max_steps} hit (best {best_key[1]}) — returning best script")
     log.trace("end", outcome="GIVEUP", steps=max_steps, best_passed=best_key[1]); log.summary()
-    return "GIVEUP", best_script, graph
+    # Same finalization guard on the GIVEUP artifact — it is written to disk and read by the
+    # eval adapter exactly like a DONE script, so a best_script that lost the marker must not
+    # ship without it either.
+    return "GIVEUP", _reassert_config_env_block(best_script, runtime_plan), graph
 
 
 # ======================================================================================

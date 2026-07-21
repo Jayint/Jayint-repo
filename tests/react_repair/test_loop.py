@@ -778,3 +778,91 @@ def test_run_react_threads_runtime_plan_config_marker_into_rendered_seed():
     # byte-identical to the v3 arm's block (header + marker), same _config_env_block output
     v3_block = "\n".join(_config_env_block(plan))
     assert v3_block in box[0]
+
+
+# ── FINALIZATION guard (review IMPORTANT 2 residual): the plan is the authority for
+# config markers — an accepted LLM edit that drops the #@config-env line must NOT be able
+# to cancel an env bake, because the eval adapter reads ENV values ONLY from the FINAL
+# setup.sh text (runtime_plan.json does not compensate). Re-assert on the returned artifact.
+def _graph_and_bakeable_plan():
+    from graph.model import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
+    from graph.runtime_plan import RuntimePlan, ConfigObligation
+    pkg = Node(id="pkg:six", type=NodeType.PACKAGE, name="six", layer=Layer.PIP,
+               discovered_by=DiscoveredBy.RESOLVER, state=State.MISSING, version="1.17.0")
+    graph = DepGraph(nodes=(pkg,))
+    plan = RuntimePlan(config_obligations=(ConfigObligation.create(
+        "DJANGO_SETTINGS_MODULE", "myapp.settings",
+        {"rung": 1, "source": "authoritative_config"}),))
+    return graph, plan
+
+
+def _passing_after(token, box):
+    """FakeSandbox: build always ok; tests pass once the built script contains `token`."""
+    def reset(): pass
+    def run_script(s):
+        box[0] = s
+        return RunResult(True)
+    def certify(g): return g
+    def ro(cmd): return (0, "")
+    def run_tests():
+        ok = token in (box[0] or "")
+        return TestOutcome(ok, passed=5 if ok else 0, executed=5, output="ok")
+    return reset, run_script, certify, ro, run_tests
+
+
+def test_finalization_restores_config_env_block_after_marker_edited_away():
+    # (a) reviewer repro: the agent patches to a script that BUILDS+PASSES but DROPPED the
+    # marker; DONE output must carry the restored block.
+    from graph.compile.build_script import _config_env_block
+    graph, plan = _graph_and_bakeable_plan()
+    box = [None]
+    reset, run_script, certify, ro, run_tests = _passing_after("PASSTOKEN", box)
+    patched = "pip install app\n# PASSTOKEN sentinel\n"          # no #@config-env marker
+    outcome, script, _ = run_react(
+        graph, reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
+        run_tests=run_tests, planner=_ScriptedPlanner([Action("patch", new_script=patched)]),
+        history=History(), log=ReactLog(silent=True), max_steps=5, runtime_plan=plan)
+    assert outcome == "DONE"
+    assert "#@config-env" not in patched                        # sanity: the agent dropped it
+    assert "#@config-env DJANGO_SETTINGS_MODULE=myapp.settings" in script
+    assert "\n".join(_config_env_block(plan)) in script         # canonical block restored
+    assert script.count("#@config-env") == 1                    # never duplicated
+
+
+def test_finalization_is_byte_identical_when_marker_intact():
+    # (b) marker intact all along -> final script byte-identical to the seed (no reorder,
+    # no duplication).
+    from src.agent.actions.script import strip_graph_framing
+    from graph.compile.build_script import render_build_script
+    graph, plan = _graph_and_bakeable_plan()
+    box = [None]
+    reset, run_script, certify, ro, run_tests = _passing_after("", box)   # tests always pass
+    outcome, script, _ = run_react(
+        graph, reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
+        run_tests=run_tests, planner=_ScriptedPlanner([]), history=History(),
+        log=ReactLog(silent=True), max_steps=5, runtime_plan=plan)
+    assert outcome == "DONE"
+    assert script == strip_graph_framing(render_build_script(graph, plan=plan))
+    assert script.count("#@config-env") == 1
+
+
+def test_finalization_is_noop_when_no_bake_eligible_entries():
+    # (c) plan with zero bake-eligible entries (provenance absent -> not bakeable) ->
+    # finalization adds nothing; the returned artifact is byte-unchanged.
+    from graph.model import DepGraph, Node, NodeType, Layer, State, DiscoveredBy
+    from graph.runtime_plan import RuntimePlan, ConfigObligation
+    pkg = Node(id="pkg:six", type=NodeType.PACKAGE, name="six", layer=Layer.PIP,
+               discovered_by=DiscoveredBy.RESOLVER, state=State.MISSING, version="1.17.0")
+    graph = DepGraph(nodes=(pkg,))
+    plan = RuntimePlan(config_obligations=(ConfigObligation.create(
+        "DJANGO_SETTINGS_MODULE", "settings", None),))          # no provenance -> no bake
+    box = [None]
+    reset, run_script, certify, ro, run_tests = _passing_after("PASSTOKEN", box)
+    patched = "pip install app\n# PASSTOKEN\n"
+    outcome, script, _ = run_react(
+        graph, reset=reset, run_script=run_script, certify=certify, exec_readonly=ro,
+        run_tests=run_tests, planner=_ScriptedPlanner([Action("patch", new_script=patched)]),
+        history=History(), log=ReactLog(silent=True), max_steps=5, runtime_plan=plan)
+    assert outcome == "DONE"
+    assert "#@config-env" not in script
+    assert script == patched
