@@ -83,6 +83,13 @@ def run_v3(
                                                 # default) leaves run_v3's behavior byte-identical —
                                                 # the tracer only OBSERVES, it never influences a
                                                 # decision, a certify, or a write.
+    runtime_plan=None,                          # RuntimePlan | None (Task 4) — the Service+Config
+                                                # construction artifact. The ADMISSION RULE: its
+                                                # service obligations are admitted into the working
+                                                # graph at loop start (same ids → with_node
+                                                # idempotency), so the GRAPH stays the sole runtime
+                                                # state store and certify/frontier/hollow-pass/advise/
+                                                # repoint read SERVICE nodes from the graph unchanged.
 ):
     """Top-level v3 graph-scheduler orchestrator loop (no planner).
 
@@ -167,6 +174,20 @@ def run_v3(
     )
 
     current_map: WorldModelMap = initial_world_map
+    # ── Task 4 ADMISSION RULE ────────────────────────────────────────────────
+    # Admit the RuntimePlan's service obligations into the working graph at loop
+    # start (before any certify/emit/decide runs). Same ids → with_node idempotency
+    # collapses them with any runtime-discovered duplicate, so there is no split-brain:
+    # the GRAPH remains the sole runtime state store, and every downstream consumer
+    # (certify + demote counter, scheduler_frontier, the hollow-pass guard, advise's
+    # service listing, DSN repoint) keeps reading SERVICE nodes from the graph
+    # UNCHANGED. A None/empty plan or an absent dep_graph is a strict no-op.
+    if (runtime_plan is not None and not runtime_plan.is_empty()
+            and current_map.dep_graph is not None):
+        current_map = merge_map(
+            current_map,
+            dep_graph=runtime_plan.admit_services(current_map.dep_graph),
+        )
     # Monotonic step counter for ledger offsets (avoids cycle-based aliasing).
     global_step: int = 0
     # Runtime-feedback high-water mark: index into ledger.events() already ingested.

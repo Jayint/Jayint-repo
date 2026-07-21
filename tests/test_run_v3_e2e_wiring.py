@@ -16,10 +16,11 @@ def test_selected_image_and_minor_thread_to_all_consumers(monkeypatch, tmp_path)
     monkeypatch.setattr(e2e, "choose_base_image", lambda *a, **k: choice, raising=False)
 
     def _fake_advisory(repo, image, *, host_executor=None, target_python=None,
-                       classify=None, **k):
+                       classify=None, return_plan=False, **k):
         seen["advisory_image"] = image
         seen["advisory_target_python"] = target_python
-        return "", None
+        # Task 4: the driver requests return_plan=True -> a 3-tuple (advisory, graph, plan).
+        return ("", None, None) if return_plan else ("", None)
     monkeypatch.setattr(e2e, "build_advisory_for_repo", _fake_advisory, raising=False)
 
     def _fake_initial_map(*, base_image, **k):
@@ -59,9 +60,9 @@ def test_run_constructs_and_forwards_dist_guesser(monkeypatch, tmp_path):
     seen = _wire_common_fakes(monkeypatch)
 
     def _capture_advisory(repo, image, *, host_executor=None, target_python=None,
-                          classify=None, llm_dist_guesser=None, **k):
+                          classify=None, llm_dist_guesser=None, return_plan=False, **k):
         seen["dist_guesser"] = llm_dist_guesser
-        return "", None
+        return ("", None, None) if return_plan else ("", None)
     monkeypatch.setattr(e2e, "build_advisory_for_repo", _capture_advisory, raising=False)
 
     class _FakeSandbox:
@@ -118,7 +119,9 @@ def _wire_common_fakes(monkeypatch, seen=None):
     choice = BaseImageChoice("python:3.10-slim", "3.10", None, "auto: test")
     monkeypatch.setattr(e2e, "choose_base_image", lambda *a, **k: choice, raising=False)
     monkeypatch.setattr(
-        e2e, "build_advisory_for_repo", lambda *a, **k: ("", None), raising=False
+        e2e, "build_advisory_for_repo",
+        lambda *a, **k: ("", None, None) if k.get("return_plan") else ("", None),
+        raising=False,
     )
     monkeypatch.setattr(
         e2e, "initial_map",

@@ -78,6 +78,7 @@ from graph.compile.build_script import (
     render_service_start_script,
 )
 from graph.model import State
+from graph.runtime_plan import RuntimePlan, EMPTY_PLAN
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
@@ -229,15 +230,15 @@ def _uv_sources_enabled() -> bool:
     return os.getenv("V3_UV_SOURCES") == "1"
 
 
-def _maybe_write_services_script(graph, args) -> None:
+def _maybe_write_services_script(plan, args) -> None:
     """Write the service-start ENTRYPOINT-wrapper alongside setup.sh, iff the
-    flag is on, a --services-out path was given, and the graph actually has a
-    reciped SERVICE node (render_service_start_script returns "" otherwise —
+    flag is on, a --services-out path was given, and the plan actually has a
+    reciped SERVICE obligation (render_service_start_script returns "" otherwise —
     the common, zero-service case writes nothing, matching setup.sh's own
     no-op)."""
-    if not args.services_out or not _include_services() or graph is None:
+    if not args.services_out or not _include_services() or plan is None:
         return
-    text = render_service_start_script(graph)
+    text = render_service_start_script(plan)
     if not text:
         return
     with open(args.services_out, "w") as fh:
@@ -251,6 +252,11 @@ def _maybe_write_services_script(graph, args) -> None:
 # adapter) BOTH anchor to setup.sh's directory (the harness's ``eval_build/``) and
 # share this exact basename — the two ends of one contract, named on each side.
 _DEP_GRAPH_FILENAME = "dep_graph.json"
+# The Service+Config RuntimePlan (Task 4), serialized beside dep_graph.json so the
+# construction artifact is round-trippable (the loop admits its services in-process;
+# this file is the cross-process/serialization record — services no longer live in
+# dep_graph.json). Same basename contract shape as _DEP_GRAPH_FILENAME.
+_RUNTIME_PLAN_FILENAME = "runtime_plan.json"
 
 
 def _write_dep_graph(graph, out_path: str) -> None:
@@ -266,6 +272,17 @@ def _write_dep_graph(graph, out_path: str) -> None:
     with open(graph_path, "w") as gh:
         json.dump(graph.to_dict(), gh, indent=2)
     print(f"[v3] wrote dep graph -> {graph_path}")
+
+
+def _write_runtime_plan(plan, out_path: str) -> None:
+    """Persist the Service+Config ``RuntimePlan`` as ``runtime_plan.json`` beside
+    ``dep_graph.json`` (Task 4). ONE writer for BOTH the normal and construction-only
+    paths. A ``None`` plan writes the empty plan so the artifact always exists."""
+    plan = plan if plan is not None else EMPTY_PLAN
+    plan_path = os.path.join(os.path.dirname(os.path.abspath(out_path)), _RUNTIME_PLAN_FILENAME)
+    with open(plan_path, "w") as ph:
+        json.dump(plan.to_dict(), ph, indent=2)
+    print(f"[v3] wrote runtime plan -> {plan_path}")
 
 
 def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
@@ -309,6 +326,7 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
 
     # ── 2. BELIEF: build the dep-graph (skipped in --seed-script repair-only mode) ──────
     arch = _target_arch(choice.platform_override)
+    plan = EMPTY_PLAN            # Task 4 Service+Config construction artifact
     if args.seed_script:
         from graph.model import DepGraph
         graph = DepGraph()          # empty — repair-only ablation doesn't use graph state
@@ -333,16 +351,20 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
         dist_guesser = make_dist_guesser(_dist_complete_fn)
         graph = None
         try:
-            _advisory, graph = build_advisory_for_repo(
+            _advisory, graph, plan = build_advisory_for_repo(
                 args.repo, base_image, target_python=choice.minor, classify=classify,
                 uv_sources_enabled=_uv_sources_enabled(),
                 llm_dist_guesser=dist_guesser,
+                return_plan=True,       # Task 4: thread the Service+Config RuntimePlan out
             )
             n = sum(1 for _ in graph.nodes) if graph is not None else 0
-            print(f"[v3] dep-graph: {n} nodes")
+            n_svc = len(plan.service_obligations) if plan is not None else 0
+            print(f"[v3] dep-graph: {n} nodes; runtime-plan: {n_svc} services, "
+                  f"{len(plan.config_obligations) if plan is not None else 0} config obligations")
         except Exception as exc:  # graceful degradation — graph is advisory at construction
             print(f"[v3] dep-graph build failed (graceful degradation): {exc}", file=sys.stderr)
             graph = None
+            plan = EMPTY_PLAN
 
     # ── construction-only short-circuit ──────────────────────────────────────
     # Render the FIRST-PASS setup.sh from the just-constructed graph and STOP —
@@ -351,17 +373,19 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
     # iterative repair is skipped, so this isolates first-pass construction
     # quality. The caller builds the image from this setup.sh and runs pytest.
     if args.construction_only:
-        script_text = (render_build_script(graph, (), include_services=_include_services())
+        script_text = (render_build_script(graph, (), plan=plan,
+                                           include_services=_include_services())
                        if graph is not None else "")
         with open(args.out, "w") as fh:
             fh.write(script_text)
         n = sum(1 for _ in graph.nodes) if graph is not None else 0
         print(f"[v3] construction-only: wrote INITIAL setup.sh ({n} nodes) -> {args.out}")
-        # Persist the graph HERE too — construction-only (V3_CONSTRUCTION_ONLY=1) is the
-        # behavioural-baseline mode, so a provisional fallthrough must still reach the
-        # run manifest instead of being scored as a clean run.
+        # Persist the graph + plan HERE too — construction-only (V3_CONSTRUCTION_ONLY=1)
+        # is the behavioural-baseline mode, so a provisional fallthrough must still reach
+        # the run manifest instead of being scored as a clean run.
         _write_dep_graph(graph, args.out)
-        _maybe_write_services_script(graph, args)
+        _write_runtime_plan(plan, args.out)
+        _maybe_write_services_script(plan, args)
         print("stop_reason=construction_only unresolved=[]")
         print("V3 E2E:", "CONSTRUCTION_ONLY")
         return 0
@@ -431,6 +455,7 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
             gate_observer=gates_seen.append,
             repo_path=args.repo,                       # seeds the diagnosis router's RepoContext
             tracer=tracer,
+            runtime_plan=plan,                         # Task 4: admitted as SERVICE nodes at loop start
         )
     finally:
         try:
@@ -445,9 +470,11 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
                   if dep_graph is not None else [])
     script_text = ""
     if dep_graph is not None:
+        # The final graph already carries the loop-admitted services; passing the plan
+        # too is idempotent (same ids collapse) and supplies the #@config-env markers.
         script_text = render_build_script(
             dep_graph, getattr(final_map, "manual_blocks", ()),
-            include_services=_include_services(),
+            plan=plan, include_services=_include_services(),
         )
         with open(args.out, "w") as fh:
             fh.write(script_text)
@@ -458,7 +485,8 @@ def _run(args) -> int:  # noqa: C901 — deliberately one all-in-one driver
         # local-collision PyPI fallthrough would be scored as a clean pass. Additive:
         # legacy consumers ignore the extra file.
         _write_dep_graph(dep_graph, args.out)
-        _maybe_write_services_script(dep_graph, args)
+        _write_runtime_plan(plan, args.out)
+        _maybe_write_services_script(plan, args)
 
     if gates_seen:
         for g in gates_seen[-1]:
