@@ -31,6 +31,7 @@ from urllib.parse import urlsplit
 from graph.python.config_scan import (
     authoritative_ambiguous_vars,
     parse_env_example,
+    parse_env_example_provenance,
     scan_authoritative_config,
     scan_env_defaults,
     scan_env_defaults_provenance,
@@ -155,22 +156,24 @@ def _service_nodes(repo_path, arch, client, model, hits, configs) -> list[NodeSp
     return specs
 
 
-def _resolve_config_value(var, ambiguous, authoritative, example, defaults_prov
+def _resolve_config_value(var, ambiguous, authoritative, example_prov, defaults_prov
                           ) -> tuple[str | None, dict | None]:
     """The winning value for ``var`` AND its structured provenance ``{rung, source}``
     (Task 3 / B1 residual a), resolved by the precedence chain in ``_config_nodes``'s
     docstring. Preserves the original truthiness-based fall-through (an empty value
     falls to the next rung). Provenance is JSON-able and carries eligibility on its
     own: rung 1/2 and rung-3a ``code_scan_setdefault`` bake; rung-3b
-    ``code_scan_fallback`` is advisory-only. An ambiguous or absent var -> both None."""
+    ``code_scan_fallback`` is advisory-only. Rung-2 ``source`` is the ACTUAL
+    ``.env.*`` file the value won from (B1 review #2). An ambiguous or absent var
+    -> both None."""
     if var in ambiguous:
         return None, None
     av = authoritative.get(var)
     if av:
         return av, {"rung": 1, "source": "authoritative_config"}
-    ev = example.get(var)
-    if ev:
-        return ev, {"rung": 2, "source": "env_example"}
+    ev = example_prov.get(var)           # (value, ".env.example" | ".env.sample" | ".env.template")
+    if ev and ev[0]:
+        return ev[0], {"rung": 2, "source": ev[1]}
     dv = defaults_prov.get(var)          # (value, "code_scan_setdefault" | "code_scan_fallback")
     if dv and dv[0]:
         return dv[0], {"rung": 3, "source": dv[1]}
@@ -212,7 +215,7 @@ def _config_nodes(repo_path, hits) -> list[NodeSpec]:
     read_vars = {**scan_env_reads(repo_path), **scan_framework_config_reads(repo_path)}
     authoritative = scan_authoritative_config(repo_path)
     ambiguous = authoritative_ambiguous_vars(repo_path)
-    example = parse_env_example(repo_path)
+    example = parse_env_example_provenance(repo_path)
     defaults = scan_env_defaults_provenance(repo_path)
     specs: list[NodeSpec] = []
     for var in sorted(read_vars):

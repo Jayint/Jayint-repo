@@ -603,7 +603,8 @@ def test_config_need_with_known_value_emits_config_env_marker():
     g = DepGraph(nodes=(
         _need("config:DJANGO_SETTINGS_MODULE", NodeType.CONFIG,
               "DJANGO_SETTINGS_MODULE", Layer.CONFIG,
-              data={"config_value": "settings"}),
+              data={"config_value": "settings",
+                    "config_provenance": {"rung": 1, "source": "authoritative_config"}}),
     ))
     out = render_build_script(g)
     assert "#@config-env DJANGO_SETTINGS_MODULE=settings" in out
@@ -671,7 +672,8 @@ def test_need_stubs_with_config_env_marker_still_comment_only():
         _pkg("pkg:psycopg2", "psycopg2", "2.9.9"),
         _need("config:DJANGO_SETTINGS_MODULE", NodeType.CONFIG,
               "DJANGO_SETTINGS_MODULE", Layer.CONFIG,
-              data={"config_value": "settings"}),
+              data={"config_value": "settings",
+                    "config_provenance": {"rung": 1, "source": "authoritative_config"}}),
     ))
     out = render_build_script(g)
     lines = out.splitlines()
@@ -679,6 +681,71 @@ def test_need_stubs_with_config_env_marker_still_comment_only():
     for ln in lines[first_need:]:
         if ln.strip():
             assert ln.startswith("#"), f"non-comment line in #@need region: {ln!r}"
+
+
+# ---------------------------------------------------------------------------
+# Task 3 (B1 review #1) — bake-eligibility FAILS CLOSED on config provenance:
+# only rung 1 / rung 2 / rung 3+`code_scan_setdefault` bake. Absent, malformed,
+# unknown-source, and serialized-legacy provenance are advisory-only (never bake).
+# ---------------------------------------------------------------------------
+
+_UNSET = object()   # distinguishes "no provenance key at all" from an explicit None
+
+
+def _cfg_need(value, provenance=_UNSET):
+    kw = {"config_value": value}
+    if provenance is not _UNSET:
+        kw["config_provenance"] = provenance
+    return _need("config:DJANGO_SETTINGS_MODULE", NodeType.CONFIG,
+                 "DJANGO_SETTINGS_MODULE", Layer.CONFIG, data=kw)
+
+
+def test_config_env_marker_refused_when_provenance_absent():
+    # A legacy / hand-built CONFIG node carrying only `config_value` (no
+    # provenance) must NOT bake -- fail closed, no matter the allowlist.
+    out = render_build_script(DepGraph(nodes=(_cfg_need("settings"),)))
+    assert "#@config-env" not in out
+
+
+def test_config_env_marker_refused_for_rung3b_fallback():
+    out = render_build_script(DepGraph(nodes=(
+        _cfg_need("settings", {"rung": 3, "source": "code_scan_fallback"}),)))
+    assert "#@config-env" not in out
+
+
+def test_config_env_marker_refused_for_malformed_provenance():
+    for bad in (None, {}, {"rung": 99}, {"source": "code_scan_setdefault"}, "nope", 3):
+        out = render_build_script(DepGraph(nodes=(_cfg_need("settings", bad),)))
+        assert "#@config-env" not in out, f"malformed provenance baked: {bad!r}"
+
+
+def test_config_env_marker_refused_for_unknown_rung3_source():
+    out = render_build_script(DepGraph(nodes=(
+        _cfg_need("settings", {"rung": 3, "source": "code_scan_bogus"}),)))
+    assert "#@config-env" not in out
+
+
+def test_config_env_marker_bakes_for_rung3a_setdefault():
+    out = render_build_script(DepGraph(nodes=(
+        _cfg_need("settings", {"rung": 3, "source": "code_scan_setdefault"}),)))
+    assert "#@config-env DJANGO_SETTINGS_MODULE=settings" in out
+
+
+def test_config_provenance_survives_json_round_trip_and_gate_still_refuses_3b():
+    # Serialized-graph path (Node.from_dict): provenance survives to_dict/from_dict
+    # and the gate still refuses a rung-3b value after the round trip.
+    node = _cfg_need("settings", {"rung": 3, "source": "code_scan_fallback"})
+    restored = Node.from_dict(node.to_dict())
+    assert restored.data["config_provenance"] == {"rung": 3, "source": "code_scan_fallback"}
+    out = render_build_script(DepGraph(nodes=(restored,)))
+    assert "#@config-env" not in out
+
+
+def test_config_provenance_survives_json_round_trip_and_bakes_eligible():
+    node = _cfg_need("settings", {"rung": 1, "source": "authoritative_config"})
+    restored = Node.from_dict(node.to_dict())
+    out = render_build_script(DepGraph(nodes=(restored,)))
+    assert "#@config-env DJANGO_SETTINGS_MODULE=settings" in out
 
 
 # ---------------------------------------------------------------------------

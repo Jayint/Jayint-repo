@@ -12,6 +12,7 @@ import ast
 import configparser
 import os
 import re
+from dataclasses import dataclass
 
 from graph.model import DiscoveredBy, Layer, Node, NodeType, State
 
@@ -90,33 +91,94 @@ def _const_str(node: ast.AST) -> str | None:
     return node.value if isinstance(node, ast.Constant) and isinstance(node.value, str) else None
 
 
-def _var_from_call(call: ast.Call) -> str | None:
+@dataclass(frozen=True)
+class _OsBindings:
+    """Per-file module-level import bindings that resolve to real ``os`` names, so
+    the env scanners classify setdefault/get/getenv against a GENUINE
+    ``os.environ`` / ``os.getenv`` receiver rather than a look-alike attribute
+    (e.g. ``settings.environ``). Built once per file by ``_collect_os_bindings``."""
+    os_module: frozenset[str] = frozenset()   # names bound to the `os` module itself
+    environ: frozenset[str] = frozenset()     # names bound directly to os.environ
+    getenv: frozenset[str] = frozenset()      # names bound directly to os.getenv
+
+
+_NO_OS_BINDINGS = _OsBindings()
+
+
+def _collect_os_bindings(tree: ast.AST) -> _OsBindings:
+    """Resolve ``import os [as X]`` / ``import os.path`` and
+    ``from os import environ|getenv [as X]`` into the names they bind. Only
+    absolute (``level == 0``) ``from os`` imports count -- a relative
+    ``from .os import ...`` is a local module, not stdlib ``os``."""
+    os_module: set[str] = set()
+    environ: set[str] = set()
+    getenv: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                if a.name == "os":
+                    os_module.add(a.asname or "os")
+                elif a.name.startswith("os.") and a.asname is None:
+                    os_module.add("os")            # `import os.path` also binds top-level `os`
+        elif isinstance(node, ast.ImportFrom) and node.module == "os" and (node.level or 0) == 0:
+            for a in node.names:
+                if a.name == "environ":
+                    environ.add(a.asname or "environ")
+                elif a.name == "getenv":
+                    getenv.add(a.asname or "getenv")
+    return _OsBindings(frozenset(os_module), frozenset(environ), frozenset(getenv))
+
+
+def _resolves_to_os_environ(owner: ast.AST, b: _OsBindings) -> bool:
+    """True only when ``owner`` GENUINELY resolves to ``os.environ`` under the
+    file's import bindings -- a name bound via ``from os import environ [as X]``,
+    or ``<os-module-alias>.environ``. A bare ``settings.environ`` (unknown base)
+    or an ``environ`` name not bound from ``os`` is NOT genuine (fail-closed)."""
+    if isinstance(owner, ast.Name):
+        return owner.id in b.environ
+    if isinstance(owner, ast.Attribute) and owner.attr == "environ":
+        base = owner.value
+        return isinstance(base, ast.Name) and base.id in b.os_module
+    return False
+
+
+def _is_environ_receiver(owner: ast.AST, b: _OsBindings) -> bool:
+    """Broad DETECTION of an ``environ``-shaped receiver worth surfacing as a
+    config READ (advisory). A superset of ``_resolves_to_os_environ``: it also
+    accepts a bare ``environ`` name and any ``*.environ`` attribute, so a value
+    read from an unresolved ``settings.environ`` is still surfaced -- but it is
+    classified advisory (3b) and never bake-eligible (see ``_is_setdefault_call``
+    / ``scan_env_defaults_provenance``)."""
+    if isinstance(owner, ast.Name):
+        return owner.id == "environ" or owner.id in b.environ
+    return isinstance(owner, ast.Attribute) and owner.attr == "environ"
+
+
+def _var_from_call(call: ast.Call, bindings: _OsBindings = _NO_OS_BINDINGS) -> str | None:
     """``os.getenv('X')`` / ``os.environ.get('X')`` / ``os.environ.setdefault('X', ...)``
-    -> ``'X'`` (first str arg).
+    (and import-aliased forms) -> ``'X'`` (first str arg).
 
     ``setdefault`` is the canonical Django ``manage.py``/``wsgi.py`` idiom
     (``os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings')``) — without
     it the scanner is blind to essentially every Django project's entrypoint
-    (FIX A1)."""
+    (FIX A1). ``get``/``setdefault`` are accepted only on an environ-shaped
+    receiver (``_is_environ_receiver``); a bare ``getenv`` name counts only when
+    it is bound via ``from os import getenv`` (``bindings.getenv``)."""
     func = call.func
-    name = None
     if isinstance(func, ast.Attribute):
-        name = func.attr
-    if name not in ("getenv", "get", "setdefault"):
-        return None
-    # environ.get / environ.setdefault must be on an `environ` object to count
-    # (both are extremely common method names on plain dicts too).
-    if name in ("get", "setdefault"):
-        owner = func.value
-        owner_ok = (isinstance(owner, ast.Name) and owner.id == "environ") or (
-            isinstance(owner, ast.Attribute) and owner.attr == "environ"
-        )
-        if not owner_ok:
+        if func.attr in ("get", "setdefault"):
+            if not _is_environ_receiver(func.value, bindings):
+                return None
+        elif func.attr != "getenv":
             return None
-    return _const_str(call.args[0]) if call.args else None
+        return _const_str(call.args[0]) if call.args else None
+    if isinstance(func, ast.Name) and func.id in bindings.getenv:
+        return _const_str(call.args[0]) if call.args else None
+    return None
 
 
-def _default_from_call(call: ast.Call) -> tuple[str, str] | None:
+def _default_from_call(call: ast.Call, bindings: _OsBindings = _NO_OS_BINDINGS
+                       ) -> tuple[str, str] | None:
     """``os.environ.get('X', 'literal')`` / ``os.getenv('X', 'literal')`` /
     ``os.environ.setdefault('X', 'literal')`` -> ``('X', 'literal')``; only when
     BOTH the name and the default are string literals (f-strings / non-str
@@ -127,7 +189,7 @@ def _default_from_call(call: ast.Call) -> tuple[str, str] | None:
     var is absent — i.e. it is authoritative, not a guess (FIX A1's bonus:
     ``DJANGO_SETTINGS_MODULE=settings`` is exactly what gold's winning
     Dockerfile hand-writes for a Django ``manage.py``)."""
-    var = _var_from_call(call)
+    var = _var_from_call(call, bindings)
     if var is None or len(call.args) < 2:
         return None
     default = _const_str(call.args[1])
@@ -136,13 +198,9 @@ def _default_from_call(call: ast.Call) -> tuple[str, str] | None:
     return var, default
 
 
-def _var_from_subscript(sub: ast.Subscript) -> str | None:
-    """``os.environ['X']`` / ``environ['X']`` -> ``'X'``."""
-    value = sub.value
-    is_environ = (isinstance(value, ast.Name) and value.id == "environ") or (
-        isinstance(value, ast.Attribute) and value.attr == "environ"
-    )
-    if not is_environ:
+def _var_from_subscript(sub: ast.Subscript, bindings: _OsBindings = _NO_OS_BINDINGS) -> str | None:
+    """``os.environ['X']`` / ``environ['X']`` (and import-aliased ``environ``) -> ``'X'``."""
+    if not _is_environ_receiver(sub.value, bindings):
         return None
     return _const_str(sub.slice)
 
@@ -152,12 +210,13 @@ def _scan_source(src: str, rel: str, out: dict[str, str]) -> None:
         tree = ast.parse(src)
     except SyntaxError:
         return
+    bindings = _collect_os_bindings(tree)
     for node in ast.walk(tree):
         var = None
         if isinstance(node, ast.Call):
-            var = _var_from_call(node)
+            var = _var_from_call(node, bindings)
         elif isinstance(node, ast.Subscript):
-            var = _var_from_subscript(node)
+            var = _var_from_subscript(node, bindings)
         if var and var not in out:
             snippet = " ".join((src.splitlines()[node.lineno - 1] if node.lineno else "").split())
             out[var] = f"{rel}:{getattr(node, 'lineno', 0)}  {snippet}"[:200]
@@ -192,11 +251,15 @@ _SOURCE_SETDEFAULT = "code_scan_setdefault"
 _SOURCE_FALLBACK = "code_scan_fallback"
 
 
-def _is_setdefault_call(call: ast.Call) -> bool:
-    """True for ``<environ>.setdefault(...)`` (the env-*writing* form). The owner
-    is already validated by ``_var_from_call``; here we only read the method name."""
+def _is_setdefault_call(call: ast.Call, bindings: _OsBindings = _NO_OS_BINDINGS) -> bool:
+    """True only for a GENUINE ``os.environ.setdefault(...)`` -- the env-*writing*
+    entrypoint idiom that stays bake-eligible (3a). A ``setdefault`` on an
+    UNRESOLVED receiver (``settings.environ``, or an ``environ`` name not bound
+    from ``os``) is fail-closed to advisory 3b, never promoted to 3a -- baking is
+    a safety-sensitive decision, so an unproven receiver must not qualify."""
     func = call.func
-    return isinstance(func, ast.Attribute) and func.attr == "setdefault"
+    return (isinstance(func, ast.Attribute) and func.attr == "setdefault"
+            and _resolves_to_os_environ(func.value, bindings))
 
 
 def scan_env_defaults_provenance(repo_path: str) -> dict[str, tuple[str, str]]:
@@ -255,13 +318,14 @@ def scan_env_defaults_provenance(repo_path: str) -> dict[str, tuple[str, str]]:
                 tree = ast.parse(src)
             except (OSError, SyntaxError):
                 continue
+            bindings = _collect_os_bindings(tree)
             for node in ast.walk(tree):
                 if isinstance(node, ast.Call):
-                    hit = _default_from_call(node)
+                    hit = _default_from_call(node, bindings)
                     if hit:
                         values.setdefault(hit[0], set()).add(hit[1])
                         setdefaulted[hit[0]] = (
-                            setdefaulted.get(hit[0], False) or _is_setdefault_call(node))
+                            setdefaulted.get(hit[0], False) or _is_setdefault_call(node, bindings))
     out: dict[str, tuple[str, str]] = {}
     for var, seen in values.items():
         if len(seen) != 1:
@@ -360,12 +424,26 @@ def _read_env_pairs(path: str) -> dict[str, str]:
     return pairs
 
 
-def parse_env_example(repo_path: str) -> dict[str, str]:
-    """`{VAR: example_value}` from .env.example/.sample/.template (value hints)."""
-    out: dict[str, str] = {}
-    for fname in (".env.example", ".env.sample", ".env.template"):
-        out.update(_read_env_pairs(os.path.join(repo_path, fname)))
+_ENV_EXAMPLE_FILES: tuple[str, ...] = (".env.example", ".env.sample", ".env.template")
+
+
+def parse_env_example_provenance(repo_path: str) -> dict[str, tuple[str, str]]:
+    """`{VAR: (example_value, source_file)}` from .env.example/.sample/.template,
+    recording WHICH file each var won from (later files override earlier, matching
+    ``parse_env_example``'s precedence). Lets a value won from ``.env.sample``
+    anchor its provenance/evidence to ``.env.sample`` rather than a mislabeled
+    ``.env.example`` (B1 review #2)."""
+    out: dict[str, tuple[str, str]] = {}
+    for fname in _ENV_EXAMPLE_FILES:
+        for var, value in _read_env_pairs(os.path.join(repo_path, fname)).items():
+            out[var] = (value, fname)
     return out
+
+
+def parse_env_example(repo_path: str) -> dict[str, str]:
+    """`{VAR: example_value}` from .env.example/.sample/.template (value hints) --
+    a thin value-only projection of ``parse_env_example_provenance``."""
+    return {var: value for var, (value, _f) in parse_env_example_provenance(repo_path).items()}
 
 
 # ---------------------------------------------------------------------------

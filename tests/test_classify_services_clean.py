@@ -557,7 +557,22 @@ def test_provenance_rung2_env_example(tmp_path):
     _write(tmp_path, "app.py", "import os\nos.environ['FLASK_APP']\n")
     graph = classify_services_clean(DepGraph(), str(tmp_path))
     cfg = graph.get("config:FLASK_APP")
-    assert cfg.data["config_provenance"] == {"rung": 2, "source": "env_example"}
+    # rung-2 source is the ACTUAL .env.* file the value won from (B1 review #2).
+    assert cfg.data["config_provenance"] == {"rung": 2, "source": ".env.example"}
+
+
+def test_provenance_rung2_threads_actual_env_sample_file(tmp_path):
+    """B1 review #2: a value won from `.env.sample` (not `.env.example`) must
+    record `.env.sample` as its provenance source AND anchor its evidence to the
+    `.env.sample` row, not a mislabeled `.env.example`."""
+    _write(tmp_path, ".env.sample", "FLASK_APP=sample.wsgi\n")
+    _write(tmp_path, "app.py", "import os\nos.environ['FLASK_APP']\n")
+    graph = classify_services_clean(DepGraph(), str(tmp_path))
+    cfg = graph.get("config:FLASK_APP")
+    assert cfg.data["config_provenance"] == {"rung": 2, "source": ".env.sample"}
+    hits = csc.collect_static_evidence(str(tmp_path), DepGraph())
+    by_id = {h.evidence_id: h for h in hits}
+    assert by_id[cfg.evidence].file == ".env.sample"
 
 
 def test_provenance_rung3a_setdefault(tmp_path):

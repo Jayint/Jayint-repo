@@ -9,7 +9,7 @@ import json
 from dataclasses import dataclass
 
 from graph.python.config_scan import (
-    scan_env_reads, parse_env_example, scan_framework_config_reads,
+    scan_env_reads, parse_env_example_provenance, scan_framework_config_reads,
     scan_tox_setenv, scan_pytest_ini, scan_setup_cfg_pytest, scan_pyproject_pytest,
 )
 from graph.python.services.service_scan import scan_ci_services, scan_compose_services
@@ -64,8 +64,8 @@ def collect_static_evidence(repo_path: str, graph=None) -> tuple[DeterministicHi
         if meta.get("healthcheck"):
             _snip += f" healthcheck={meta['healthcheck']}"
         _add("docker-compose.yml", "compose_service", name=svc, snippet=_snip)
-    for var, default in sorted(parse_env_example(repo_path).items()):
-        _add(".env.example", "env_var", name=var, snippet=str(default))
+    for var, (default, srcfile) in sorted(parse_env_example_provenance(repo_path).items()):
+        _add(srcfile, "env_var", name=var, snippet=str(default))
     for var, file in sorted(scan_env_reads(repo_path).items()):
         _add(file, "env_read", name=var)
     seen_vars = {h.name for h in hits if h.kind in ("env_var", "env_read")}

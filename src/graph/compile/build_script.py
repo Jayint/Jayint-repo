@@ -314,19 +314,28 @@ def _known_config_value(node: Node) -> str | None:
 
 def _config_bake_eligible(node: Node) -> bool:
     """Bake-eligibility keyed on a CONFIG node's ``data["config_provenance"]``
-    ``{rung, source}`` (B1 residual c). The rung-3 SPLIT: a value whose provenance
-    is rung-3b ``code_scan_fallback`` (an ``os.environ.get``/``getenv`` *read-time*
-    default) is advisory-only and must NEVER bake, even when the var is allowlisted
-    -- the imported code applies that default itself at test time, so refusing costs
-    nothing. Everything else stays eligible: rungs 1/2 (authoritative config,
-    ``.env.example``) and rung-3a ``code_scan_setdefault`` (the env-*writing*
-    entrypoint idiom -- the canonical DJANGO_SETTINGS_MODULE payoff). A node with NO
-    provenance (a hand-built / legacy CONFIG node) is left to the allowlist gate --
-    this check only ever SUBTRACTS the 3b case, never adds a provenance requirement."""
+    ``{rung, source}`` (B1 residual c / review #1). FAILS CLOSED: baking a
+    Dockerfile ENV is safety-sensitive (a wrong value silently shadows the real
+    config), so ONLY provenance that is explicitly, recognizably eligible bakes:
+
+      * rung 1 (authoritative config) and rung 2 (``.env.*``) -> eligible.
+      * rung 3 with source ``code_scan_setdefault`` (the env-*writing*
+        ``os.environ.setdefault`` entrypoint idiom -- the DJANGO_SETTINGS_MODULE
+        payoff) -> eligible.
+
+    Everything else -- ABSENT provenance (a legacy serialized or hand-built node
+    carrying only ``config_value``), a MALFORMED dict (missing/unknown ``rung``),
+    an UNKNOWN ``source``, and rung-3b ``code_scan_fallback`` -- is advisory-only
+    and NEVER bakes. In the production pipeline every discovered value is stamped
+    with provenance by ``classify_services_clean._resolve_config_value``, so a
+    missing stamp is a signal to withhold, not to trust."""
     prov = node.data.get("config_provenance")
     if not isinstance(prov, dict):
+        return False
+    rung = prov.get("rung")
+    if rung in (1, 2):
         return True
-    return not (prov.get("rung") == 3 and prov.get("source") == "code_scan_fallback")
+    return rung == 3 and prov.get("source") == "code_scan_setdefault"
 
 
 def _config_env_marker(node: Node) -> str | None:

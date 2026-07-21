@@ -265,6 +265,57 @@ def test_scan_env_defaults_provenance_setdefault_wins_over_matching_fallback(tmp
     assert prov["DJANGO_SETTINGS_MODULE"] == ("proj.settings", "code_scan_setdefault")
 
 
+def test_settings_environ_setdefault_is_not_3a_bake_eligible(tmp_path):
+    # SAFETY: `settings.environ.setdefault(...)` does NOT genuinely resolve to
+    # os.environ (the receiver base is `settings`, not the `os` module), so it
+    # must classify as advisory 3b `code_scan_fallback`, never bake-eligible 3a.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "app/conf.py", """
+        import settings
+        settings.environ.setdefault('DJANGO_SETTINGS_MODULE', 'evil.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["DJANGO_SETTINGS_MODULE"] == ("evil.settings", "code_scan_fallback")
+
+
+def test_from_os_import_environ_alias_setdefault_is_3a(tmp_path):
+    # FALSE-NEGATIVE FIX: `from os import environ as env; env.setdefault(...)`
+    # genuinely resolves to os.environ and must be bake-eligible 3a.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "wsgi.py", """
+        from os import environ as env
+        env.setdefault('DJANGO_SETTINGS_MODULE', 'proj.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["DJANGO_SETTINGS_MODULE"] == ("proj.settings", "code_scan_setdefault")
+
+
+def test_from_os_import_getenv_alias_is_detected_and_3b(tmp_path):
+    # FALSE-NEGATIVE FIX: a bare `getenv` bound via `from os import getenv` is a
+    # real env read (previously missed); getenv is a read-time default -> 3b.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "app/x.py", """
+        from os import getenv
+        FLAG = getenv('FEATURE_FLAG', 'on')
+    """)
+    assert "FEATURE_FLAG" in scan_env_reads(str(tmp_path))
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    assert prov["FEATURE_FLAG"] == ("on", "code_scan_fallback")
+
+
+def test_unresolvable_environ_receiver_setdefault_falls_closed_to_3b(tmp_path):
+    # A bare `environ` name NOT bound from os (no `from os import environ`) is
+    # unresolvable -> fail-closed to advisory 3b, never 3a.
+    from graph.python.config_scan import scan_env_defaults_provenance
+    _write(tmp_path, "app/y.py", """
+        environ = get_some_other_mapping()
+        environ.setdefault('DJANGO_SETTINGS_MODULE', 'x.settings')
+    """)
+    prov = scan_env_defaults_provenance(str(tmp_path))
+    # detected (broad, advisory) but never bake-eligible
+    assert prov.get("DJANGO_SETTINGS_MODULE") == ("x.settings", "code_scan_fallback")
+
+
 def test_scan_env_defaults_is_a_value_projection_of_provenance(tmp_path):
     # scan_env_defaults must stay byte-identical to "just the values" of the
     # provenance scan -- existing callers (_dsn_configs) depend on the plain shape.
