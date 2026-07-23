@@ -127,7 +127,7 @@ def test_plan_traces_the_edit_op(monkeypatch):
 # --- system prompt ---------------------------------------------------------
 def test_system_prompt_has_all_sections():
     sp = planner_mod.SYSTEM_PROMPT
-    for section in ("GOAL", "APPROACH", "INTEGRITY", "ENVIRONMENT (this run)", "TOOLS"):
+    for section in ("ROLE", "GOAL", "READING A FAILURE", "RULES", "ENVIRONMENT (this run)", "TOOLS"):
         assert section in sp
 
 def test_tools_section_names_explore_and_edit():
@@ -140,8 +140,8 @@ def test_integrity_forbids_narrowing_the_collected_test_set():
     # prompt must state the host ENFORCES it — the ask alone didn't hold.
     sp = planner_mod.SYSTEM_PROMPT
     assert "collect" in sp.lower()                        # names WHAT must not shrink (pytest collection)
-    assert "still deselecting" in sp                      # excluding tests you can't run == deselecting
-    assert "rejected" in sp.lower()                       # host rejects an edit that shrinks the set
+    assert "--ignore" in sp and "testpaths" in sp         # names the concrete collection-narrowing mechanisms
+    assert "reject" in sp.lower()                         # host rejects an edit that shrinks the set
 
 def test_render_injects_rejection_hint(monkeypatch):
     # On a same-turn retry after a tool misuse, the rejection reason is injected into the prompt.
@@ -168,22 +168,25 @@ def test_render_omits_turn_counter_without_turn(monkeypatch):
     assert "Turn " not in seen["user"] and "call one tool" in seen["user"]
 
 def test_system_prompt_frames_the_turn_budget():
-    assert "limited, counted number of turns" in planner_mod.SYSTEM_PROMPT
+    assert "Turns are counted" in planner_mod.SYSTEM_PROMPT
 
 def test_system_prompt_directs_edit_until_pass_and_explore_is_ephemeral():
-    # The agent over-explored (azure: 30 explores / 0 edits). The prompt must state that repair is an
-    # EDIT loop to green, and that installs done inside explore don't persist (edit setup.sh instead).
+    # The agent over-explored (azure: 30 explores / 0 edits). The prompt must state the goal is a
+    # passing suite, that installs done inside explore don't persist (edit setup.sh instead), and
+    # that over-exploration wastes the budget.
     sp = planner_mod.SYSTEM_PROMPT
-    assert "until the build is clean and the tests pass" in sp   # iterate-to-green imperative
-    assert "gone next turn" in sp                                # explore mutations don't persist
-    assert "failure, not diligence" in sp                        # over-exploration is discouraged
+    flat = " ".join(sp.split())                                 # whitespace-normalized: line-wraps don't split phrases
+    assert "pytest pass rate" in sp                             # goal: iterate to a passing suite
+    assert "nothing you install here persists" in sp           # explore mutations don't persist
+    assert "don't explore the budget away" in flat             # over-exploration is discouraged
 
 def test_system_prompt_orients_seed_is_prebuilt_closure_and_limits_explore():
-    # The seed already encodes the graph-resolved package closure, so the agent should read the
-    # error/ENVIRONMENT first and NOT explore to re-derive the package list (the M3 over-exploration).
+    # The seed already encodes the graph-resolved package closure, so the agent should treat it as a
+    # near-complete starting point rather than re-deriving the package list (the M3 over-exploration).
     sp = planner_mod.SYSTEM_PROMPT
-    assert "already installs the package closure" in sp        # seed = near-complete starting point
-    assert "re-derive the package closure" in sp               # explore is not for rediscovering packages
+    flat = " ".join(sp.split())                                          # whitespace-normalized: line-wraps don't split phrases
+    assert "already installs the repo's declared package closure" in flat   # seed = resolved closure
+    assert "near-complete" in sp                                          # a starting point, not a blank slate
 
 def test_build_system_prompt_injects_env_and_placeholder():
     filled = planner_mod.build_system_prompt(
@@ -255,9 +258,9 @@ def test_prompt_style_default_still_forces_tool_choice(monkeypatch):
 # --- set -e halt semantics in the prompt ----------------------------------
 def test_system_prompt_explains_set_e_halt_semantics():
     sp = planner_mod.SYSTEM_PROMPT
-    assert "halts at the first failing command" in sp        # fail-fast is stated
+    assert "stops at the first failing command" in sp        # fail-fast is stated
     assert "never ran" in sp                                 # lines below the halt are unexecuted
-    assert "BUILD HALTED HERE" in sp                         # ties the prose to the inline script marker
+    assert "BUILD HALTED HERE" in " ".join(sp.split())       # ties the prose to the inline script marker (wrap-robust)
 
 
 def test_integrity_forbids_installing_the_project_from_an_index():
@@ -266,4 +269,4 @@ def test_integrity_forbids_installing_the_project_from_an_index():
     sp = planner_mod.SYSTEM_PROMPT
     assert "pip install -e ." in sp                    # names the correct install
     assert "package index" in sp                       # names what's forbidden
-    assert "shadow" in sp.lower()                      # says WHY (published copy shadows the source)
+    assert "fakes a pass" in sp.lower()                # says WHY (a published copy fakes a pass against absent code)
