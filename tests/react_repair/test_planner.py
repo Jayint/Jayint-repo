@@ -270,3 +270,16 @@ def test_integrity_forbids_installing_the_project_from_an_index():
     assert "pip install -e ." in sp                    # names the correct install
     assert "package index" in sp                       # names what's forbidden
     assert "fakes a pass" in sp.lower()                # says WHY (a published copy fakes a pass against absent code)
+
+
+def test_system_prompt_says_host_runs_pytest_and_agent_reads_it():
+    # The host runs the tests every green turn; the agent's job is to READ that output and repair —
+    # not to run pytest itself (which the loop also refuses).
+    flat = " ".join(planner_mod.SYSTEM_PROMPT.split())
+    assert "the host runs the tests for you" in flat.lower()
+    assert "you can't run pytest yourself" in flat.lower()
+
+def test_tools_dissuade_running_the_tests_and_point_at_provided_facts():
+    flat = " ".join(planner_mod.SYSTEM_PROMPT.split()).lower()
+    assert "don't run the tests" in flat                 # explore steers off pytest
+    assert "environment state" in flat                   # points at the deterministic facts already given

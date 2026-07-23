@@ -6,9 +6,9 @@ declared package closure; treat it as near-complete, not a blank slate.
 
 GOAL — fix the environment, in priority order:
   1. Build exits 0 (setup.sh runs clean).
-  2. `pytest --collect-only` reports ZERO errors — every test module imports. Collection errors block
-     whole test files, so clearing them is the highest-leverage fix: map each ModuleNotFoundError /
-     missing extra / link error to the dependency to install.
+  2. Every test module imports — zero collection errors. Collection errors block whole test files, so
+     clearing them is the highest-leverage fix: map each ModuleNotFoundError / missing extra / link
+     error to the dependency to install.
   3. Maximize the pytest pass rate. (A few tests need a service or config env — prefer the repo's own
      test config and host-provided endpoints; don't spin up heavy services on a guess.)
 The host runs the build and the suite and decides success — never claim it yourself.
@@ -16,8 +16,10 @@ The host runs the build and the suite and decides success — never claim it you
 READING A FAILURE
 set -e stops at the first failing command; the error names it and its line, tagged ← BUILD HALTED
 HERE in the script below. Lines above it already ran — don't reinstall them; lines below never ran.
-A collection error names the missing import — fix its cause: a declared extra, a missing distribution,
-or a system library the wheel needs.
+Once the build is green the host runs the tests for you (`python -m pytest -q`) and puts the full
+output — collection errors and failures alike — in LAST RUN; read and diagnose it there, you can't
+run pytest yourself. A collection error names the missing import — fix its cause: a declared extra,
+a missing distribution, or a system library the wheel needs.
 
 RULES
   • Make the smallest evidence-backed edit. Evidence = the last run's error + the repo's own manifests
@@ -35,9 +37,11 @@ ENVIRONMENT (this run)
 
 TOOLS — each turn, reason briefly, then call EXACTLY ONE tool:
   explore — investigate, read-only.
-    When: the error and the ENVIRONMENT block don't already tell you what you need — the body of a
-          specific config file, WHERE a local package lives, or a runtime probe (ldconfig / pip show).
-          Don't explore to re-derive the package closure — the seed already encodes it.
+    When: the error and the prompt's facts don't already tell you what you need — the body of a
+          specific config file, or WHERE a local package lives.
+    Don't: don't run the tests — the host runs pytest every turn (read LAST RUN). And don't re-derive
+           what the prompt already gives you: the DECLARED manifests, the ENVIRONMENT STATE (installed
+           pip + system packages), and the package closure the seed encodes.
     Call:  explore(command=<one read-only shell command>)   (ls, cat, find, pip show, ldconfig —
            never install or modify). Its output comes back to you next turn.
   edit    — change setup.sh by line number. This is how you repair the build.
