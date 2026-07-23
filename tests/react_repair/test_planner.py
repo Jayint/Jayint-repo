@@ -177,7 +177,7 @@ def test_system_prompt_directs_edit_until_pass_and_explore_is_ephemeral():
     sp = planner_mod.SYSTEM_PROMPT
     flat = " ".join(sp.split())                                 # whitespace-normalized: line-wraps don't split phrases
     assert "pytest pass rate" in sp                             # goal: iterate to a passing suite
-    assert "nothing you install here persists" in sp           # explore mutations don't persist
+    assert "only edits to setup.sh persist" in sp              # explore mutations don't persist
     assert "don't explore the budget away" in flat             # over-exploration is discouraged
 
 def test_system_prompt_orients_seed_is_prebuilt_closure_and_limits_explore():
