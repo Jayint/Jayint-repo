@@ -4,6 +4,7 @@ no re-run) or PATCH (replace the script, reset + re-run). All adapters injected 
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 
 from graph.compile.build_script import render_build_script, _config_env_block
@@ -28,6 +29,32 @@ _FORMAT_REMINDER = ("Call exactly one tool — explore or edit. explore is READ-
                     "persist. To install a dependency or change the environment, add the line to "
                     "setup.sh with edit() instead.")
 _OUT_OF_RANGE_HINT = "edit line out of range — check the numbered setup.sh and retry"
+
+# The host runs `python -m pytest -q` for the agent at the end of every green build and hands it the
+# full output (collection errors + failures) in LAST RUN — so an agent-run pytest is redundant AND
+# expensive (a whole suite inside a read-only probe). explore refuses it; because the refusal routes
+# through the invalid path, it costs NO turn (re-prompted in place, bounded by _INVALID_RETRIES).
+_PYTEST_HINT = ("the host already runs `python -m pytest -q` for you at the end of every green build — "
+                "its full output (collection errors AND test failures) is in LAST RUN. Read and diagnose "
+                "that; don't re-run pytest (redundant and slow). Use your move to edit setup.sh, or "
+                "explore a specific file/probe (cat, pip show, ldconfig).")
+
+
+def _is_pytest_command(cmd: str) -> bool:
+    """True if the explore command INVOKES pytest (so it can be refused). Token-based, not substring:
+    the FIRST token of each shell segment must be `pytest`/`py.test`, or `python[3] -m pytest` — so
+    `cat pytest.ini` and `pip show pytest` (pytest as an argument, not the command) are NOT caught."""
+    for seg in re.split(r"&&|\|\||[;|&]", cmd or ""):
+        toks = seg.split()
+        if not toks:
+            continue
+        if toks[0] in ("pytest", "py.test"):
+            return True
+        if toks[0] in ("python", "python3") and "-m" in toks:
+            i = toks.index("-m")
+            if i + 1 < len(toks) and toks[i + 1] == "pytest":
+                return True
+    return False
 
 
 def _gaming_hint(reason: str) -> str:
@@ -234,6 +261,8 @@ def _classify_action(action, script: str, project_name: "str | None" = None) -> 
     ("edit", new_script) / ("patch", new_script) for a usable move, or ("invalid", hint) for a tool
     misuse. Edit validity requires computing the splice, so the new script rides back in the payload."""
     if action.kind == "explore":
+        if action.command and _is_pytest_command(action.command):
+            return "invalid", _PYTEST_HINT              # host runs pytest every turn; re-prompt, no turn spent
         if action.command and is_read_only(action.command):
             return "explore", action.command
         return "invalid", _FORMAT_REMINDER              # non-read-only or empty command

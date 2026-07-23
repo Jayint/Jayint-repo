@@ -923,3 +923,42 @@ def test_loop_env_state_empty_when_flag_off(monkeypatch):
               history=History(), log=ReactLog(silent=True), max_steps=1,
               _initial_script="pip install app\n")
     assert planner.env_states[0] == ""
+
+
+# ── agent-run pytest is refused (the host runs it every green turn) ────────────────────────────
+def test_is_pytest_command_detects_invocations_not_arguments():
+    from src.agent.loop import _is_pytest_command
+    assert _is_pytest_command("pytest -q")
+    assert _is_pytest_command("python -m pytest tests/")
+    assert _is_pytest_command("python3 -m pytest")
+    assert _is_pytest_command("py.test")
+    assert _is_pytest_command("cd /app && pytest")
+    assert not _is_pytest_command("cat pytest.ini")          # pytest as a filename argument
+    assert not _is_pytest_command("pip show pytest")         # pytest as a package name
+    assert not _is_pytest_command("ls -la")
+
+
+def test_classify_action_refuses_pytest_explore():
+    from src.agent.loop import _classify_action, _PYTEST_HINT
+    kind, hint = _classify_action(Action("explore", command="python -m pytest -q"), "s\n")
+    assert kind == "invalid" and hint == _PYTEST_HINT
+    kind2, cmd2 = _classify_action(Action("explore", command="cat setup.py"), "s\n")
+    assert kind2 == "explore" and cmd2 == "cat setup.py"     # a normal probe still explores
+
+
+def test_pytest_explore_is_refused_and_never_executed():
+    # A pytest explore is refused and re-prompted IN PLACE (no turn spent); the SAME turn's next
+    # (valid) move does the work, and the pytest command never reaches the container.
+    ro_calls = []
+    def ro(cmd):
+        ro_calls.append(cmd); return (0, "probe-output")
+    box = ["pip install app\n"]
+    reset, run_script, certify, _ro, run_tests = _adapters(("libpq-dev",), (), box)
+    planner = _ScriptedPlanner([Action("explore", command="python -m pytest -q"),
+                                Action("edit", edit=EditOp("insert", 1, 1, "apt-get install -y libpq-dev"))])
+    outcome, script, _ = run_react(object(), reset=reset, run_script=run_script, certify=certify,
+                                   exec_readonly=ro, run_tests=run_tests, planner=planner,
+                                   history=History(), log=ReactLog(silent=True), max_steps=3,
+                                   _initial_script="pip install app\n")
+    assert not any("pytest" in c for c in ro_calls)          # the refused explore never ran
+    assert "libpq-dev" in script and outcome == "DONE"       # the retry's valid edit did the work
