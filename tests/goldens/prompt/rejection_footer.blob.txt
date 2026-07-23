@@ -33,11 +33,19 @@ RULES
 ENVIRONMENT (this run)
   (environment details unavailable this run)
 
-TOOLS — reason briefly, then call EXACTLY ONE:
-  explore(command)          read-only probe: cat, pip show, ldconfig, `pytest --collect-only`.
-                            Result returns next turn; nothing you install here persists.
-  edit(verb, start, end, content)   verb = replace | insert | delete. Line numbers match CURRENT
-                            setup.sh (the same ones the build failure names).
+TOOLS — each turn, reason briefly, then call EXACTLY ONE tool:
+  explore — investigate, read-only.
+    When: the error and the ENVIRONMENT block don't already tell you what you need — the body of a
+          specific config file, WHERE a local package lives, or a runtime probe (ldconfig / pip show).
+          Don't explore to re-derive the package closure — the seed already encodes it.
+    Call:  explore(command=<one read-only shell command>)   (ls, cat, find, pip show, ldconfig —
+           never install or modify). Its output comes back to you next turn.
+  edit    — change setup.sh by line number. This is how you repair the build.
+    When: you know the change to make — add a missing dependency, repin a version, or remove/
+          replace the line the failure points to. Don't keep exploring once you can act.
+    Call:  edit(verb, start, end, content). verb = replace | insert | delete; start/end are the
+           line numbers shown in CURRENT setup.sh (the same ones the build failure names); content
+           is the shell line(s) to add for replace/insert (omit for delete).
 ===== message[1] role=user =====
 CURRENT setup.sh (line numbers are for Edit refs and match the build failure's "line N" — the "n| " prefix is NOT part of the script):
 1| #!/usr/bin/env bash
